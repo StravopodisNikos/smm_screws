@@ -40,10 +40,19 @@ public:
     Eigen::Matrix3f skewExp(const Eigen::Vector3f& w, float theta);
     Eigen::Isometry3f twistExp(const Eigen::Matrix<float, 6, 1>& xi, float theta);
     Eigen::Isometry3f twistExp(const Eigen::Matrix4f& xi, float theta);
+    Eigen::Isometry3f extractRelativeTf(Eigen::Isometry3f Ai, Eigen::Isometry3f Ai_1); // Computes: Bi [Mueller], g_i_i-1(0) [Murray]
+    Eigen::Matrix<float, 6, 1> extractLocalScrewCoordVector(Eigen::Isometry3f Ai, Eigen::Matrix<float, 6, 1> Yi); // Computes the inverse of 1st relation in eq.(95),p.241,[3]
+    Eigen::Matrix<float, 6, 1> extractLocalScrewPrevCoordVector(Eigen::Isometry3f Bi, Eigen::Matrix<float, 6, 1> iXi); // Computes eq.(7)/p.44,[2] 
 
 private:
     float _st;
     float _ct;
+    Eigen::Isometry3f _Tf;
+    Eigen::Matrix<float, 6, 1> _Yi;
+    Eigen::Matrix<float, 6, 1> _iXi;
+    Eigen::Matrix<float, 6, 1> _i_1Xi;
+    Eigen::Matrix<float, 6, 1> _iXi_1;
+    Eigen::Matrix<float, 6, 6> _ad;
 };
 
 #endif // SCREWS_MAIN_H

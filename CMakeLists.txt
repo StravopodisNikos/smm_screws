@@ -105,7 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES smm_screws
 #  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros
 #  DEPENDS system_lib
@@ -118,8 +118,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  ~/cpp_ws/libraries/eigen-3.4.0
   include
+  ~/cpp_ws/libraries/eigen-3.4.0
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -151,6 +151,7 @@ add_executable(example src/example.cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+## ONLY FOR LIBRARIES THAT HAVE A .cpp FILE!
  target_link_libraries(example
    ${catkin_LIBRARIES}
    # ScrewsMain # -> [4-10-23] Removed since ScrewsKinematics inherits from ScrewsMain

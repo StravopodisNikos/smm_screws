@@ -1,11 +1,13 @@
 #ifndef SCREWS_KINEMATICS_H
 #define SCREWS_KINEMATICS_H
 
-//#include <Eigen/Dense>
-//#include <Eigen/Core>
 #include <memory>
+#include <iostream>
 #include "smm_screws/ScrewsMain.h"
 #include "smm_screws/RobotAbstractBase.h"
+
+#define DOF 3
+#define METALINKS 2
 
 /*
  *  C++ Library(integrated in a ros_pkg) for computation of forward kinematics, Task-space End-Effector 
@@ -25,9 +27,17 @@ class ScrewsKinematics: public ScrewsMain {
 	public:
 		ScrewsKinematics();
 		ScrewsKinematics(const std::shared_ptr<RobotAbstractBase>& robot_def);
+		void extractPseudoTfs();
+		Eigen::Isometry3f ForwardKinematicsTCP(float *q);
 
 	private:
 		std::shared_ptr<RobotAbstractBase> _robot_def;
+		uint8_t _total_pseudojoints;
+		uint8_t _meta1_pseudojoints;
+		uint8_t _meta2_pseudojoints;
+		Eigen::Isometry3f _last_expo;
+		uint8_t _last_twist_cnt;
+		Eigen::Isometry3f _Pi[METALINKS];
 
 };
 

@@ -15,11 +15,11 @@ public:
 
     // FUNCTIONS
     virtual ~RobotAbstractBase() {}
-    virtual const uint8_t get_STRUCTURE_ID() const = 0;
-    virtual const uint8_t get_PSEUDOS_METALINK1() const = 0;
-    virtual const uint8_t get_PSEUDOS_METALINK2() const = 0;
-    virtual const float get_PSEUDO_ANGLES(int index) const = 0;
-    virtual const Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) const = 0;
+    virtual  uint8_t get_STRUCTURE_ID()  = 0;
+    virtual  uint8_t get_PSEUDOS_METALINK1()  = 0;
+    virtual  uint8_t get_PSEUDOS_METALINK2()  = 0;
+    virtual  float get_PSEUDO_ANGLES(int index)  = 0;
+    virtual  Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index)  = 0;
 };
 
 // This is a "dummy" class, but important if you want to use the ros_pkg for 
@@ -28,33 +28,34 @@ public:
 class FixedStructure : public RobotAbstractBase {
 public:
     static constexpr int SMM_PSEUDOS = 0;
-    static constexpr int META1_PSEUDOS = 0;
-    static constexpr int META2_PSEUDOS = 0;
-    const float pseudo_angles = 0;
+    int META1_PSEUDOS = 0;
+    int META2_PSEUDOS = 0;
+    float pseudo_angles = 0;
     Eigen::Matrix<float, 6, 1> passive_twists;
 
-    const uint8_t get_STRUCTURE_ID() const override { return SMM_PSEUDOS; }
-    const uint8_t get_PSEUDOS_METALINK1() const override { return META1_PSEUDOS; }
-    const uint8_t get_PSEUDOS_METALINK2() const override { return META2_PSEUDOS; }
-    const float get_PSEUDO_ANGLES(int index) const override {return pseudo_angles;}
-    const Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) const override { return passive_twists;}
+    uint8_t get_STRUCTURE_ID() { return SMM_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK1() { return META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2() { return META2_PSEUDOS; }
+    float get_PSEUDO_ANGLES(int index) {return pseudo_angles;}
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists;}
 };
 
 // This the Class that handles the structures with 2 pseudojoints
 class Structure2Pseudos : public RobotAbstractBase {
 public:
     static constexpr int SMM_PSEUDOS = 2; // static, no change after compile
-    uint8_t META1_PSEUDOS = 0; // must change in node (in the class object construction)
-    uint8_t META2_PSEUDOS = 0; // " ... "
-    float  pseudo_angles[SMM_PSEUDOS];
+    uint8_t META1_PSEUDOS; // must change in node (in the class object construction)
+    uint8_t META2_PSEUDOS; // " ... "
+    float pseudo_angles[SMM_PSEUDOS];
     Eigen::Matrix<float, 6, 1> passive_twists[SMM_PSEUDOS];
 
-    const uint8_t get_STRUCTURE_ID() const override { return SMM_PSEUDOS; }
-    const uint8_t get_PSEUDOS_METALINK1() const override { return META1_PSEUDOS; }
-    const uint8_t get_PSEUDOS_METALINK2() const override { return META2_PSEUDOS; }
-    const float get_PSEUDO_ANGLES(int index) const override { return pseudo_angles[index]; }
-    const Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) const override { return passive_twists[index]; }
+    uint8_t get_STRUCTURE_ID()  { return SMM_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK1()  { return META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2()  { return META2_PSEUDOS; }
+    float get_PSEUDO_ANGLES(int index)  { return pseudo_angles[index]; }
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists[index]; }
 };
+// to be expanded soon...
 /*
 class Structure3Pseudos : public RobotAbstractBase {
 public:

@@ -5,7 +5,7 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "example");
   ros::NodeHandle nh;
-  
+  /*
   ScrewsKinematics screw_kin_obj;
 
   Eigen::Vector3f w(0.0, 0.0, 1.0);
@@ -27,11 +27,10 @@ int main(int argc, char **argv)
   A3t = screw_kin_obj.extractRelativeTf(Ast, As3);
   
   std::cout << A3t.matrix() << std::endl;
-
+*/
   // Define the SMM structure properties (extracted by MATLAB analysis)
-  Structure2Pseudos robot_def2;
-  RobotAbstractBase* robot_ptr = &robot_def2;
-  ScrewsKinematics smm_robot_kin_solver;
+  Structure2Pseudos robot_def2; // object of the specific structure class, here is specified, later will be selected based the structure yaml file
+  RobotAbstractBase *robot_ptr = &robot_def2; // pointer to abstract class(), can access derived class members
   // ACTIVE JOINTS COMPONENTS
   robot_ptr->active_twists[0] << 0, 0, 0, 0, 0, 1;
   robot_ptr->active_twists[1] << 0, 0, 0, 0, -1, 0;
@@ -62,22 +61,19 @@ int main(int argc, char **argv)
   gst0(3,0) = 0.0; gst0(3,1) = 0.0; gst0(3,2) = 0.0; gst0(3,3) = 1.0; 
   robot_ptr->gsai_ptr[3] = &gst0;
   // PASSIVE JOINTS COMPONENTS
-  //uint8_t metalink1_total_pseudos = 1;
-  //uint8_t metalink2_total_pseudos = 1;
-  Structure2Pseudos* derived_ptr = static_cast<Structure2Pseudos*>(robot_ptr);
-  derived_ptr->META1_PSEUDOS = 1;
-  derived_ptr->META2_PSEUDOS = 1;
-  derived_ptr->pseudo_angles[0] = 0;
-  derived_ptr->pseudo_angles[1] = 0;
-  derived_ptr->passive_twists[0] << -0.00 , 0.1660, -0.025, 1.0, 0.0 , 0.0;
-  derived_ptr->passive_twists[1] << -0.4685 , 0.00, -0.025, 0.0, -1.0 , 0.0;
-  std::shared_ptr<RobotAbstractBase> robot_def_shared = std::shared_ptr<Structure2Pseudos>(derived_ptr);
-  smm_robot_kin_solver = ScrewsKinematics(robot_def_shared);
+  robot_def2.META1_PSEUDOS = 1;
+  robot_def2.META2_PSEUDOS = 1;
+  //ROS_INFO("meta1_1: %d", robot_ptr->get_PSEUDOS_METALINK1());
+  //ROS_INFO("meta2_1: %d", robot_ptr->get_PSEUDOS_METALINK2());
+  robot_def2.pseudo_angles[0] = 0;
+  robot_def2.pseudo_angles[1] = 0;
+  robot_def2.passive_twists[0] << -0.00 , 0.1660, -0.025, 1.0, 0.0 , 0.0;
+  robot_def2.passive_twists[1] << -0.4685 , 0.00, -0.025, 0.0, -1.0 , 0.0;
 
-  Eigen::Isometry3f gst;
+  ScrewsKinematics smm_robot_kin_solver(robot_ptr);
+  smm_robot_kin_solver.extractPseudoTfs();
   float q[3] = {0, 0.0658, 2.0236};
-  gst = smm_robot_kin_solver.ForwardKinematicsTCP(q);
-  //std::cout << gst.matrix() << std::endl;
-
+  smm_robot_kin_solver.ForwardKinematicsTCP(q);
+  
   return 0;
 }

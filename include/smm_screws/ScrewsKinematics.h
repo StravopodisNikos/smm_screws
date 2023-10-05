@@ -5,6 +5,7 @@
 #include <iostream>
 #include "smm_screws/ScrewsMain.h"
 #include "smm_screws/RobotAbstractBase.h"
+#include "ros/ros.h"
 
 #define DOF 3
 #define METALINKS 2
@@ -26,19 +27,19 @@
 class ScrewsKinematics: public ScrewsMain {
 	public:
 		ScrewsKinematics();
-		ScrewsKinematics(const std::shared_ptr<RobotAbstractBase>& robot_def);
-		void extractPseudoTfs();
-		Eigen::Isometry3f ForwardKinematicsTCP(float *q);
+		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
+		void extractPseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
+		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 
 	private:
-		std::shared_ptr<RobotAbstractBase> _robot_def;
+		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
 		uint8_t _total_pseudojoints;
 		uint8_t _meta1_pseudojoints;
 		uint8_t _meta2_pseudojoints;
 		Eigen::Isometry3f _last_expo;
 		uint8_t _last_twist_cnt;
 		Eigen::Isometry3f _Pi[METALINKS];
-
+		Eigen::Isometry3f _gst;
 };
 
 #endif // SCREWS_KINEMATICS_H

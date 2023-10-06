@@ -1,9 +1,10 @@
-#include "ros/ros.h"
+//#include "ros/ros.h"
 #include <smm_screws/ScrewsKinematics.h>
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "example");
+  ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
   ros::NodeHandle nh;
   /*
   ScrewsKinematics screw_kin_obj;
@@ -35,7 +36,6 @@ int main(int argc, char **argv)
   robot_ptr->active_twists[0] << 0, 0, 0, 0, 0, 1;
   robot_ptr->active_twists[1] << 0, 0, 0, 0, -1, 0;
   robot_ptr->active_twists[2] << 0, 0, -1, 0, -1, 0;
-  Eigen::Isometry3f* robot_tfs[DOF+1];
   Eigen::Isometry3f gsa10;
   Eigen::Isometry3f gsa20;
   Eigen::Isometry3f gsa30;
@@ -70,10 +70,28 @@ int main(int argc, char **argv)
   robot_def2.passive_twists[0] << -0.00 , 0.1660, -0.025, 1.0, 0.0 , 0.0;
   robot_def2.passive_twists[1] << -0.4685 , 0.00, -0.025, 0.0, -1.0 , 0.0;
 
+  // Tested ForwardKinematicsTCP
   ScrewsKinematics smm_robot_kin_solver(robot_ptr);
   smm_robot_kin_solver.extractPseudoTfs();
   float q[3] = {0, 0.0658, 2.0236};
   smm_robot_kin_solver.ForwardKinematicsTCP(q);
-  
+
+  // Tested ForwardKinematics3DOF_1
+  Eigen::Isometry3f* robot_tfs[DOF+1]; // These pointers are uninitialized (they don't yet point to valid memory locations)
+  Eigen::Isometry3f g[DOF+1]; // joint frames tfs @q 
+  for (size_t i = 0; i < DOF+1; i++)
+  {
+      robot_tfs[i] = &g[i];
+  }
+  smm_robot_kin_solver.ForwardKinematics3DOF_1(q, robot_tfs);
+  // Tested ForwardKinematics3DOF_2
+  smm_robot_kin_solver.ForwardKinematics3DOF_2(q, robot_tfs);
+
+  // Setting TCP Position to ROS_PARAMETER_SERVER
+  Eigen::Vector3f  _pos_tcp_vector = robot_tfs[3]->translation();
+  nh.setParam("/x_s_TCP", _pos_tcp_vector.x() );
+  nh.setParam("/y_s_TCP", _pos_tcp_vector.y() );
+  nh.setParam("/z_s_TCP", _pos_tcp_vector.z() );
+
   return 0;
 }

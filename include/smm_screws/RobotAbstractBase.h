@@ -4,13 +4,19 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
+#define DOF 3
+#define METALINKS 2
+
+// This is the base class that contains the funtamental geometry properties 
+// of any serial metamorphic structure. Currently 3dof structures are suppo-
+// rted with 2 metamorphic links.
 class RobotAbstractBase {
 public:
     // DATA COMMON FOR ALL:
     // 1. the active joints twists
     // 2. the home configuration homogeneous tfs(joints+tool)
-    Eigen::Matrix<float, 6, 1> active_twists[3]; 
-    Eigen::Isometry3f* gsai_ptr[4]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
+    Eigen::Matrix<float, 6, 1> active_twists[DOF]; 
+    Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
     // Use Eigen::Isometry3f gsa10; && matrices[0] = &gsa10; ... in the cpp file to initialize.
 
     // FUNCTIONS
@@ -24,7 +30,7 @@ public:
 
 // This is a "dummy" class, but important if you want to use the ros_pkg for 
 // fixed-structure serial manipulators. Every virtual function of the abstract
-// class mu be implemented, but "0" values are returned.
+// class must be implemented (for compile issues), but "0" values are returned.
 class FixedStructure : public RobotAbstractBase {
 public:
     static constexpr int SMM_PSEUDOS = 0;
@@ -40,7 +46,10 @@ public:
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists;}
 };
 
-// This the Class that handles the structures with 2 pseudojoints
+// This the Class that handles the structures with 2 pseudojoints. In this case
+// it is obvious that each metamorphic link has 1 pseudojoint. Despite that, the
+// variables META1_PSEUDOS,META2_PSEUDOS are not defined "static constexpr" for
+// following the same logic with the next structures with more pseudojoints.
 class Structure2Pseudos : public RobotAbstractBase {
 public:
     static constexpr int SMM_PSEUDOS = 2; // static, no change after compile

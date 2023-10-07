@@ -26,10 +26,23 @@ class ScrewsKinematics: public ScrewsMain {
 	public:
 		ScrewsKinematics();
 		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
-		void extractPseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
+		// Initialize kinematic data @ zero configuration
+		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
+		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
+		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
+		// Extract kinematic data @ current configuration 
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
+		void SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *Jsp1[DOF]) ;
+		void SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *Jsp2[DOF]) ;
+
+		// Public Kinematic data members
+		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
+		Eigen::Isometry3f g[DOF+1];
+		Eigen::Isometry3f B[DOF+1]; 
+		Eigen::Matrix<float, 6, 1> Jsp1[DOF];
+		Eigen::Matrix<float, 6, 1> Jsp2[DOF];
 
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
@@ -44,6 +57,11 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 1> _X;
 		Eigen::Vector3f _trans_vector;
 		bool _debug_verbosity;
-};
+		Eigen::Matrix<float, 6, 6> _ad;
+
+		// Auxiliary functions
+		void printIsometryMatrix(const Eigen::Isometry3f& matrix);
+		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
+};		
 
 #endif // SCREWS_KINEMATICS_H

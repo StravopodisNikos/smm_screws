@@ -2,15 +2,10 @@
 
 ScrewsKinematics::ScrewsKinematics() {};
 
-//ScrewsKinematics::ScrewsKinematics(const std::shared_ptr<RobotAbstractBase>& robot_def)
-//    : _robot_def(robot_def) {
 ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(ptr2abstract) {
     _total_pseudojoints = _ptr2abstract->get_STRUCTURE_ID();
-    //ROS_INFO("pseudos_3: %d", _total_pseudojoints);
     _meta1_pseudojoints = _ptr2abstract->get_PSEUDOS_METALINK1();
     _meta2_pseudojoints = _ptr2abstract->get_PSEUDOS_METALINK2();
-    //ROS_INFO("meta1_3: %d", _meta1_pseudojoints);
-    //ROS_INFO("meta1_3: %d", _meta2_pseudojoints);
     _last_twist_cnt =0;
     _last_expo = Eigen::Isometry3f::Identity();
     _Pi[0] = Eigen::Isometry3f::Identity();
@@ -18,7 +13,35 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
     _debug_verbosity = true;
 }
 
-void ScrewsKinematics::extractPseudoTfs() {
+void ScrewsKinematics::initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]) {
+    // Initializes the matrices Bi ~ Ci_i1(0)
+    _debug_verbosity = false;
+
+    Bi[0] = _ptr2abstract->gsai_ptr[0];
+    if (_debug_verbosity) { printIsometryMatrix(*Bi[0]); ROS_INFO(" ");}
+    for (size_t i = 1; i < DOF+1; i++)
+    {
+        *Bi[i] = extractRelativeTf(*_ptr2abstract->gsai_ptr[i], *_ptr2abstract->gsai_ptr[i-1]);
+        if (_debug_verbosity) { printIsometryMatrix(*Bi[i]); ROS_INFO(" ");}
+    }
+    return;
+}
+
+void ScrewsKinematics::initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]) {
+    // Initializes the matrices iXi;
+    _debug_verbosity = false;
+
+    for (size_t i = 0; i < DOF; i++){
+        *iXi[i] = extractLocalScrewCoordVector(*_ptr2abstract->gsai_ptr[i], _ptr2abstract->active_twists[i]);
+    }
+    // For the tool frame, the relative tf must be extracted
+    _Bi = extractRelativeTf(*_ptr2abstract->gsai_ptr[DOF], *_ptr2abstract->gsai_ptr[DOF-1]);
+    vee(*iXi[DOF]  , _Bi.matrix() );
+    //if (_debug_verbosity) {  print6nMatrix(iXi, DOF+1); ROS_INFO(" ");} 
+    return;
+}
+
+void ScrewsKinematics::initializePseudoTfs() {
 // Executed during object creation, initializes the fixed transformations induces by anatomy metamorphosis
 // [5-10-23] Current version, ONLY supports 3dof robot, with 2 metamorphic links.
     if (_total_pseudojoints == 0)
@@ -147,3 +170,52 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
     return;
 }
 
+
+void ScrewsKinematics::SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *Jsp1[DOF]) {
+    // Executes first "=" of eq.28/p.52/[2]
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before functio call
+    //          2. The local screw coord vectors must be initialized!
+    //          3. All 2D matrices for kinematics are stored in array of pointers!
+    _debug_verbosity = false;
+
+    for (size_t i = 0; i < DOF; i++){
+        ad(_ad, g[i]);
+        *Jsp1[i] = _ad * iXi[i];
+    }
+    if (_debug_verbosity) {  ROS_INFO("Spatial Jacobian 1: "); print6nMatrix(Jsp1, DOF);}
+}
+
+void ScrewsKinematics::SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *Jsp2[DOF]) {
+    // Executes second "=" of eq.28/p.52/[2]
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before functio call
+    //          2. All 2D matrices for kinematics are stored in array of pointers!
+    _debug_verbosity = false;
+    for (size_t i = 0; i < DOF; i++){
+        ad(_ad, g[i] * _ptr2abstract->gsai_ptr[i]->inverse());
+        *Jsp2[i] = _ad * _ptr2abstract->active_twists[i];
+    }
+    if (_debug_verbosity) {  ROS_INFO("Spatial Jacobian 2: "); print6nMatrix(Jsp2, DOF);}
+}
+
+void ScrewsKinematics::printIsometryMatrix(const Eigen::Isometry3f& matrix) {
+    for (int i = 0; i < 4; ++i) { ROS_INFO("%.4f\t%.4f\t%.4f\t%.4f", matrix(i, 0), matrix(i, 1), matrix(i, 2), matrix(i, 3)); }
+    return;
+}
+
+void ScrewsKinematics::print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n) {
+    // This prints columns (easy but ungly)
+    /*
+    for (size_t j = 0; j < columns; j++) {
+        std::cout << *(matrices[j]) << std::endl;  
+    }
+    */
+    // This prints elements of the vectors, row by row (beauty)
+    float value2print;
+    for (size_t i = 0; i < 6; i++) {
+        for (size_t j = 0; j < n; j++) {
+            std::cout << (*matrices[j])(i, 0) << "\t";
+        }
+        std::cout << std::endl;
+    }    
+    return;
+}

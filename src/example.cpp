@@ -72,16 +72,16 @@ int main(int argc, char **argv)
 
   // Tested ForwardKinematicsTCP
   ScrewsKinematics smm_robot_kin_solver(robot_ptr);
-  smm_robot_kin_solver.extractPseudoTfs();
+  smm_robot_kin_solver.initializePseudoTfs();
   float q[3] = {0, 0.0658, 2.0236};
   smm_robot_kin_solver.ForwardKinematicsTCP(q);
 
   // Tested ForwardKinematics3DOF_1
   Eigen::Isometry3f* robot_tfs[DOF+1]; // These pointers are uninitialized (they don't yet point to valid memory locations)
-  Eigen::Isometry3f g[DOF+1]; // joint frames tfs @q 
+  //Eigen::Isometry3f g[DOF+1]; // joint frames tfs @q 
   for (size_t i = 0; i < DOF+1; i++)
   {
-      robot_tfs[i] = &g[i];
+      robot_tfs[i] = &smm_robot_kin_solver.g[i];
   }
   smm_robot_kin_solver.ForwardKinematics3DOF_1(q, robot_tfs);
   // Tested ForwardKinematics3DOF_2
@@ -92,6 +92,39 @@ int main(int argc, char **argv)
   nh.setParam("/x_s_TCP", _pos_tcp_vector.x() );
   nh.setParam("/y_s_TCP", _pos_tcp_vector.y() );
   nh.setParam("/z_s_TCP", _pos_tcp_vector.z() );
+
+  // Initializing kinematic matrices for jacobian calculation
+  Eigen::Isometry3f* rel_tfs[DOF+1]; 
+  //Eigen::Isometry3f B[DOF+1];
+  for (size_t i = 0; i < DOF+1; i++)
+  {
+      rel_tfs[i] = &smm_robot_kin_solver.B[i];
+  }
+  smm_robot_kin_solver.initializeRelativeTfs(rel_tfs);
+  
+  Eigen::Matrix<float, 6, 1>* local_screws[DOF+1]; 
+  //Eigen::Matrix<float, 6, 1>  iXi[DOF+1]; 
+  for (size_t i = 0; i < DOF+1; i++)
+  {
+      local_screws[i] = &smm_robot_kin_solver.iXi[i];
+  }
+  smm_robot_kin_solver.initializeLocalScrewCoordVectors(local_screws);
+  
+  // Jacobian Spatial 1
+  Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF+1];
+  for (size_t i = 0; i < DOF; i++)
+  {
+      ptr2Jsp1[i] = &smm_robot_kin_solver.Jsp1[i];
+  }
+  smm_robot_kin_solver.SpatialJacobian_1(q, ptr2Jsp1);
+
+  // Jacobian Spatial 2
+  Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF+1];
+  for (size_t i = 0; i < DOF; i++)
+  {
+      ptr2Jsp2[i] = &smm_robot_kin_solver.Jsp2[i];
+  }
+  smm_robot_kin_solver.SpatialJacobian_2(q, ptr2Jsp2);
 
   return 0;
 }

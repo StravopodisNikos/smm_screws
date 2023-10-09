@@ -24,6 +24,9 @@
  
 class ScrewsKinematics: public ScrewsMain {
 	public:
+		enum class JacobianSelection { SPATIAL, BODY};
+		typedef JacobianSelection typ_jacobian;
+
 		ScrewsKinematics();
 		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
 		// Initialize kinematic data @ zero configuration
@@ -34,15 +37,23 @@ class ScrewsKinematics: public ScrewsMain {
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
-		void SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *Jsp1[DOF]) ;
-		void SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *Jsp2[DOF]) ;
-
+		void SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *Jsp1[DOF]);
+		void SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *Jsp2[DOF]);
+		void BodyJacobian_Tool_1(float *q, Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]);
+		void BodyJacobian_Tool_2(float *q, Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]);
+		Eigen::Matrix<float, 6, 1> extractToolVelocityTwist(typ_jacobian jacob_selection, float *dq);
+		
 		// Public Kinematic data members
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1];
 		Eigen::Isometry3f B[DOF+1]; 
+		Eigen::Matrix<float, 6, DOF> Jsp; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, 1> Jsp1[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp2[DOF];
+		Eigen::Matrix<float, 6, 1> Jbd_t_1[DOF];
+		Eigen::Matrix<float, 6, 1> Jbd_t_2[DOF];
+		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
+		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
 
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)

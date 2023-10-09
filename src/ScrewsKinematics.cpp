@@ -173,7 +173,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
 
 void ScrewsKinematics::SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *Jsp1[DOF]) {
     // Executes first "=" of eq.28/p.52/[2]
-    // [USAGE]: 1. The fwd kin must be extracted for the current q before functio call
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. The local screw coord vectors must be initialized!
     //          3. All 2D matrices for kinematics are stored in array of pointers!
     _debug_verbosity = false;
@@ -187,7 +187,7 @@ void ScrewsKinematics::SpatialJacobian_1(float *q, Eigen::Matrix<float, 6, 1> *J
 
 void ScrewsKinematics::SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *Jsp2[DOF]) {
     // Executes second "=" of eq.28/p.52/[2]
-    // [USAGE]: 1. The fwd kin must be extracted for the current q before functio call
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. All 2D matrices for kinematics are stored in array of pointers!
     _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
@@ -196,6 +196,69 @@ void ScrewsKinematics::SpatialJacobian_2(float *q, Eigen::Matrix<float, 6, 1> *J
     }
     if (_debug_verbosity) {  ROS_INFO("Spatial Jacobian 2: "); print6nMatrix(Jsp2, DOF);}
 }
+
+void ScrewsKinematics::BodyJacobian_Tool_1(float *q, Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]) {
+    // Executes first "=" of eq.16/p.49/[2] BUT only for the {T} frame
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
+    //          2. The local screw coord vectors must be initialized!
+    //          3. All 2D matrices for kinematics are stored in array of pointers!
+
+    _debug_verbosity = false;
+    //for (size_t n_bd = 0; n_bd < DOF+1; n_bd++)
+    //{
+        for (size_t i = 0; i < DOF; i++){
+            ad(_ad, g[DOF].inverse() * g[i] );
+            *Jbd_t_1[i] = _ad * iXi[i];
+        }
+    //}
+    if (_debug_verbosity) {  ROS_INFO("Body Jacobian Tool 1: "); print6nMatrix(Jbd_t_1, DOF);}
+}
+
+void ScrewsKinematics::BodyJacobian_Tool_2(float *q, Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]) {
+    // Executes second "=" of eq.16/p.49/[2]  BUT only for the {T} frame
+    // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
+    //          2. The local screw coord vectors must be initialized!
+    //          3. All 2D matrices for kinematics are stored in array of pointers!
+    _debug_verbosity = false;
+    for (size_t i = 0; i < DOF; i++){
+        ad(_ad, g[DOF].inverse() * g[i] * _ptr2abstract->gsai_ptr[i]->inverse() );
+        *Jbd_t_2[i] = _ad * _ptr2abstract->active_twists[i] ;
+    }
+    if (_debug_verbosity) {  ROS_INFO("Body Jacobian Tool 2: "); print6nMatrix(Jbd_t_2, DOF);}
+}
+
+Eigen::Matrix<float, 6, 1> ScrewsKinematics::extractToolVelocityTwist(typ_jacobian jacob_selection, float *dq) {
+    // Returns the spatial OR the body velocity twist @ current [q,dq]
+    // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
+    
+    Eigen::Matrix<float, 6, 1> V_tool_twist;
+
+    // Form vector from joint velocities for proper multiplication
+    Eigen::Vector3f dq_vector;
+    dq_vector << dq[0], dq[1], dq[2];
+
+    switch (jacob_selection)
+    {
+    case typ_jacobian::SPATIAL :
+        // Concatenate the Spatial Jacobian column vectors to a single array:
+        Jsp = mergeColumns2Matrix(Jsp1);    
+        V_tool_twist = Jsp * dq_vector;
+        break;
+    case typ_jacobian::BODY :
+        // Concatenate the Spatial Jacobian column vectors to a single array:
+        Jbd_t_1 = mergeColumns2Matrix(Jbd_t_1);    
+        V_tool_twist = Jbd_t_1 * dq_vector;    
+        break;    
+    default:
+        ROS_ERROR("WRONG JACOBIAN SELECTION FOR VELOCITY TWIST");
+        break;
+    }
+    
+}
+
+/*
+ *  PRINTING FUNCTIONS
+ */
 
 void ScrewsKinematics::printIsometryMatrix(const Eigen::Isometry3f& matrix) {
     for (int i = 0; i < 4; ++i) { ROS_INFO("%.4f\t%.4f\t%.4f\t%.4f", matrix(i, 0), matrix(i, 1), matrix(i, 2), matrix(i, 3)); }
@@ -210,7 +273,6 @@ void ScrewsKinematics::print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], con
     }
     */
     // This prints elements of the vectors, row by row (beauty)
-    float value2print;
     for (size_t i = 0; i < 6; i++) {
         for (size_t j = 0; j < n; j++) {
             std::cout << (*matrices[j])(i, 0) << "\t";

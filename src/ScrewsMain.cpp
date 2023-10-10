@@ -236,11 +236,18 @@ Eigen::Matrix<float, 6, 1> ScrewsMain::extractLocalScrewPrevCoordVector(Eigen::I
     return _i_1Xi;
 } 
 
-Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsMain::mergeColumns2Matrix(const Eigen::Matrix<float, 6, 1> * column_array)  {
+//Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsMain::mergeColumns2Matrix(const Eigen::Matrix<float, 6, 1> * column_array)  {
+Eigen::Matrix<float, 6, 3> ScrewsMain::mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array)  {    
     int n = column_array->size(); // Number of columns 
-    Eigen::Matrix<float, 6, Eigen::Dynamic> matrix(6, n);
+    if (n != 3)
+    {
+        // ERROR MSG
+    }
 
-    for (int i = 0; i < n; i++) {
+    //Eigen::Matrix<float, 6, Eigen::Dynamic> matrix(6, n);
+    Eigen::Matrix<float, 6, 3> matrix;
+
+    for (int i = 0; i < 3; i++) {
         matrix.col(i) = column_array[i];
     }
 

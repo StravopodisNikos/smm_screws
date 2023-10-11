@@ -42,24 +42,39 @@ class ScrewsKinematics: public ScrewsMain {
 		void BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]); // Returns Body Jacobians calculated @ active joint frames and the {T} frame
 		void BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]); // Returns {T} frame Body Jacobian
 		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]); // Returns {T} frame Body Jacobian
-		Eigen::Matrix<float, 6, 1> extractToolVelocityTwist(typ_jacobian jacob_selection, float *dq); // Calculates {T} frame Velocity twists
+		void ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ); // Calculates {T} frame Velocity twists
 		void DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[DOF] ); // Time derivative of spatial jacobian
-		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1> *Jbd[DOF], Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1] );
-		
+		void DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_1[DOF]) ;		
+		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[DOF]) ;
+		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
+		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
+		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
+		void CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
+		void CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs );
+		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs);
+
 		// Public Kinematic data members
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1];
 		Eigen::Isometry3f B[DOF+1]; 
 		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, DOF> Jbd63;
+		Eigen::Matrix<float, 6, DOF> dJbd63;
 		Eigen::Matrix<float, 6, 1> Jsp_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> BodyJacobiansFrames[DOF+1][DOF];
 		Eigen::Matrix<float, 6, 1> Jbd_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> Jbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> dJsp_t_1[DOF];
+		Eigen::Matrix<float, 6, 1> dJbd_t_1[DOF];
+		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
+		Eigen::Matrix3f Jop;
+		Eigen::Matrix<float, 6, 1> dVsp_tool_twist;
+		Eigen::Matrix<float, 6, 1> dVbd_tool_twist;
+		Eigen::Vector4f Vop;
+		Eigen::Vector4f Aop;
 
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
@@ -76,11 +91,12 @@ class ScrewsKinematics: public ScrewsMain {
 		bool _debug_verbosity;
 		Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
+		Eigen::Matrix4f _twist_se3;
 
 		// Auxiliary functions
 		void printIsometryMatrix(const Eigen::Isometry3f& matrix);
 		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
-		void printTwist(Eigen::Matrix<float, 6, 1> Twist );
+		void printTwist(Eigen::Matrix<float, 6, 1> Twist);
 };		
 
 #endif // SCREWS_KINEMATICS_H

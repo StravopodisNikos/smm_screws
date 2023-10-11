@@ -6,29 +6,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "example");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     ros::NodeHandle nh;
-    /*
-    ScrewsKinematics screw_kin_obj;
 
-    Eigen::Vector3f w(0.0, 0.0, 1.0);
-    Eigen::Isometry3f As3 = Eigen::Isometry3f::Identity();
-    Eigen::Isometry3f Ast = Eigen::Isometry3f::Identity(); 
-    Eigen::Isometry3f A3t;
-    //Eigen::Matrix3f skew_w = screw_obj.skew(w);
-    //std::cout << skew_w;
-    As3(0,0) = 1.0; As3(0,1) = 0.0; As3(0,2) = 0.0; As3(0,3) = 1.0;
-    As3(1,0) = 0.0; As3(1,1) = 0.0; As3(1,2) = -1.0; As3(1,3) = 0.0;
-    As3(2,0) = 0.0; As3(2,1) = 1.0; As3(2,2) = 0.0; As3(2,3) = 0.0;
-    As3(3,0) = 0.0; As3(3,1) = 0.0; As3(3,2) = 0.0; As3(3,3) = 1.0;  
-
-    Ast(0,0) = 1.0; Ast(0,1) = 0.0; Ast(0,2) = 0.0; Ast(0,3) = 1.5;
-    Ast(1,0) = 0.0; Ast(1,1) = 0.0; Ast(1,2) = -1.0; Ast(1,3) = 0.0;
-    Ast(2,0) = 0.0; Ast(2,1) = 1.0; Ast(2,2) = 0.0; Ast(2,3) = 0.0;
-    Ast(3,0) = 0.0; Ast(3,1) = 0.0; Ast(3,2) = 0.0; Ast(3,3) = 1.0; 
-
-    A3t = screw_kin_obj.extractRelativeTf(Ast, As3);
-    
-    std::cout << A3t.matrix() << std::endl;
-    */
     // Define the SMM structure properties (extracted by MATLAB analysis)
     Structure2Pseudos robot_def2; // object of the specific structure class, here is specified, later will be selected based the structure yaml file
     RobotAbstractBase *robot_ptr = &robot_def2; // pointer to abstract class(), can access derived class members
@@ -160,15 +138,32 @@ int main(int argc, char **argv)
         delete[] PTR2BodyJacobiansFrames[i];
     }
     */
-
-    // 1st Time Derivative of Body Jacobians
-
-    
-    // Velocity twists
-    /*
+    float ddq[3] = {10.025 , -1.8294, 5.0236};
     float dq[3] = {0.25 , 0.8954, -2.0236};
-    smm_robot_kin_solver.Vsp_tool_twist = smm_robot_kin_solver.extractToolVelocityTwist(ScrewsKinematics::JacobianSelection::SPATIAL , dq);
-    smm_robot_kin_solver.Vsp_tool_twist = smm_robot_kin_solver.extractToolVelocityTwist(ScrewsKinematics::JacobianSelection::BODY , dq);
-    */
+    // 1st Time Derivative of Body Jacobians
+    Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_1[DOF];
+    Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_2[DOF];
+    for (size_t i = 0; i < DOF; i++)
+    {
+        ptr2dJbd_t_1[i] = &smm_robot_kin_solver.dJbd_t_1[i];
+        ptr2dJbd_t_2[i] = &smm_robot_kin_solver.dJbd_t_2[i];
+    }   
+    smm_robot_kin_solver.DtBodyJacobian_Tool_1(dq, PTR2BodyJacobiansFrames, ptr2dJbd_t_1);
+    smm_robot_kin_solver.DtBodyJacobian_Tool_2(dq, PTR2BodyJacobiansFrames, ptr2dJbd_t_2);
+
+    // Operational Space Jacobian
+    smm_robot_kin_solver.OperationalSpaceJacobian(smm_robot_kin_solver.Jop);
+
+    // Velocity twists
+    smm_robot_kin_solver.ToolVelocityTwist(ScrewsKinematics::JacobianSelection::SPATIAL , dq, smm_robot_kin_solver.Vsp_tool_twist);
+    smm_robot_kin_solver.ToolVelocityTwist(ScrewsKinematics::JacobianSelection::BODY , dq, smm_robot_kin_solver.Vbd_tool_twist);
+    // Acceleration twists
+    smm_robot_kin_solver.DtToolVelocityTwist(ScrewsKinematics::JacobianSelection::SPATIAL , ddq, dq, smm_robot_kin_solver.dVsp_tool_twist);
+    smm_robot_kin_solver.DtToolVelocityTwist(ScrewsKinematics::JacobianSelection::BODY , ddq, dq, smm_robot_kin_solver.dVbd_tool_twist);
+    
+    // Operational Space Spatial Velocity & acceleration
+    smm_robot_kin_solver.CartesianVelocity_twist(smm_robot_kin_solver.Vop);
+    smm_robot_kin_solver.CartesianAcceleration_twist(smm_robot_kin_solver.Aop, smm_robot_kin_solver.Vop);
+
     return 0;
 }

@@ -251,12 +251,10 @@ void ScrewsKinematics::BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[D
     if (_debug_verbosity) {  ROS_INFO("Body Jacobian Tool 2: "); print6nMatrix(Jbd_t_2, DOF);}
 }
 
-Eigen::Matrix<float, 6, 1> ScrewsKinematics::extractToolVelocityTwist(typ_jacobian jacob_selection, float *dq) {
+void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]
     // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
     _debug_verbosity = true;
-
-    Eigen::Matrix<float, 6, 1> V_tool_twist;
 
     // Form vector from joint velocities for proper multiplication
     Eigen::Vector3f dq_vector;
@@ -267,21 +265,21 @@ Eigen::Matrix<float, 6, 1> ScrewsKinematics::extractToolVelocityTwist(typ_jacobi
     case typ_jacobian::SPATIAL :
         // Concatenate the Spatial Jacobian column vectors to a single array:
         Jsp63 = mergeColumns2Matrix63(Jsp_t_1);    
-        V_tool_twist = Jsp63 * dq_vector;
-        if (_debug_verbosity) {  ROS_INFO("Spatial Velocity Twist: "); printTwist( V_tool_twist);}
+        Vtwist = Jsp63 * dq_vector;
+        if (_debug_verbosity) {  ROS_INFO("Spatial Velocity Twist: "); printTwist( Vtwist);}
         break;
     case typ_jacobian::BODY :
         // Concatenate the Spatial Jacobian column vectors to a single array:
         Jbd63 = mergeColumns2Matrix63(Jbd_t_1);    
-        V_tool_twist = Jbd63 * dq_vector;    
-        if (_debug_verbosity) {  ROS_INFO("Body Velocity Twist: "); printTwist( V_tool_twist);}
+        Vtwist = Jbd63 * dq_vector;    
+        if (_debug_verbosity) {  ROS_INFO("Body Velocity Twist: "); printTwist( Vtwist);}
         break;    
     default:
         ROS_ERROR("WRONG JACOBIAN SELECTION FOR VELOCITY TWIST");
         break;
     }
     
-    return V_tool_twist; 
+    return; 
 }
 
 void ScrewsKinematics::DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[DOF] ) {
@@ -298,21 +296,158 @@ void ScrewsKinematics::DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float,
     return;
 }
 
-void ScrewsKinematics::DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1> *Jbd[DOF], Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1] ) {
-    // Implements the second "=" in eq.(8)/p.223/[3]
+void ScrewsKinematics::DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_1[DOF]) {
+    // Implements the first "=" in eq.(8)/p.223/[3], outputs the derivative of
+    // the Body Jacobian /{T}
+    
+    _debug_verbosity = true;
+    Eigen::Matrix<float, 6, 1> dJ;
+    for (size_t j = 0; j < DOF; j++)
+    {
+        dJ.setZero(); 
+        for (size_t k = j+1; k < DOF; k++)
+        {
+            dJ = dJ + lb(*BodyJacobiansFrames[DOF][j], *BodyJacobiansFrames[DOF][k]) * dq[k] ;
+        }
+        *dJbd_t_1[j] = dJ;
+    }
+    if (_debug_verbosity) {  ROS_INFO("Time Derivative Body Jacobian Tool 1: "); print6nMatrix(dJbd_t_1, DOF);}
+    return;
+}
+
+void ScrewsKinematics::DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[DOF]) {
+    // Implements the second "=" in eq.(8)/p.223/[3], outputs the derivative of
+    // the Body Jacobian /{T}
+
+    _debug_verbosity = true;
     Eigen::Matrix<float, 6, 1> dJ;
     Eigen::Matrix<float, 6, 1> Adad3;
     for (size_t j = 0; j < DOF; j++)
     {
+        dJ.setZero(); 
         for (size_t k = j+1; k < DOF; k++)
         {
-            ad(_ad, g[j].inverse() * g[k]);
+            ad(_ad, g[DOF].inverse() * g[k]);
             spatialCrossProduct(_scp, iXi[k]);
-            // Currently working...
-            //Adad3 = _ad * _scp * 
-            //*Jbd_t_2[i] = _ad * _ptr2abstract->active_twists[i] ;
+            Adad3 = - _ad * _scp * *BodyJacobiansFrames[k][j];
+            dJ = dJ + Adad3 * dq[k] ;
         }
+        *dJbd_t_2[j] = dJ;
     }
+    if (_debug_verbosity) {  ROS_INFO("Time Derivative Body Jacobian Tool 2: "); print6nMatrix(dJbd_t_2, DOF);}
+    return;
+}
+
+void ScrewsKinematics::OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t) {
+    // Returns the Operational Space Jacobian Matrix for 3dof serial manipulator. Links
+    // cartesian velocity with joints velocities. Since 3DOF, no rotational part is co-
+    // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
+    // the current configuration.
+    _debug_verbosity = true;
+    Eigen::Matrix3f Rst = g[DOF].rotation(); // Extract 3x3 rotational part of FK tf of {T} frame
+    Eigen::Matrix<float, 3, 1> Jpos_col[DOF];
+    Eigen::Matrix3f Jpos;
+    for (size_t i = 0; i < DOF; i++)
+    {
+        Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
+    }
+    Jpos << Jpos_col[0], Jpos_col[1], Jpos_col[2];
+    Jop_t = Rst * Jpos;
+    if (_debug_verbosity)
+    {
+        ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+        Jop_t(0, 0), Jop_t(0, 1), Jop_t(0, 2),
+        Jop_t(1, 0), Jop_t(1, 1), Jop_t(1, 2),
+        Jop_t(2, 0), Jop_t(2, 1), Jop_t(2, 2)); 
+    }
+    return; 
+}
+
+void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist ) {
+    // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
+    // Spatial and Body Jacobians must be be previously extracted for the current configuration.
+    _debug_verbosity = true;
+
+    // Form vector from joint velocities/accelerations for proper multiplication
+    Eigen::Vector3f dq_vector;
+    Eigen::Vector3f ddq_vector;
+    Eigen::Matrix<float, 6, 1> dV1;
+    Eigen::Matrix<float, 6, 1> dV2;
+
+    switch (jacob_selection)
+    {
+    case typ_jacobian::SPATIAL :
+        dV1.setZero();
+        dV2.setZero();
+        for (size_t j = 0; j < DOF; j++)
+        {
+            dV1 = dV1 + Jsp_t_1[j] * ddq[j];
+        }
+        for (size_t k = 0; k < DOF; k++)
+        {
+            for (size_t j = k+1; j < DOF; j++)
+            {
+                dV2 = dV2 + lb(Jsp_t_1[k], Jsp_t_1[j]) * dq[j] * dq[k];
+            }
+        }
+        dVtwist = dV1 + dV2;
+        if (_debug_verbosity) {  ROS_INFO("Spatial Acceleration Twist: "); printTwist(dVtwist);}
+        break;
+    case typ_jacobian::BODY :
+        dq_vector << dq[0], dq[1], dq[2];
+        ddq_vector << ddq[0], ddq[1], ddq[2];
+        Jbd63 = mergeColumns2Matrix63(Jbd_t_1);
+        dJbd63 = mergeColumns2Matrix63(dJbd_t_1);  
+        dVtwist = Jbd63 * ddq_vector + dJbd63 * dq_vector;
+        if (_debug_verbosity) {  ROS_INFO("Body Acceleration Twist: "); printTwist(dVtwist);}
+        break;    
+    default:
+        ROS_ERROR("WRONG JACOBIAN SELECTION FOR ACCELEARATION TWIST");
+        break;
+    }    
+    return;
+}
+
+void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {
+    // extracts the cartesian velocity by the Spatial Velocity twist
+    // Spatial velocity twisat and forward kinematics tf of {T} at 
+    // current configuration must be previously extracted.
+    _debug_verbosity = true;
+    formTwist(_twist_se3, Vsp_tool_twist);
+    Eigen::Vector4f vector4f;
+    vector4f << g[3](0, 3), g[3](1, 3), g[3](2, 3), 1.0;
+    v_qs = _twist_se3 * vector4f;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
+    return;
+}
+
+void ScrewsKinematics::CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs) {
+    // Operational Space Jacobian must have been previously extracted
+    Eigen::Vector3f dq_vector;
+    dq_vector << dq[0], dq[1], dq[2];
+    v_qs = Jop * dq_vector;
+    return;
+}
+
+void ScrewsKinematics::CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs ) {
+    _debug_verbosity = true;
+    Eigen::Matrix4f dV_twist_matrix;
+    Eigen::Matrix4f V_twist_matrix;
+    formTwist(dV_twist_matrix, dVsp_tool_twist);
+    Eigen::Vector4f vector4f;
+    vector4f << g[3](0, 3), g[3](1, 3), g[3](2, 3), 1.0;
+    formTwist(V_twist_matrix, Vsp_tool_twist);
+    a_qs = dV_twist_matrix * vector4f + V_twist_matrix * v_qs;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Acceleration: [%f, %f, %f]", a_qs[0], a_qs[1], a_qs[2]);}
+    return;
+}
+
+void ScrewsKinematics::CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs) {
+    Eigen::Vector3f dq_vector;
+    dq_vector << dq[0], dq[1], dq[2];
+    Eigen::Vector3f ddq_vector;
+    ddq_vector << ddq[0], ddq[1], ddq[2];
+    //a_qs = Jop * ddq_vector + 
     return;
 }
 
@@ -342,7 +477,7 @@ void ScrewsKinematics::print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], con
     return;
 }
 
-void ScrewsKinematics::printTwist(Eigen::Matrix<float, 6, 1> Twist ) {
+void ScrewsKinematics::printTwist(Eigen::Matrix<float, 6, 1> Twist) {
     for (size_t i = 0; i < 6; i++) {
         std::cout << Twist[i] << std::endl;
     }

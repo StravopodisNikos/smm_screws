@@ -15,6 +15,15 @@ void ScrewsMain::formTwist(Eigen::Matrix4f & xi_se3, Eigen::Vector3f v, Eigen::M
     xi_se3.block<1, 4>(3, 0) =  Eigen::Vector4f::Zero();
 }
 
+void ScrewsMain::formTwist(Eigen::Matrix4f & xi_se3, Eigen::Matrix<float, 6, 1> xi_R6) {
+    // Converts a R(6) twist to the se(3) representation
+    Eigen::Vector3f v = xi_R6.block(0, 0, 3, 1);  // Extract the first 3 elements as a vector
+    Eigen::Vector3f w = xi_R6.block(3, 0, 3, 1);
+    xi_se3.block<3, 3>(0, 0) =  skew(w);
+    xi_se3.block<3, 1>(0, 3) =  v;
+    xi_se3.block<1, 4>(3, 0) =  Eigen::Vector4f::Zero();
+}
+
 void ScrewsMain::splitTwist(const Eigen::Matrix<float, 6, 1> xi_R6, Eigen::Vector3f & v, Eigen::Vector3f & w) {
     v = xi_R6.block<3, 1>(0, 0);
     w = xi_R6.block<3, 1>(3, 0);
@@ -136,7 +145,7 @@ Eigen::Matrix<float, 6, 1>  ScrewsMain::lb(Eigen::Matrix<float, 6, 1> xi_i_R6, E
 }
 
 void ScrewsMain::spatialCrossProduct(Eigen::Matrix<float, 6, 6> & A, const Eigen::Matrix<float, 6, 1> xi_R6) {
-    // Described in [3]/p.243/eq.(116), "spatial cross product"
+    // Described in [3]/p.243/eq.(116), "spatial cross product". This is Muellers ad(X) tf.
     // This should be used for derivatives of the Jacobians, based on Mueller papers.
     Eigen::Vector3f v;
     Eigen::Vector3f w;
@@ -147,10 +156,11 @@ void ScrewsMain::spatialCrossProduct(Eigen::Matrix<float, 6, 6> & A, const Eigen
     v_hat = skew(v);
     w_hat = skew(w);
 
-    A.block<3, 3>(0, 0) = v_hat;
-    A.block<3, 3>(0, 3) = Eigen::Matrix3f::Zero(); 
-    A.block<3, 3>(3, 0) = w_hat; 
-    A.block<3, 3>(3, 3) = v_hat;
+    // [11-10-23] Follows the Murray twist notation /[1]: xi = [v w]', not Muellers' in /[2,3]!
+    A.block<3, 3>(0, 0) = w_hat;
+    A.block<3, 3>(0, 3) = v_hat;
+    A.block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
+    A.block<3, 3>(3, 3) = w_hat;
 }
 
 Eigen::Matrix<float, 6, 1>  ScrewsMain::screwProduct(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6) {

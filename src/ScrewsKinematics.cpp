@@ -8,8 +8,8 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
     _meta2_pseudojoints = _ptr2abstract->get_PSEUDOS_METALINK2();
     _last_twist_cnt =0;
     _last_expo = Eigen::Isometry3f::Identity();
-    _Pi[0] = Eigen::Isometry3f::Identity();
-    _Pi[1] = Eigen::Isometry3f::Identity();
+    //_Pi[0] = Eigen::Isometry3f::Identity();
+    //_Pi[1] = Eigen::Isometry3f::Identity();
     _debug_verbosity = true;
 }
 
@@ -75,6 +75,27 @@ void ScrewsKinematics::initializePseudoTfs() {
             }  
         }
     }
+}
+
+void ScrewsKinematics::extractPassiveTfs(Eigen::Isometry3f* gpj[METALINKS]) {
+    // Returns pointer array of pseudo tfs. initializePseudoTfs() MUST be previously
+    // executed.
+    for (size_t i = 0; i < METALINKS; i++)
+    {
+        *gpj[i] = _Pi[i];
+    }
+    return;
+}
+
+void ScrewsKinematics::extractActiveTfs(float *q, Eigen::Isometry3f* gai[DOF]) {
+    // Calculates the active joints exponentials. But accepts an array pointer. 
+    // Data computed here can be accessed from functions of different class, 
+    // using the pointer array!
+    for (size_t i = 0; i < DOF; i++)
+    {
+        *gai[i] = twistExp(_ptr2abstract->active_twists[i], *(q+i) );
+    }
+    return;
 }
 
 void ScrewsKinematics::ForwardKinematicsTCP(float *q) {
@@ -554,7 +575,7 @@ void ScrewsKinematics::setDtRotationMatrix() {
     return;
 }
 /*
- *  PRINTING FUNCTIONS
+ *  PRINTING FUNCTIONS-USED FOR DEBUGGING
  */
 void ScrewsKinematics::printIsometryMatrix(const Eigen::Isometry3f& matrix) {
     for (int i = 0; i < 4; ++i) { ROS_INFO("%.4f\t%.4f\t%.4f\t%.4f", matrix(i, 0), matrix(i, 1), matrix(i, 2), matrix(i, 3)); }

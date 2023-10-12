@@ -30,10 +30,12 @@ class ScrewsKinematics: public ScrewsMain {
 		ScrewsKinematics();
 		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
 		// Initialize kinematic data @ zero configuration
+		void extractPassiveTfs(Eigen::Isometry3f* gpj[METALINKS]);
 		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
 		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
 		// Extract kinematic data @ current configuration 
+		void extractActiveTfs(float *q, Eigen::Isometry3f* gai[DOF]);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
@@ -57,8 +59,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 
 		// Public Kinematic data members
-		Eigen::Isometry3f _Pi[METALINKS];
-		Eigen::Isometry3f _active_expos[DOF];		
+		
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1];
 		Eigen::Isometry3f B[DOF+1]; 
@@ -85,7 +86,6 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Vector4f Aop4;
 		Eigen::Matrix3f dRst; 
 
-
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
 		uint8_t _total_pseudojoints;
@@ -101,9 +101,11 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 		Eigen::Matrix4f _twist_se3;
+		Eigen::Isometry3f _active_expos[DOF];
+		Eigen::Isometry3f _Pi[METALINKS];
 
 		// Set functions for elememts used in calculations
-		void setExponentials(float *q);
+		void setExponentials(float *q);		
 		void setBodyPositionJacobian();
 		void setDerivativeBodyPositionJacobian();
 		void setDtRotationMatrix();

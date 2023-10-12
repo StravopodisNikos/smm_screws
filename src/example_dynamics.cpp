@@ -77,21 +77,31 @@ int main(int argc, char **argv)
     gsl30(3,0) = 0.0; gsl30(3,1) = 0.0; gsl30(3,2) = 0.0; gsl30(3,3) = 1.0; 
     robot_ptr->gsli_ptr[2] = &gsl30;
 
-
     /*
      * Kinematics Essentials
      */
     ScrewsKinematics smm_robot_kin_solver(robot_ptr);
     smm_robot_kin_solver.initializePseudoTfs();
     float q[3] = {0, 0.0658, 2.0236};
-    smm_robot_kin_solver.ForwardKinematicsTCP(q);
-
     /*
      * Dynamics 
      */
     ScrewsDynamics smm_robot_dyn_solver(robot_ptr);
     smm_robot_dyn_solver.intializeLinkMassMatrices();
-
+    Eigen::Isometry3f* passive_tfs[METALINKS];
+    for (size_t i = 0; i < METALINKS; i++)
+    {
+        passive_tfs[i] = &smm_robot_dyn_solver.gpj[i]; // Now the gai's can be used from ScrewsDynamics methods
+    } 
+    smm_robot_kin_solver.extractPassiveTfs(passive_tfs); 
+    Eigen::Isometry3f* active_tfs[DOF]; // These pointers are uninitialized (they don't yet point to valid memory locations)
+    for (size_t i = 0; i < DOF; i++)
+    {
+        active_tfs[i] = &smm_robot_dyn_solver.gai[i]; // Now the gai's can be used from ScrewsDynamics methods
+    }
+    smm_robot_kin_solver.extractActiveTfs(q, active_tfs); // Run this function to update active expos in ScrewsDynamics
+    
+    // Calculate Mass Matrix
     smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
 
     return 0;

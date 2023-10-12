@@ -87,6 +87,22 @@ void ScrewsMain::ad(Eigen::Matrix<float, 6, 6> & A, const Eigen::Isometry3f& g )
     A.block<3, 3>(3, 3) = R;
 }
 
+Eigen::Matrix<float, 6, 6> ScrewsMain::ad(const Eigen::Isometry3f& g ) {
+    // Described in eq.(2.58)/p.55,[1]
+    // g \in SE(3) homogeneous rigid body tf
+    Eigen::Matrix3f R = g.linear();
+    Eigen::Vector3f p = g.translation();
+
+    Eigen::Matrix3f pHat = skew(p);
+
+    _ad.block<3, 3>(0, 0) = R;
+    _ad.block<3, 3>(0, 3) = pHat * R;
+    _ad.block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();
+    _ad.block<3, 3>(3, 3) = R;
+
+    return _ad;
+}
+
 void ScrewsMain::Ad(Eigen::Matrix<float, 6, 6> & Ad, const Eigen::Isometry3f& Ci ) {
     // Described in eq.(96)/p.241,[3] 
     // Ci \in SE(3) homogeneous rigid body tf wrt the base frame {S}(or {IFR} in Mueller's terms)
@@ -101,6 +117,22 @@ void ScrewsMain::Ad(Eigen::Matrix<float, 6, 6> & Ad, const Eigen::Isometry3f& Ci
     Ad.block<3, 3>(3, 3) = Ri;
 }
 
+Eigen::Matrix<float, 6, 6>  ScrewsMain::Ad(const Eigen::Isometry3f& Ci ) {
+    // Described in eq.(96)/p.241,[3] 
+    // Ci \in SE(3) homogeneous rigid body tf wrt the base frame {S}(or {IFR} in Mueller's terms)
+    Eigen::Matrix3f Ri = Ci.linear();
+    Eigen::Vector3f ri = Ci.translation();
+
+    Eigen::Matrix3f riHat = skew(ri);
+
+    _ad.block<3, 3>(0, 0) = Ri;
+    _ad.block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
+    _ad.block<3, 3>(3, 0) = riHat * Ri;
+    _ad.block<3, 3>(3, 3) = Ri;
+    
+    return _ad;
+}
+
 void ScrewsMain::iad(Eigen::Matrix<float, 6, 6> & A, const Eigen::Isometry3f& g ) {
 // g \in SE(3) homogeneous rigid body tf
     Eigen::Matrix3f R = g.linear();
@@ -112,6 +144,20 @@ void ScrewsMain::iad(Eigen::Matrix<float, 6, 6> & A, const Eigen::Isometry3f& g 
     A.block<3, 3>(0, 3) = -R.transpose() * pHat;
     A.block<3, 3>(3, 0) =  Eigen::Matrix3f::Zero();
     A.block<3, 3>(3, 3) =  R.transpose();
+}
+
+Eigen::Matrix<float, 6, 6> ScrewsMain::iad(const Eigen::Isometry3f& g ) {
+// g \in SE(3) homogeneous rigid body tf
+    Eigen::Matrix3f R = g.linear();
+    Eigen::Vector3f p = g.translation();
+
+    Eigen::Matrix3f pHat = skew(p);
+
+    _iad.block<3, 3>(0, 0) =  R.transpose();
+    _iad.block<3, 3>(0, 3) = -R.transpose() * pHat;
+    _iad.block<3, 3>(3, 0) =  Eigen::Matrix3f::Zero();
+    _iad.block<3, 3>(3, 3) =  R.transpose();
+    return _iad;
 }
 
 Eigen::Matrix<float, 6, 1>  ScrewsMain::lb(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6) {

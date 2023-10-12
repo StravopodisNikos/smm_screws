@@ -57,6 +57,8 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 
 		// Public Kinematic data members
+		Eigen::Isometry3f _Pi[METALINKS];
+		Eigen::Isometry3f _active_expos[DOF];		
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1];
 		Eigen::Isometry3f B[DOF+1]; 
@@ -83,15 +85,14 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Vector4f Aop4;
 		Eigen::Matrix3f dRst; 
 
+
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
 		uint8_t _total_pseudojoints;
 		uint8_t _meta1_pseudojoints;
 		uint8_t _meta2_pseudojoints;
-		Eigen::Isometry3f _active_expos[DOF];
 		Eigen::Isometry3f _last_expo;
 		uint8_t _last_twist_cnt;
-		Eigen::Isometry3f _Pi[METALINKS];
 		Eigen::Isometry3f _gst;
 		Eigen::Isometry3f _Bi; 
 		Eigen::Matrix<float, 6, 1> _X;

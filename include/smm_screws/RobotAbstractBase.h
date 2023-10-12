@@ -18,6 +18,9 @@ public:
     Eigen::Matrix<float, 6, 1> active_twists[DOF]; 
     Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
     // Use Eigen::Isometry3f gsa10; && matrices[0] = &gsa10; ... in the cpp file to initialize.
+    Eigen::Isometry3f* gsli_ptr[DOF];
+    float* link_mass[DOF];
+    float* link_inertia[DOF];
 
     // FUNCTIONS
     virtual ~RobotAbstractBase() {}

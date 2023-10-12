@@ -33,8 +33,11 @@ public:
     Eigen::Vector3f unskew(const Eigen::Matrix3f& wHat);
     Eigen::Vector3f crossProduct(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2);
     void ad(Eigen::Matrix<float, 6, 6> & A, const Eigen::Isometry3f& g );
+    Eigen::Matrix<float, 6, 6> ad(const Eigen::Isometry3f& g );    
     void Ad(Eigen::Matrix<float, 6, 6> & Ad, const Eigen::Isometry3f& Ci );
+    Eigen::Matrix<float, 6, 6>  Ad(const Eigen::Isometry3f& Ci );
     void iad(Eigen::Matrix<float, 6, 6> & A, const Eigen::Isometry3f& g );    
+    Eigen::Matrix<float, 6, 6> iad(const Eigen::Isometry3f& g );
     Eigen::Matrix<float, 6, 1> lb(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6);    
     void spatialCrossProduct(Eigen::Matrix<float, 6, 6> & A, const Eigen::Matrix<float, 6, 1> xi_R6);
     Eigen::Matrix<float, 6, 1> screwProduct(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6);
@@ -55,6 +58,7 @@ private:
     Eigen::Matrix<float, 6, 1> _i_1Xi;
     Eigen::Matrix<float, 6, 1> _iXi_1;
     Eigen::Matrix<float, 6, 6> _ad;
+    Eigen::Matrix<float, 6, 6> _iad;
 };
 
 #endif // SCREWS_MAIN_H

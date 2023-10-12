@@ -79,7 +79,9 @@ void ScrewsKinematics::initializePseudoTfs() {
 
 void ScrewsKinematics::ForwardKinematicsTCP(float *q) {
     Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
-    _gst = twistExp(_ptr2abstract->active_twists[0], *(q+0) ) * _Pi[0] * twistExp(_ptr2abstract->active_twists[1], *(q+1) ) * _Pi[1] * twistExp(_ptr2abstract->active_twists[2], *(q+2) ) * *gst_0 ;
+    //_gst = twistExp(_ptr2abstract->active_twists[0], *(q+0) ) * _Pi[0] * twistExp(_ptr2abstract->active_twists[1], *(q+1) ) * _Pi[1] * twistExp(_ptr2abstract->active_twists[2], *(q+2) ) * *gst_0 ;
+    setExponentials(q);
+    _gst = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *gst_0 ;
     ROS_INFO("gst_x: %f", _gst(0,3));
     ROS_INFO("gst_y: %f", _gst(1,3));
     ROS_INFO("gst_z: %f", _gst(2,3));
@@ -92,11 +94,11 @@ void ScrewsKinematics::ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a
     // frame @ zero config
     // "_1" -> Implements eq.8/p.44/[2]
     // Calculates the "Ci_1" matrices /in screw_dynamics/calculateFwdKinMueller.m [laptop]
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     // Calculate 1st joint frame
     _X = extractLocalScrewCoordVector(*(_ptr2abstract->gsai_ptr[0]), _ptr2abstract->active_twists[0]);
-    *gs_a_i[0] = *(_ptr2abstract->gsai_ptr[0]) *  twistExp(_X, q[0]);  
+    *gs_a_i[0] = *(_ptr2abstract->gsai_ptr[0]) *  twistExp(_X, q[0]);
     _trans_vector = gs_a_i[0]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs1_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs1_y: %f", _trans_vector.y());
@@ -137,31 +139,35 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
     // @ the given configuration. input is the pointer to active joints'
     // frame @ zero config
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = false;
-
+    _debug_verbosity = true;
+    setExponentials(q);
     // Calculate 1st joint frame
-    *gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
+    //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
+    *gs_a_i[0] = _active_expos[0] * *(_ptr2abstract->gsai_ptr[0]) ;
     _trans_vector = gs_a_i[0]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs1_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs1_y: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"gs1_z: %f", _trans_vector.z()); 
 
     // Calculate 2nd joint frame
-    *gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
+    //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
+    *gs_a_i[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ;
     _trans_vector = gs_a_i[1]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs2_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs2_y: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"gs2_z: %f", _trans_vector.z());    
 
     // Calculate 3rd joint frame
-    *gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
+    //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
+    *gs_a_i[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ;    
     _trans_vector = gs_a_i[2]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs3_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs3_y: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"gs3_z: %f", _trans_vector.z()); 
 
     // Calculate {T} frame
-    *gs_a_i[3] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[3]) ;
+    //*gs_a_i[3] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[3]) ;
+    *gs_a_i[3] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[3]) ;    
     _trans_vector = gs_a_i[3]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gst_x_2: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gst_y_2: %f", _trans_vector.y());
@@ -343,16 +349,10 @@ void ScrewsKinematics::OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t) {
     // cartesian velocity with joints velocities. Since 3DOF, no rotational part is co-
     // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
     // the current configuration.
+    // -> sets:Eigen::Matrix3f Jop
     _debug_verbosity = true;
-    Eigen::Matrix3f Rst = g[DOF].rotation(); // Extract 3x3 rotational part of FK tf of {T} frame
-    Eigen::Matrix<float, 3, 1> Jpos_col[DOF];
-    Eigen::Matrix3f Jpos;
-    for (size_t i = 0; i < DOF; i++)
-    {
-        Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
-    }
-    Jpos << Jpos_col[0], Jpos_col[1], Jpos_col[2];
-    Jop_t = Rst * Jpos;
+    setBodyPositionJacobian();
+    Jop_t = g[DOF].rotation() * Jbd_pos;
     if (_debug_verbosity)
     {
         ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
@@ -423,9 +423,22 @@ void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {
 
 void ScrewsKinematics::CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs) {
     // Operational Space Jacobian must have been previously extracted
+    _debug_verbosity = true;
     Eigen::Vector3f dq_vector;
     dq_vector << dq[0], dq[1], dq[2];
     v_qs = Jop * dq_vector;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
+    return;
+}
+
+void ScrewsKinematics::CartesianVelocity_jacob(float *dq, Eigen::Vector4f &v_qs) {
+    // Operational Space Jacobian must have been previously extracted
+    _debug_verbosity = true;
+    Eigen::Vector3f dq_vector;
+    dq_vector << dq[0], dq[1], dq[2];
+    Eigen::Vector3f v_qs3 = Jop * dq_vector;
+    v_qs << v_qs3, 1.0f;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
     return;
 }
 
@@ -443,18 +456,106 @@ void ScrewsKinematics::CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen:
 }
 
 void ScrewsKinematics::CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs) {
+    // Operational Space Jacobians (&Derivative) must be 
+    // previously extracted through functions:
+    // 1. OperationalSpaceJacobian
+    // 2. DtOperationalSpaceJacobian
+    _debug_verbosity = true;
     Eigen::Vector3f dq_vector;
     dq_vector << dq[0], dq[1], dq[2];
     Eigen::Vector3f ddq_vector;
     ddq_vector << ddq[0], ddq[1], ddq[2];
-    //a_qs = Jop * ddq_vector + 
+    DtOperationalSpaceJacobian(dJop);
+    a_qs = Jop * ddq_vector + dJop * dq_vector;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Acceleration: [%f, %f, %f]", a_qs[0], a_qs[1], a_qs[2]);}
     return;
 }
 
+void ScrewsKinematics::CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector4f &a_qs) {
+    // Operational Space Jacobians (&Derivative) must be 
+    // previously extracted through functions:
+    // 1. OperationalSpaceJacobian
+    // 2. DtOperationalSpaceJacobian
+    // Handles a 4f vector for acceleration
+    Eigen::Vector3f dq_vector;
+    dq_vector << dq[0], dq[1], dq[2];
+    Eigen::Vector3f ddq_vector;
+    ddq_vector << ddq[0], ddq[1], ddq[2];
+    DtOperationalSpaceJacobian(dJop);
+    Eigen::Vector3f a_qs3 = Jop * ddq_vector + dJop * dq_vector;
+    a_qs << a_qs3, 1.0f;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Acceleration: [%f, %f, %f]", a_qs[0], a_qs[1], a_qs[2]);}
+    return;
+}
+
+void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
+    // Returns the Time DerivativeOperational Space Jacobian Matrix.
+    // Needs the spatial velocity twist, the FK tf of {T} frame and
+    // Body Jacobian and its first time derivative
+    // -> sets:Eigen::Matrix3f dJop
+    _debug_verbosity = true; 
+    setBodyPositionJacobian(); // -> Jbd_pos
+    setDerivativeBodyPositionJacobian(); // -> dJbd_pos
+    setDtRotationMatrix(); // -> dRst
+    dJop_t = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
+    if (_debug_verbosity)
+    {
+        ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+        dJop_t(0, 0), dJop_t(0, 1), dJop_t(0, 2),
+        dJop_t(1, 0), dJop_t(1, 1), dJop_t(1, 2),
+        dJop_t(2, 0), dJop_t(2, 1), dJop_t(2, 2)); 
+    }
+    return; 
+}
+
+/*
+ *  SET FUNCTIONS
+ */
+void ScrewsKinematics::setExponentials(float *q) {
+    // Calculates the active joints exponentials for
+    // the configuration given
+    for (size_t i = 0; i < DOF; i++)
+    {
+        _active_expos[i] = twistExp(_ptr2abstract->active_twists[i], *(q+i) );
+    }
+    return;
+}
+
+void ScrewsKinematics::setBodyPositionJacobian() {
+    // Sets the position part of the Tool Body jacobian,
+    // as a Eigen::Matrix3f type.
+    Eigen::Matrix<float, 3, 1> Jpos_col[DOF];
+    for (size_t i = 0; i < DOF; i++)
+    {
+        Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
+    }
+    Jbd_pos << Jpos_col[0], Jpos_col[1], Jpos_col[2];  
+    return;   
+}
+
+void ScrewsKinematics::setDerivativeBodyPositionJacobian() {
+    // Sets the position part of the Time Derivative of 
+    // Tool Body jacobian, as a Eigen::Matrix3f type.
+    Eigen::Matrix<float, 3, 1> dJpos_col[DOF];
+    for (size_t i = 0; i < DOF; i++)
+    {
+        dJpos_col[i] = dJbd_t_1[i].block<3, 1>(0, 0);
+    }
+    dJbd_pos << dJpos_col[0], dJpos_col[1], dJpos_col[2];  
+    return;   
+}
+
+void ScrewsKinematics::setDtRotationMatrix() {
+    // Spatial Velocity Twist and FK tf of {T} frame at current configuration
+    _debug_verbosity = true;
+    Eigen::Matrix3f Rst = g[DOF].rotation(); 
+    Eigen::Vector3f w_st_s = Vsp_tool_twist.block(3, 0, 3, 1); 
+    dRst = skew(w_st_s) * Rst.transpose().inverse();
+    return;
+}
 /*
  *  PRINTING FUNCTIONS
  */
-
 void ScrewsKinematics::printIsometryMatrix(const Eigen::Isometry3f& matrix) {
     for (int i = 0; i < 4; ++i) { ROS_INFO("%.4f\t%.4f\t%.4f\t%.4f", matrix(i, 0), matrix(i, 1), matrix(i, 2), matrix(i, 3)); }
     return;

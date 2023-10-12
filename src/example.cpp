@@ -162,8 +162,10 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.DtToolVelocityTwist(ScrewsKinematics::JacobianSelection::BODY , ddq, dq, smm_robot_kin_solver.dVbd_tool_twist);
     
     // Operational Space Spatial Velocity & acceleration
-    smm_robot_kin_solver.CartesianVelocity_twist(smm_robot_kin_solver.Vop);
-    smm_robot_kin_solver.CartesianAcceleration_twist(smm_robot_kin_solver.Aop, smm_robot_kin_solver.Vop);
+    smm_robot_kin_solver.CartesianVelocity_twist(smm_robot_kin_solver.Vop4);
+    smm_robot_kin_solver.CartesianAcceleration_twist(smm_robot_kin_solver.Aop4, smm_robot_kin_solver.Vop4);
+    smm_robot_kin_solver.CartesianVelocity_jacob(dq, smm_robot_kin_solver.Vop4);
+    smm_robot_kin_solver.CartesianAcceleration_jacob(ddq, dq, smm_robot_kin_solver.Aop4);
 
     return 0;
 }

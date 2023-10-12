@@ -50,8 +50,11 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
 		void CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
+		void CartesianVelocity_jacob(float *dq, Eigen::Vector4f &v_qs);
 		void CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs );
 		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs);
+		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector4f &a_qs);		
+		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 
 		// Public Kinematic data members
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
@@ -70,17 +73,22 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
-		Eigen::Matrix3f Jop;
+		Eigen::Matrix3f dJbd_pos;
+		Eigen::Matrix3f Jbd_pos;
+		Eigen::Matrix3f dJop; // Time Derivative of the Operational Space Jacobian
+		Eigen::Matrix3f Jop; // Operational Space Jacobian
 		Eigen::Matrix<float, 6, 1> dVsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> dVbd_tool_twist;
-		Eigen::Vector4f Vop;
-		Eigen::Vector4f Aop;
+		Eigen::Vector4f Vop4;
+		Eigen::Vector4f Aop4;
+		Eigen::Matrix3f dRst; 
 
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
 		uint8_t _total_pseudojoints;
 		uint8_t _meta1_pseudojoints;
 		uint8_t _meta2_pseudojoints;
+		Eigen::Isometry3f _active_expos[DOF];
 		Eigen::Isometry3f _last_expo;
 		uint8_t _last_twist_cnt;
 		Eigen::Isometry3f _Pi[METALINKS];
@@ -93,10 +101,16 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 		Eigen::Matrix4f _twist_se3;
 
-		// Auxiliary functions
+		// Set functions for elememts used in calculations
+		void setExponentials(float *q);
+		void setBodyPositionJacobian();
+		void setDerivativeBodyPositionJacobian();
+		void setDtRotationMatrix();
+
+		// Auxiliary functions for printing
 		void printIsometryMatrix(const Eigen::Isometry3f& matrix);
 		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
-		void printTwist(Eigen::Matrix<float, 6, 1> Twist);
+		void printTwist(Eigen::Matrix<float, 6, 1> Twist);		
 };		
 
 #endif // SCREWS_KINEMATICS_H

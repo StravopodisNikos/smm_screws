@@ -33,7 +33,7 @@ class ScrewsDynamics: public ScrewsKinematics {
 
         // Basic functions for dynamic matrices
         Eigen::Matrix3f MassMatrix();
-
+        Eigen::Matrix3f CoriolisMatrix(float *dq);
 	private:
         // Constructor essentials to inherit from Structure Abstract Class
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
@@ -43,7 +43,6 @@ class ScrewsDynamics: public ScrewsKinematics {
 		Eigen::Isometry3f _last_expo;
 		uint8_t _last_twist_cnt;
         bool _debug_verbosity;
-        
 
         // Matrices used for internal compuatations
         Eigen::Matrix<float, 6, 6> _Mib[DOF]; // Link Mass matrices /{Links' Body Frames}
@@ -51,15 +50,20 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix<float, 6, 6> _ad_temp;
         Eigen::Matrix<float, 6, 6> _alpha_temp;
         Eigen::Matrix<float, 6, 6> _alpha[2];
+        Eigen::Matrix<float, 6, 6> _alphaParDer[5];
+        Eigen::Matrix<float, 1, 1> _parDer_MassIJ_ThetaK;
+        float _parDer_MassIJ_ThetaK_f;
         Eigen::Matrix<float, 6, 6> _alpha_transpose;
-        Eigen::Matrix3f parDer_M[DOF];
-        Eigen::Matrix<float, 6, 6> mult_temp;
-        Eigen::Matrix<float, 6, 1> mult_temp1;
+        Eigen::Matrix3f parDerMass[3];
+        Eigen::Matrix3f ChristoffelSymbols[3];
+        Eigen::Matrix<float, 6, 1> _LieBracketParDer[2];
         Eigen::Matrix<float, 1, 6> _xi_traspose;
-        // Internal functions to set auxiliary tfs 
-        Eigen::Matrix<float, 6, 6> setAlphamatrix(size_t i, size_t j);
 
-        // Simple auxiliary functions
+        // Internal functions to set auxiliary tfs and matrix elements
+        Eigen::Matrix<float, 6, 6> setAlphamatrix(size_t i, size_t j);
+        Eigen::Matrix<float, 1, 1> computeParDerMassElement(size_t i, size_t j, size_t k);
+
+        // Simple auxiliary functions (for debugging)
 		void print66Matrix(Eigen::Matrix<float, 6, 6> matrix);
         void print61Matrix(Eigen::Matrix<float, 6, 1> matrix);
         void print16Matrix(Eigen::Matrix<float, 1, 6> matrix);

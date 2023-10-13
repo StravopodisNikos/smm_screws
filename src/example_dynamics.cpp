@@ -82,7 +82,9 @@ int main(int argc, char **argv)
      */
     ScrewsKinematics smm_robot_kin_solver(robot_ptr);
     smm_robot_kin_solver.initializePseudoTfs();
-    float q[3] = {0, 0.0658, 2.0236};
+    //float q[3] = {0, 0.0658, 2.0236};
+     float q[3] = {1.5748, 0.2758, 2.5436};
+    float dq[3] = {-0.25 , 0.8934, 1.5748};
     /*
      * Dynamics 
      */
@@ -103,6 +105,9 @@ int main(int argc, char **argv)
     
     // Calculate Mass Matrix
     smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
+
+    // Calculate Coriolis Matrix
+    smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix(dq);
 
     return 0;
 }

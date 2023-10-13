@@ -29,23 +29,24 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
         _Mib[i].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[i]) * Eigen::Matrix3f::Identity();
     }
     */
+    // Added extreme to test code.
         _Mib[0].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[0]) * Eigen::Matrix3f::Identity();
-        _Mib[0](0,1) = 0.05; _Mib[0](0,2) = -0.009; _Mib[0](1,0) = -_Mib[0](0,1);
-        _Mib[0](1,2) = 0.04; _Mib[0](2,0) = -_Mib[0](0,2); _Mib[0](2,1) = -_Mib[0](1,2);  
+        _Mib[0](0,1) = 0.05; _Mib[0](0,2) = 0.009; _Mib[0](1,0) = _Mib[0](0,1);
+        _Mib[0](1,2) = 0.04; _Mib[0](2,0) = _Mib[0](0,2); _Mib[0](2,1) = _Mib[0](1,2);  
         _Mib[0].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
         _Mib[0].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[0].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[0]) * Eigen::Matrix3f::Identity();    
         
         _Mib[1].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[1]) * Eigen::Matrix3f::Identity();
-        _Mib[1](0,1) = 0.02; _Mib[1](0,2) = -0.023; _Mib[1](1,0) = -_Mib[1](0,1);
-        _Mib[1](1,2) = 0.01; _Mib[1](2,0) = -_Mib[1](0,2); _Mib[1](2,1) = -_Mib[1](1,2);  
+        _Mib[1](0,1) = 0.02; _Mib[1](0,2) = 0.023; _Mib[1](1,0) = _Mib[1](0,1);
+        _Mib[1](1,2) = 0.01; _Mib[1](2,0) = _Mib[1](0,2); _Mib[1](2,1) = _Mib[1](1,2);  
         _Mib[1].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
         _Mib[1].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-        _Mib[1].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[0]) * Eigen::Matrix3f::Identity();    
+        _Mib[1].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[1]) * Eigen::Matrix3f::Identity();    
 
         _Mib[2].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[2]) * Eigen::Matrix3f::Identity();
-        _Mib[2](0,1) = 0.034; _Mib[2](0,2) = 0.01; _Mib[2](1,0) = -_Mib[2](0,1);
-        _Mib[2](1,2) = -0.04; _Mib[2](2,0) = -_Mib[2](0,2); _Mib[2](2,1) = -_Mib[2](1,2);  
+        _Mib[2](0,1) = 0.034; _Mib[2](0,2) = 0.01; _Mib[2](1,0) = _Mib[2](0,1);
+        _Mib[2](1,2) = 0.04; _Mib[2](2,0) = _Mib[2](0,2); _Mib[2](2,1) = _Mib[2](1,2);  
         _Mib[2].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
         _Mib[2].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[2].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[2]) * Eigen::Matrix3f::Identity();    
@@ -86,13 +87,13 @@ Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix(float *dq) {
     {
         for (size_t j = 0; j < DOF; j++)
         {
-            for (size_t add = 1; add < DOF; add++)
+            for (size_t k = 0; k < DOF; k++)
             {   
-                parDerMass[0](i, j) = computeParDerMassElement(i, j, add)(0,0); // delat_Mij_theta_k
-                parDerMass[1](i, j) = computeParDerMassElement(i, add, j)(0,0); // delat_Mik_theta_j
-                parDerMass[2](i, j) = computeParDerMassElement(add, j, i)(0,0); // delat_Mkj_theta_i
-                ChristoffelSymbols[add](i, j) = 0.5 * (parDerMass[0](i, j) + parDerMass[1](i, j) - parDerMass[2](i, j));
-                CM(i, j) = CM(i, j) + ( ChristoffelSymbols[add](i, j) * dq[add] ); 
+                parDerMass[0](i, j) = computeParDerMassElement(i, j, k)(0,0); // delat_Mij_theta_k
+                parDerMass[1](i, j) = computeParDerMassElement(i, k, j)(0,0); // delat_Mik_theta_j
+                parDerMass[2](i, j) = computeParDerMassElement(k, j, i)(0,0); // delat_Mkj_theta_i
+                ChristoffelSymbols[k](i, j) = 0.5 * (parDerMass[0](i, j) + parDerMass[1](i, j) - parDerMass[2](i, j));
+                CM(i, j) = CM(i, j) + ( ChristoffelSymbols[k](i, j) * dq[k] ); 
             }
             if (_debug_verbosity) {std::cout << CM(i, j) << "\t";}
         } 
@@ -140,21 +141,21 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
 Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, size_t j, size_t k) {
     // returns a value of a single element of the 
     // Partial Derivative of the Mass Matrix
-    size_t l;
+    size_t max_ij;
     _parDer_MassIJ_ThetaK(0,0) = 0;
-    l = (i > j) ? i : j; // assigns the max to l
-    for (size_t add = l; add < DOF; add++)
+    max_ij = (i > j) ? i : j; // assigns the max to l
+    for (size_t l = max_ij; l < DOF; l++)
     {
         _alphaParDer[0] = setAlphamatrix(k, i);   // Aki
-        _alphaParDer[1] = setAlphamatrix(add, k); // Alk
-        _alphaParDer[2] = setAlphamatrix(add, j); // Alj
+        _alphaParDer[1] = setAlphamatrix(l, k); // Alk
+        _alphaParDer[2] = setAlphamatrix(l, j); // Alj
         _LieBracketParDer[0] = lb(_alphaParDer[0]*(_ptr2abstract->active_twists[i]), _ptr2abstract->active_twists[k] );
 
-        _alphaParDer[3] = setAlphamatrix(add, i);   // Ali
+        _alphaParDer[3] = setAlphamatrix(l, i);   // Ali
         _alphaParDer[4] = setAlphamatrix(k, j);     // Akj  
         _LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists[j]), _ptr2abstract->active_twists[k] );
 
-        _Ml_temp = ad((*(_ptr2abstract->gsli_ptr[add])).inverse()).transpose() * _Mib[add] * ad((*(_ptr2abstract->gsli_ptr[add])).inverse()); 
+        _Ml_temp = ad((*(_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad((*(_ptr2abstract->gsli_ptr[l])).inverse()); 
         
         _parDer_MassIJ_ThetaK = _parDer_MassIJ_ThetaK + \
         ( (_LieBracketParDer[0].transpose() * _alphaParDer[1].transpose() * _Ml_temp * _alphaParDer[2] * (_ptr2abstract->active_twists[j]) ) + \

@@ -22,6 +22,9 @@ public:
     float* link_mass[DOF];
     float* link_inertia[DOF];
 
+    static constexpr float fc_coeffs[DOF] = {1.0f, 1.0f, 1.0f};   // Active Joints friction coeffs
+    static constexpr float fv_coeffs[DOF] = {50.0f, 50.0f, 50.0f};
+
     // FUNCTIONS
     virtual ~RobotAbstractBase() {}
     virtual  uint8_t get_STRUCTURE_ID()  = 0;

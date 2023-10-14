@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <iostream>
+#include <cstdlib>
 #include "smm_screws/ScrewsMain.h"
 #include "smm_screws/RobotAbstractBase.h"
 #include "ros/ros.h"
@@ -30,12 +31,14 @@ class ScrewsKinematics: public ScrewsMain {
 		ScrewsKinematics();
 		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
 		// Initialize kinematic data @ zero configuration
-		void extractPassiveTfs(Eigen::Isometry3f* gpj[METALINKS]);
+		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]);
 		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
 		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
 		// Extract kinematic data @ current configuration 
-		void extractActiveTfs(float *q, Eigen::Isometry3f* gai[DOF]);
+		//void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
+		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
+		Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
@@ -85,7 +88,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Vector4f Vop4;
 		Eigen::Vector4f Aop4;
 		Eigen::Matrix3f dRst; 
-
+		void printIsometryMatrix(const Eigen::Isometry3f& matrix);
 	private:
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
 		uint8_t _total_pseudojoints;
@@ -111,7 +114,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void setDtRotationMatrix();
 
 		// Auxiliary functions for printing
-		void printIsometryMatrix(const Eigen::Isometry3f& matrix);
+		
 		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
 		void printTwist(Eigen::Matrix<float, 6, 1> Twist);		
 };		

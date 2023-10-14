@@ -1,5 +1,8 @@
 #include "smm_screws/ScrewsDynamics.h"
 
+constexpr float RobotAbstractBase::fc_coeffs[DOF]; // connect to static definition inside Abstract Class
+constexpr float RobotAbstractBase::fv_coeffs[DOF];
+
 ScrewsDynamics::ScrewsDynamics() {};
 
 ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(ptr2abstract) {
@@ -16,6 +19,40 @@ ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(
     _alpha_temp.setZero();
     _ad_temp.setZero();
     _Ml_temp.setZero();
+
+    // Preallocate memory for active exponential matrices used in internally calculations
+    for (size_t i = 0; i < DOF; i++)
+    {
+        gai[i] = Eigen::Isometry3f::Identity();
+        ptr2active_tfs[i] = &gai[i]; // Now the gai's can be used from ScrewsDynamics methods
+    }    
+    // Preallocate memory for passive exponential matrices used in internally calculations
+    for (size_t i = 0; i < METALINKS; i++)
+    {
+        ptr2passive_tfs[i] = &gpj[i]; // Now the gpj's can be used from ScrewsDynamics methods
+    }
+    // Initialize Joint positions to zero (will be erased)
+    for (size_t i = 0; i < DOF; i++) {
+        _joint_pos[i] = 0;
+        _joint_vel[i] = 0;
+    }
+    _PotEnergy_prev = 0; // dummy initialization
+}
+
+void ScrewsDynamics::updateJointPos(float *q_new) {
+    // Updates current position and stores Delta Position for numeric diff.
+    for (size_t i = 0; i < DOF; i++) {
+        _joint_pos_prev[i] = _joint_pos[i]; // Save current position to previous
+        _joint_pos[i] = q_new[i];           // Update current pos
+        _delta_joint_pos[i] = _joint_pos[i] - _joint_pos_prev[i];
+        std::cout << "New Joint Posistion:" << _joint_pos[i] << std::endl;
+    } 
+    return;
+}
+
+void ScrewsDynamics::updateJointVel(float *dq_new) {
+    for (size_t i = 0; i < DOF; i++) {_joint_vel[i] = dq_new[i];}
+    return;
 }
 
 void ScrewsDynamics::intializeLinkMassMatrices() {
@@ -57,6 +94,19 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
 Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     // Calculates the Mass Matrix 
     _debug_verbosity = true;
+
+    std::cout << "Joint Posistion1:" << _joint_pos[0] << std::endl;
+    std::cout << "Joint Posistion1:" << _joint_pos[1] << std::endl;
+    std::cout << "Joint Posistion1:" << _joint_pos[2] << std::endl;
+    ScrewsDynamics::extractActiveTfs();
+    /*
+    printIsometryMatrix(gai[0]);
+    printIsometryMatrix(gai[1]);
+    printIsometryMatrix(gai[2]);
+    printIsometryMatrix(*ptr2active_tfs[0]);
+    printIsometryMatrix(*ptr2active_tfs[1]);
+    printIsometryMatrix(*ptr2active_tfs[2]);
+    */
     size_t l;
     MM.setZero();
     for (size_t i = 0; i < DOF; i++)
@@ -79,7 +129,7 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     return MM;
 }
 
-Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix(float *dq) {
+Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix() {
     // Calculates the Mass Matrix 
     _debug_verbosity = true;
     CM.setZero();
@@ -93,7 +143,7 @@ Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix(float *dq) {
                 parDerMass[1](i, j) = computeParDerMassElement(i, k, j)(0,0); // delat_Mik_theta_j
                 parDerMass[2](i, j) = computeParDerMassElement(k, j, i)(0,0); // delat_Mkj_theta_i
                 ChristoffelSymbols[k](i, j) = 0.5 * (parDerMass[0](i, j) + parDerMass[1](i, j) - parDerMass[2](i, j));
-                CM(i, j) = CM(i, j) + ( ChristoffelSymbols[k](i, j) * dq[k] ); 
+                CM(i, j) = CM(i, j) + ( ChristoffelSymbols[k](i, j) * _joint_vel[k] ); 
             }
             if (_debug_verbosity) {std::cout << CM(i, j) << "\t";}
         } 
@@ -101,6 +151,41 @@ Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix(float *dq) {
     }
     
     return CM;
+}
+
+Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
+    _debug_verbosity = true;
+    GV.setZero();
+    _PotEnergy = computePotentialEnergy();
+    float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
+    _PotEnergy_prev = _PotEnergy;
+
+    for (size_t i = 0; i < DOF; i++)
+    {
+        if ( std::abs( _delta_joint_pos[i]) > 0.0001 ) { 
+            GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
+        } else { GV(i,0) = 0; }
+        if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
+    }
+
+    return GV;
+}
+
+Eigen::Matrix<float, 3, 1> ScrewsDynamics::FrictionVector() {
+    _debug_verbosity = true;
+    FV.setZero();
+    Eigen::Matrix<float, 3, 1> fc;
+    Eigen::Matrix<float, 3, 1> fv;
+    for (size_t i = 0; i < DOF; i++)
+    {
+        if ( std::signbit(_joint_vel[i]) ) { fc(i,0) = - _ptr2abstract->fc_coeffs[i]; }
+        else { fc(i,0) = _ptr2abstract->fc_coeffs[i]; }
+        fv(i,0) = _ptr2abstract->fv_coeffs[i] * _joint_vel[i];
+        FV(i,0) = fc(i,0) + fv(i,0);
+        if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
+    }
+    
+    return FV;
 }
 
 Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
@@ -114,7 +199,8 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
         }
     } else if ( i == 1) {
         if ( j == 0) {
-            _ad_temp = ad(gpj[j] * gai[i]);
+            _ad_temp = ad(gpj[j] * gai[i]); 
+            //_ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
             _alpha_temp.setIdentity();
@@ -124,9 +210,11 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
     } else if ( i == 2) {
         if ( j == 0) {
             _ad_temp = ad(gpj[j] * gai[j+1] * gpj[j+1] * gai[i]);
+            //_ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[j+1] * *ptr2passive_tfs[j+1] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
             _ad_temp = ad(gpj[j] * gai[i]);
+            //_ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if ( j == 2) {
             _alpha_temp.setIdentity();
@@ -146,13 +234,13 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
     max_ij = (i > j) ? i : j; // assigns the max to l
     for (size_t l = max_ij; l < DOF; l++)
     {
-        _alphaParDer[0] = setAlphamatrix(k, i);   // Aki
+        _alphaParDer[0] = setAlphamatrix(k, i); // Aki
         _alphaParDer[1] = setAlphamatrix(l, k); // Alk
         _alphaParDer[2] = setAlphamatrix(l, j); // Alj
         _LieBracketParDer[0] = lb(_alphaParDer[0]*(_ptr2abstract->active_twists[i]), _ptr2abstract->active_twists[k] );
 
         _alphaParDer[3] = setAlphamatrix(l, i);   // Ali
-        _alphaParDer[4] = setAlphamatrix(k, j);     // Akj  
+        _alphaParDer[4] = setAlphamatrix(k, j);   // Akj  
         _LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists[j]), _ptr2abstract->active_twists[k] );
 
         _Ml_temp = ad((*(_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad((*(_ptr2abstract->gsli_ptr[l])).inverse()); 
@@ -162,6 +250,37 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
         ( (_ptr2abstract->active_twists[i]).transpose() * _alphaParDer[3].transpose() * _Ml_temp * _alphaParDer[1] * _LieBracketParDer[1]  ) );
     }
     return _parDer_MassIJ_ThetaK;
+}
+
+float ScrewsDynamics::computePotentialEnergy() {
+    float pot_energy = 0;
+    updateCOMTfs(); // updates gsli;
+    for (size_t i = 0; i < DOF; i++)
+    {
+        pot_energy = pot_energy + ( *(_ptr2abstract->link_mass[i]) * _g_z * gsli[i].translation()(2) );
+    }
+    return pot_energy;
+}
+
+void ScrewsDynamics::updateCOMTfs() {
+    _debug_verbosity = true;
+    // gpj are not updated, only initialized for each anatomy
+    ScrewsDynamics::extractActiveTfs(); // updates gai[i]
+    gsli[0] = gai[0] * *(_ptr2abstract->gsli_ptr[0]) ;
+    gsli[1] = gai[0] * gpj[0] * gai[1] * *(_ptr2abstract->gsli_ptr[1]) ;
+    gsli[2] = gai[0] * gpj[0] * gai[1] * gpj[1] *gai[2] * *(_ptr2abstract->gsli_ptr[2]) ; 
+
+    return;
+}
+
+void ScrewsDynamics::extractActiveTfs() {
+    // - joint pos update must be called. 
+    // - ptr2active_tfs must point to preallocated memory 
+    for (size_t i = 0; i < DOF; i++)
+    {
+        *ptr2active_tfs[i] = twistExp(_ptr2abstract->active_twists[i], _joint_pos[i]) ;
+    }
+    return;
 }
 
 /*

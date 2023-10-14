@@ -8,8 +8,6 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
     _meta2_pseudojoints = _ptr2abstract->get_PSEUDOS_METALINK2();
     _last_twist_cnt =0;
     _last_expo = Eigen::Isometry3f::Identity();
-    //_Pi[0] = Eigen::Isometry3f::Identity();
-    //_Pi[1] = Eigen::Isometry3f::Identity();
     _debug_verbosity = true;
 }
 
@@ -77,23 +75,24 @@ void ScrewsKinematics::initializePseudoTfs() {
     }
 }
 
-void ScrewsKinematics::extractPassiveTfs(Eigen::Isometry3f* gpj[METALINKS]) {
+void ScrewsKinematics::extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]) {
     // Returns pointer array of pseudo tfs. initializePseudoTfs() MUST be previously
     // executed.
     for (size_t i = 0; i < METALINKS; i++)
     {
-        *gpj[i] = _Pi[i];
+        *passive_expos[i] = _Pi[i];
     }
     return;
 }
 
-void ScrewsKinematics::extractActiveTfs(float *q, Eigen::Isometry3f* gai[DOF]) {
+
+void ScrewsKinematics::extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]) {
     // Calculates the active joints exponentials. But accepts an array pointer. 
     // Data computed here can be accessed from functions of different class, 
     // using the pointer array!
     for (size_t i = 0; i < DOF; i++)
     {
-        *gai[i] = twistExp(_ptr2abstract->active_twists[i], *(q+i) );
+        *active_expos[i] = twistExp(_ptr2abstract->active_twists[i], *(q+i) );
     }
     return;
 }
@@ -172,7 +171,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
 
     // Calculate 2nd joint frame
     //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
-    *gs_a_i[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ;
+    *gs_a_i[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ;
     _trans_vector = gs_a_i[1]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs2_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs2_y: %f", _trans_vector.y());
@@ -180,7 +179,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
 
     // Calculate 3rd joint frame
     //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
-    *gs_a_i[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ;    
+    *gs_a_i[2] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] *_active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ;    
     _trans_vector = gs_a_i[2]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gs3_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gs3_y: %f", _trans_vector.y());
@@ -188,7 +187,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
 
     // Calculate {T} frame
     //*gs_a_i[3] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[3]) ;
-    *gs_a_i[3] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[3]) ;    
+    *gs_a_i[3] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[3]) ;    
     _trans_vector = gs_a_i[3]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"gst_x_2: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gst_y_2: %f", _trans_vector.y());

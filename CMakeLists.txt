@@ -120,6 +120,7 @@ catkin_package(
 include_directories(
   include
   ~/cpp_ws/libraries/eigen-3.4.0
+  ~/cpp_ws/libraries/odeint-v2-master
   ${catkin_INCLUDE_DIRS}
 )
 

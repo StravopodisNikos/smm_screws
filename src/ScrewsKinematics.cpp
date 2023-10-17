@@ -57,6 +57,7 @@ void ScrewsKinematics::initializePseudoTfs() {
                 _last_expo = Eigen::Isometry3f::Identity();
                 for (size_t j = 0; j < _meta1_pseudojoints; j++)
                 {
+                    //printTwist(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt));
                     _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt), _ptr2abstract->get_PSEUDO_ANGLES(_last_twist_cnt));
                     _last_expo = _Pi[i];
                     _last_twist_cnt++;
@@ -66,6 +67,7 @@ void ScrewsKinematics::initializePseudoTfs() {
                 _last_expo = Eigen::Isometry3f::Identity();
                 for (size_t j = 0; j < _meta2_pseudojoints; j++)
                 {
+                    //printTwist(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt));
                     _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt),_ptr2abstract->get_PSEUDO_ANGLES(_last_twist_cnt));
                     _last_expo = _Pi[i];
                     _last_twist_cnt++;

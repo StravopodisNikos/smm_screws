@@ -134,6 +134,9 @@ include_directories(
  add_library(ScrewsDynamics
  src/ScrewsDynamics.cpp
 )
+add_library(robot_shared
+src/robot_shared.cpp
+)
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -163,7 +166,8 @@ add_executable(example_dynamics src/example_dynamics.cpp)
  )
  target_link_libraries(example_dynamics
    ${catkin_LIBRARIES}
-   ScrewsDynamics
+   #ScrewsDynamics
+   robot_shared # only test
  ) 
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics
@@ -173,6 +177,10 @@ target_link_libraries(ScrewsKinematics
 target_link_libraries(ScrewsDynamics
   ${catkin_LIBRARIES}
   ScrewsKinematics
+)
+target_link_libraries(robot_shared
+  ${catkin_LIBRARIES}
+  ScrewsDynamics
 )
 #############
 ## Install ##

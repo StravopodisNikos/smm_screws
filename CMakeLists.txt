@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
+  message_generation # [18-10-23] Added for custom msg generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,11 +50,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  JointAccel.msg
+ )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -70,10 +70,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  std_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -106,6 +107,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
+  CATKIN_DEPENDS message_runtime # [18-10-23] Added for custom msg generation
 #  LIBRARIES smm_screws
 #  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros
 #  DEPENDS system_lib
@@ -147,6 +149,7 @@ src/robot_shared.cpp
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(example src/example.cpp)
 add_executable(example_dynamics src/example_dynamics.cpp)
+add_executable(example_shared src/example_shared.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -169,6 +172,10 @@ add_executable(example_dynamics src/example_dynamics.cpp)
    #ScrewsDynamics
    robot_shared # only test
  ) 
+ target_link_libraries(example_shared
+ ${catkin_LIBRARIES}
+ robot_shared 
+) 
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics
   ${catkin_LIBRARIES}

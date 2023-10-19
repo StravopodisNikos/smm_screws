@@ -14,6 +14,10 @@ int main(int argc, char **argv)
     // Test code:
     float q[3] = {0, 0, -1.5436};
     float dq[3] = {0 , -0.500, 0.7854};
+
+    // Calculate Forward Kinematics
+    smm_robot_kin_solver.ForwardKinematicsTCP(q);
+    
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);
     smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();

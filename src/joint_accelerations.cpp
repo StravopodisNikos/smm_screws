@@ -45,10 +45,8 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "joint_acceleration_calculator");
     ros::NodeHandle nh;
-
     ros::Publisher joint_accel_pub = nh.advertise<smm_screws::JointAccel>("/joint_accelerations", 1);
-    ros::Subscriber joint_state_sub = nh.subscribe("/joint_states", 1, boost::bind(jointStateCallback, _1, joint_accel_pub));
-
+    ros::Subscriber joint_state_sub = nh.subscribe<sensor_msgs::JointState>("/joint_states", 1, boost::bind(jointStateCallback, _1, joint_accel_pub));
     last_time = ros::Time::now();
     last_velocities.resize(0);
 

@@ -30,37 +30,56 @@ class ScrewsKinematics: public ScrewsMain {
 
 		ScrewsKinematics();
 		ScrewsKinematics(RobotAbstractBase *ptr2abstract);
+
+		// Update function to store new data from ROS topics
+		void updateJointState(float *q_new, float *dq_new, float *ddq_new);
+
 		// Initialize kinematic data @ zero configuration
 		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]);
 		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
 		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
+		void initializeLocalScrewCoordVectors();
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
 		// Extract kinematic data @ current configuration 
 		//void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
 		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
 		Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
+		void ForwardKinematicsTCP();
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
+		void ForwardKinematics3DOF_1();
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
+		void ForwardKinematics3DOF_2();
 		void SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF]); // Returns {T} frame Spatial Jacobian
+		void SpatialJacobian_Tool_1(); // sets Jsp_t_1 @ memory position: ptr2Jsp1
 		void SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_2[DOF]); // Returns {T} frame Spatial Jacobian
+		void SpatialJacobian_Tool_2(); // sets Jsp_t_2 @ memory position: ptr2Jsp2
 		void BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]); // Returns Body Jacobians calculated @ active joint frames and the {T} frame
+		void BodyJacobians(); // Sets BodyJacobiansFrames @ memory position: ptr2BodyJacobiansFrames
 		void BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]); // Returns {T} frame Body Jacobian
+		void BodyJacobian_Tool_1();
 		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]); // Returns {T} frame Body Jacobian
+		void BodyJacobian_Tool_2();
 		void ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ); // Calculates {T} frame Velocity twists
+		void ToolVelocityTwist(typ_jacobian jacob_selection); 
 		void DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[DOF] ); // Time derivative of spatial jacobian
+		void DtSpatialJacobian_Tool_1();
 		void DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_1[DOF]) ;		
+		void DtBodyJacobian_Tool_1();
 		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[DOF]) ;
+		void DtBodyJacobian_Tool_2();
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
+		void OperationalSpaceJacobian();
+		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
+		void DtToolVelocityTwist(typ_jacobian jacob_selection);
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
 		void CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
 		void CartesianVelocity_jacob(float *dq, Eigen::Vector4f &v_qs);
 		void CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs );
 		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs);
 		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector4f &a_qs);		
-		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
-
+		
 		// Public Kinematic data members
 		
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
@@ -69,12 +88,20 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, DOF> Jbd63;
 		Eigen::Matrix<float, 6, DOF> dJbd63;
+		Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp_t_2[DOF];
+		Eigen::Matrix<float, 6, 1>** ptr2BodyJacobiansFrames[DOF+1];
 		Eigen::Matrix<float, 6, 1> BodyJacobiansFrames[DOF+1][DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_1[DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> Jbd_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> Jbd_t_2[DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJsp_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> dJsp_t_1[DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_1[DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> dJbd_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
@@ -106,6 +133,9 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix4f _twist_se3;
 		Eigen::Isometry3f _active_expos[DOF];
 		Eigen::Isometry3f _Pi[METALINKS];
+        float _joint_pos[DOF];
+        float _joint_vel[DOF];
+		float _joint_accel[DOF];
 
 		// Set functions for elememts used in calculations
 		void setExponentials(float *q);		

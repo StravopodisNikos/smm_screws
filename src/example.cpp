@@ -89,46 +89,48 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.initializeLocalScrewCoordVectors(local_screws);
     
     // Jacobian Spatial 1
-    Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF];
-    for (size_t i = 0; i < DOF; i++)
-    {
-        ptr2Jsp1[i] = &smm_robot_kin_solver.Jsp_t_1[i];
-    }
-    smm_robot_kin_solver.SpatialJacobian_Tool_1(ptr2Jsp1);
+    // Next lines deprecated, added pointer as public member
+    //Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF];
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    ptr2Jsp1[i] = &smm_robot_kin_solver.Jsp_t_1[i];
+    //}
+    smm_robot_kin_solver.SpatialJacobian_Tool_1(smm_robot_kin_solver.ptr2Jsp1);
+    smm_robot_kin_solver.SpatialJacobian_Tool_1();
 
     // Jacobian Spatial 2
-    Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF];
-    for (size_t i = 0; i < DOF; i++)
-    {
-        ptr2Jsp2[i] = &smm_robot_kin_solver.Jsp_t_2[i];
-    }
-    smm_robot_kin_solver.SpatialJacobian_Tool_2(ptr2Jsp2);
+    //Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF];
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    ptr2Jsp2[i] = &smm_robot_kin_solver.Jsp_t_2[i];
+    //}
+    smm_robot_kin_solver.SpatialJacobian_Tool_2(smm_robot_kin_solver.ptr2Jsp2);
 
     // Jacobian Body 1
-    Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_1[DOF];
-    for (size_t i = 0; i < DOF; i++)
-    {
-        ptr2Jbd_t_1[i] = &smm_robot_kin_solver.Jbd_t_1[i];
-    }
-    smm_robot_kin_solver.BodyJacobian_Tool_1(ptr2Jbd_t_1);
+    //Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_1[DOF];
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    ptr2Jbd_t_1[i] = &smm_robot_kin_solver.Jbd_t_1[i];
+    //}
+    smm_robot_kin_solver.BodyJacobian_Tool_1(smm_robot_kin_solver.ptr2Jbd_t_1);
 
     // Jacobian Body 2
-    Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_2[DOF];
-    for (size_t i = 0; i < DOF; i++)
-    {
-        ptr2Jbd_t_2[i] = &smm_robot_kin_solver.Jbd_t_2[i];
-    }
-    smm_robot_kin_solver.BodyJacobian_Tool_2(ptr2Jbd_t_2);
+    //Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_2[DOF];
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    ptr2Jbd_t_2[i] = &smm_robot_kin_solver.Jbd_t_2[i];
+    //}
+    smm_robot_kin_solver.BodyJacobian_Tool_2(smm_robot_kin_solver.ptr2Jbd_t_2);
 
     // Body Jacobians Frames:
-    Eigen::Matrix<float, 6, 1>** PTR2BodyJacobiansFrames[DOF+1];
-    for (int i = 0; i < DOF+1; ++i) {
-        PTR2BodyJacobiansFrames[i] = new Eigen::Matrix<float, 6, 1>*[DOF];
-        for (int j = 0; j < DOF; ++j) {
-            PTR2BodyJacobiansFrames[i][j] = new Eigen::Matrix<float, 6, 1>;
-        }
-    }
-    smm_robot_kin_solver.BodyJacobians(PTR2BodyJacobiansFrames);
+    //Eigen::Matrix<float, 6, 1>** PTR2BodyJacobiansFrames[DOF+1];
+    //for (int i = 0; i < DOF+1; ++i) {
+    //    PTR2BodyJacobiansFrames[i] = new Eigen::Matrix<float, 6, 1>*[DOF];
+    //    for (int j = 0; j < DOF; ++j) {
+    //        PTR2BodyJacobiansFrames[i][j] = new Eigen::Matrix<float, 6, 1>;
+    //    }
+    //}
+    smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
     // Dont deallocate the memory space because matrices will be lost!
     /*
     for (int i = 0; i < DOF+1; ++i) {
@@ -140,16 +142,18 @@ int main(int argc, char **argv)
     */
     float ddq[3] = {10.025 , -1.8294, 5.0236};
     float dq[3] = {0.25 , 0.8954, -2.0236};
+    // 1st Time Derivative of Spatial Jacobians
+
     // 1st Time Derivative of Body Jacobians
-    Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_1[DOF];
-    Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_2[DOF];
-    for (size_t i = 0; i < DOF; i++)
-    {
-        ptr2dJbd_t_1[i] = &smm_robot_kin_solver.dJbd_t_1[i];
-        ptr2dJbd_t_2[i] = &smm_robot_kin_solver.dJbd_t_2[i];
-    }   
-    smm_robot_kin_solver.DtBodyJacobian_Tool_1(dq, PTR2BodyJacobiansFrames, ptr2dJbd_t_1);
-    smm_robot_kin_solver.DtBodyJacobian_Tool_2(dq, PTR2BodyJacobiansFrames, ptr2dJbd_t_2);
+    //Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_1[DOF];
+    //Eigen::Matrix<float, 6, 1>* ptr2dJbd_t_2[DOF];
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    ptr2dJbd_t_1[i] = &smm_robot_kin_solver.dJbd_t_1[i];
+    //    ptr2dJbd_t_2[i] = &smm_robot_kin_solver.dJbd_t_2[i];
+    //}   
+    smm_robot_kin_solver.DtBodyJacobian_Tool_1(dq, smm_robot_kin_solver.ptr2BodyJacobiansFrames, smm_robot_kin_solver.ptr2dJbd_t_1);
+    smm_robot_kin_solver.DtBodyJacobian_Tool_2(dq, smm_robot_kin_solver.ptr2BodyJacobiansFrames, smm_robot_kin_solver.ptr2dJbd_t_2);
 
     // Operational Space Jacobian
     smm_robot_kin_solver.OperationalSpaceJacobian(smm_robot_kin_solver.Jop);

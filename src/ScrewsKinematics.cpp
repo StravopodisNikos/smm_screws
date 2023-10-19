@@ -692,7 +692,7 @@ void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
     // -> sets:Eigen::Matrix3f dJop
     _debug_verbosity = true; 
     setBodyPositionJacobian(); // -> Jbd_pos
-    setDerivativeBodyPositionJacobian(); // -> dJbd_pos
+    setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
     dJop_t = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
     if (_debug_verbosity)
@@ -701,6 +701,26 @@ void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
         dJop_t(0, 0), dJop_t(0, 1), dJop_t(0, 2),
         dJop_t(1, 0), dJop_t(1, 1), dJop_t(1, 2),
         dJop_t(2, 0), dJop_t(2, 1), dJop_t(2, 2)); 
+    }
+    return; 
+}
+
+void ScrewsKinematics::DtOperationalSpaceJacobian() {
+    // Returns the Time DerivativeOperational Space Jacobian Matrix.
+    // Needs the spatial velocity twist, the FK tf of {T} frame and
+    // Body Jacobian and its first time derivative
+    // -> sets:Eigen::Matrix3f dJop
+    _debug_verbosity = true; 
+    setBodyPositionJacobian(); // -> Jbd_pos
+    setDtBodyPositionJacobian(); // -> dJbd_pos
+    setDtRotationMatrix(); // -> dRst
+    dJop = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
+    if (_debug_verbosity)
+    {
+        ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+        dJop(0, 0), dJop(0, 1), dJop(0, 2),
+        dJop(1, 0), dJop(1, 1), dJop(1, 2),
+        dJop(2, 0), dJop(2, 1), dJop(2, 2)); 
     }
     return; 
 }
@@ -808,21 +828,21 @@ void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {
     return;
 }
 
-void ScrewsKinematics::CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs) {
+void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector3f &v_qs) {
     // Operational Space Jacobian must have been previously extracted
     _debug_verbosity = true;
     Eigen::Vector3f dq_vector;
-    dq_vector << dq[0], dq[1], dq[2];
+    dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     v_qs = Jop * dq_vector;
     if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
     return;
 }
 
-void ScrewsKinematics::CartesianVelocity_jacob(float *dq, Eigen::Vector4f &v_qs) {
+void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector4f &v_qs) {
     // Operational Space Jacobian must have been previously extracted
     _debug_verbosity = true;
     Eigen::Vector3f dq_vector;
-    dq_vector << dq[0], dq[1], dq[2];
+    dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     Eigen::Vector3f v_qs3 = Jop * dq_vector;
     v_qs << v_qs3, 1.0f;
     if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
@@ -842,32 +862,32 @@ void ScrewsKinematics::CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen:
     return;
 }
 
-void ScrewsKinematics::CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs) {
+void ScrewsKinematics::CartesianAcceleration_jacob(Eigen::Vector3f &a_qs) {
     // Operational Space Jacobians (&Derivative) must be 
     // previously extracted through functions:
     // 1. OperationalSpaceJacobian
     // 2. DtOperationalSpaceJacobian
     _debug_verbosity = true;
     Eigen::Vector3f dq_vector;
-    dq_vector << dq[0], dq[1], dq[2];
+    dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     Eigen::Vector3f ddq_vector;
-    ddq_vector << ddq[0], ddq[1], ddq[2];
+    ddq_vector << _joint_accel[0], _joint_accel[1], _joint_accel[2];
     DtOperationalSpaceJacobian(dJop);
     a_qs = Jop * ddq_vector + dJop * dq_vector;
     if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Acceleration: [%f, %f, %f]", a_qs[0], a_qs[1], a_qs[2]);}
     return;
 }
 
-void ScrewsKinematics::CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector4f &a_qs) {
+void ScrewsKinematics::CartesianAcceleration_jacob(Eigen::Vector4f &a_qs) {
     // Operational Space Jacobians (&Derivative) must be 
     // previously extracted through functions:
     // 1. OperationalSpaceJacobian
     // 2. DtOperationalSpaceJacobian
     // Handles a 4f vector for acceleration
     Eigen::Vector3f dq_vector;
-    dq_vector << dq[0], dq[1], dq[2];
+    dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     Eigen::Vector3f ddq_vector;
-    ddq_vector << ddq[0], ddq[1], ddq[2];
+    ddq_vector << _joint_accel[0], _joint_accel[1], _joint_accel[2];
     DtOperationalSpaceJacobian(dJop);
     Eigen::Vector3f a_qs3 = Jop * ddq_vector + dJop * dq_vector;
     a_qs << a_qs3, 1.0f;
@@ -902,7 +922,7 @@ void ScrewsKinematics::setBodyPositionJacobian() {
     return;   
 }
 
-void ScrewsKinematics::setDerivativeBodyPositionJacobian() {
+void ScrewsKinematics::setDtBodyPositionJacobian() {
     // Sets the position part of the Time Derivative of 
     // Tool Body jacobian, as a Eigen::Matrix3f type.
     Eigen::Matrix<float, 3, 1> dJpos_col[DOF];

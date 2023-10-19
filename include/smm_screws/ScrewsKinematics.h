@@ -71,14 +71,15 @@ class ScrewsKinematics: public ScrewsMain {
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
 		void OperationalSpaceJacobian();
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
+		void DtOperationalSpaceJacobian(); 
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
 		void DtToolVelocityTwist(typ_jacobian jacob_selection);
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
-		void CartesianVelocity_jacob(float *dq, Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
-		void CartesianVelocity_jacob(float *dq, Eigen::Vector4f &v_qs);
+		void CartesianVelocity_jacob(Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
+		void CartesianVelocity_jacob(Eigen::Vector4f &v_qs);
 		void CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs );
-		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector3f &a_qs);
-		void CartesianAcceleration_jacob(float *ddq, float *dq, Eigen::Vector4f &a_qs);		
+		void CartesianAcceleration_jacob(Eigen::Vector3f &a_qs);
+		void CartesianAcceleration_jacob(Eigen::Vector4f &a_qs);		
 		
 		// Public Kinematic data members
 		
@@ -140,7 +141,7 @@ class ScrewsKinematics: public ScrewsMain {
 		// Set functions for elememts used in calculations
 		void setExponentials(float *q);		
 		void setBodyPositionJacobian();
-		void setDerivativeBodyPositionJacobian();
+		void setDtBodyPositionJacobian();
 		void setDtRotationMatrix();
 
 		// Auxiliary functions for printing

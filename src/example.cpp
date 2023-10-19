@@ -52,7 +52,11 @@ int main(int argc, char **argv)
     ScrewsKinematics smm_robot_kin_solver(robot_ptr);
     smm_robot_kin_solver.initializePseudoTfs();
     float q[3] = {0, 0.0658, 2.0236};
+    float ddq[3] = {10.025 , -1.8294, 5.0236};
+    float dq[3] = {0.25 , 0.8954, -2.0236};    
     smm_robot_kin_solver.ForwardKinematicsTCP(q);
+    
+    smm_robot_kin_solver.updateJointState(q, dq, ddq);
 
     // Tested ForwardKinematics3DOF_1
     Eigen::Isometry3f* robot_tfs[DOF+1]; // These pointers are uninitialized (they don't yet point to valid memory locations)
@@ -140,8 +144,7 @@ int main(int argc, char **argv)
         delete[] PTR2BodyJacobiansFrames[i];
     }
     */
-    float ddq[3] = {10.025 , -1.8294, 5.0236};
-    float dq[3] = {0.25 , 0.8954, -2.0236};
+
     // 1st Time Derivative of Spatial Jacobians
 
     // 1st Time Derivative of Body Jacobians
@@ -168,8 +171,8 @@ int main(int argc, char **argv)
     // Operational Space Spatial Velocity & acceleration
     smm_robot_kin_solver.CartesianVelocity_twist(smm_robot_kin_solver.Vop4);
     smm_robot_kin_solver.CartesianAcceleration_twist(smm_robot_kin_solver.Aop4, smm_robot_kin_solver.Vop4);
-    smm_robot_kin_solver.CartesianVelocity_jacob(dq, smm_robot_kin_solver.Vop4);
-    smm_robot_kin_solver.CartesianAcceleration_jacob(ddq, dq, smm_robot_kin_solver.Aop4);
+    smm_robot_kin_solver.CartesianVelocity_jacob(smm_robot_kin_solver.Vop4);
+    smm_robot_kin_solver.CartesianAcceleration_jacob(smm_robot_kin_solver.Aop4);
 
     return 0;
 }

@@ -106,12 +106,22 @@ void ScrewsKinematics::initializePseudoTfs() {
 }
 
 void ScrewsKinematics::updateJointState(float *q_new, float *dq_new, float *ddq_new) {
-    // Updates current position and velocity. Called every time the 
-    // subscriber to /"robot_ns"/joint_states is called.
+    // Updates current position,velocity and acceleration. Called every time the 
+    // subscriber to /"robot_ns"/joint_states + /"robot_ns"/joint_accelerations is called.
     for (size_t i = 0; i < DOF; i++) {
         _joint_pos[i] = q_new[i];      // Update current pos
         _joint_vel[i] = dq_new[i];     // Update current vel
         _joint_accel[i] = ddq_new[i];     // Update current accel
+    } 
+    return;
+}
+
+void ScrewsKinematics::updateJointState(float *q_new, float *dq_new) {
+    // Updates current position,velocity and acceleration. Called every time 
+    // subscriber to /"robot_ns"/joint_states is ONLY called.
+    for (size_t i = 0; i < DOF; i++) {
+        _joint_pos[i] = q_new[i];      // Update current pos
+        _joint_vel[i] = dq_new[i];     // Update current vel
     } 
     return;
 }

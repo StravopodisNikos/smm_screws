@@ -6,6 +6,8 @@
 #include "smm_screws/robot_definition.h"
 #include "smm_screws/passive_definition.h"
 
+#define ARRAY_33_SIZE 9
+
 // This is the base class that contains the funtamental geometry properties 
 // of any serial metamorphic structure. Currently 3dof structures are suppo-
 // rted with 2 metamorphic links.

@@ -33,7 +33,7 @@ class ScrewsKinematics: public ScrewsMain {
 
 		// Update function to store new data from ROS topics
 		void updateJointState(float *q_new, float *dq_new, float *ddq_new);
-
+		void updateJointState(float *q_new, float *dq_new);
 		// Initialize kinematic data @ zero configuration
 		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]);
 		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);

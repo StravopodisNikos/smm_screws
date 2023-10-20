@@ -12,6 +12,7 @@ bool robot_shared::initializeSharedLib() {
     smm_robot_kin_solver.initializePseudoTfs();
     smm_robot_dyn_solver.intializeLinkMassMatrices();
     smm_robot_kin_solver.extractPassiveTfs(smm_robot_dyn_solver.ptr2passive_tfs);
+    smm_robot_kin_solver.initializeLocalScrewCoordVectors();
     return true;
 }
 

@@ -150,6 +150,8 @@ src/robot_shared.cpp
 add_executable(example src/example.cpp)
 add_executable(example_dynamics src/example_dynamics.cpp)
 add_executable(example_shared src/example_shared.cpp)
+add_executable(serverOperationalSpaceJacobian src/serverOperationalSpaceJacobian.cpp)
+add_executable(clientOperationalSpaceJacobian src/clientOperationalSpaceJacobian.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -165,7 +167,8 @@ add_executable(example_shared src/example_shared.cpp)
  target_link_libraries(example
    ${catkin_LIBRARIES}
    # ScrewsMain # -> [4-10-23] Removed since ScrewsKinematics inherits from ScrewsMain
-   ScrewsKinematics
+   #ScrewsKinematics
+   robot_shared
  )
  target_link_libraries(example_dynamics
    ${catkin_LIBRARIES}
@@ -175,6 +178,14 @@ add_executable(example_shared src/example_shared.cpp)
  target_link_libraries(example_shared
  ${catkin_LIBRARIES}
  robot_shared 
+) 
+target_link_libraries(serverOperationalSpaceJacobian
+${catkin_LIBRARIES}
+robot_shared 
+) 
+target_link_libraries(clientOperationalSpaceJacobian
+${catkin_LIBRARIES}
+robot_shared 
 ) 
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics

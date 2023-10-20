@@ -18,6 +18,7 @@ public:
     // 2. the home configuration homogeneous tfs(joints+tool)
     Eigen::Matrix<float, 6, 1> active_twists[DOF]; 
     Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
+    Eigen::Isometry3f g[DOF+1];
     Eigen::Isometry3f gsli_ptr[DOF];
     float* link_mass[DOF];
     float* link_inertia[DOF];
@@ -31,12 +32,12 @@ public:
         for (int i = 0; i < 6; i++) { active_twists[1](i, 0) = robot_definition::__active_twist_1[i]; }  
         for (int i = 0; i < 6; i++) { active_twists[2](i, 0) = robot_definition::__active_twist_2[i]; }  
         // Active Joints exponentials @ zero configuration
-        Eigen::Isometry3f g[DOF+1];
+        //Eigen::Isometry3f g[DOF+1]; // mega bug, this matrix MUST be a public class member!  
         for (int i = 0; i < DOF+1; i++) { g[i].setIdentity();} // preallocate memory 
         for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[0](i, j) = robot_definition::gsa10[i][j]; } }
         gsai_ptr[0] = &g[0];
         for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[1](i, j) = robot_definition::gsa20[i][j]; } }
-        gsai_ptr[1] = &g[1];      
+        gsai_ptr[1] = &g[1];   
         for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[2](i, j) = robot_definition::gsa30[i][j]; } }
         gsai_ptr[2] = &g[2];  
         for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[3](i, j) = robot_definition::gst0[i][j]; } }

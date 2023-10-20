@@ -27,6 +27,12 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
             ptr2BodyJacobiansFrames[i][j] = new Eigen::Matrix<float, 6, 1>;
         }
     }
+    // Preallocate memory for active exponential matrices used in internally calculations
+    for (size_t i = 0; i < DOF+1; i++)
+    {
+        g[i] = Eigen::Isometry3f::Identity();
+        B[i] = Eigen::Isometry3f::Identity();
+    }    
 }
 
 void ScrewsKinematics::initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]) {
@@ -161,6 +167,9 @@ void ScrewsKinematics::ForwardKinematicsTCP(float *q) {
 
 void ScrewsKinematics::ForwardKinematicsTCP() {
     Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
+    ROS_INFO("_joint_pos_x: %f", _joint_pos[0]);
+    ROS_INFO("_joint_pos_y: %f", _joint_pos[1]);
+    ROS_INFO("_joint_pos_z: %f", _joint_pos[2]);
     setExponentials(_joint_pos);
     _gst = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *gst_0 ;
     ROS_INFO("gst_x: %f", _gst(0,3));
@@ -222,6 +231,10 @@ void ScrewsKinematics::ForwardKinematics3DOF_1() {
     // "_1" -> Implements eq.8/p.44/[2]
     // Calculates the "Ci_1" matrices /in screw_dynamics/calculateFwdKinMueller.m [laptop]
     _debug_verbosity = true;
+
+    printIsometryMatrix( *(_ptr2abstract->gsai_ptr[0]) );
+    printIsometryMatrix( *(_ptr2abstract->gsai_ptr[1]) );
+    printIsometryMatrix( *(_ptr2abstract->gsai_ptr[2]) );
 
     // Calculate 1st joint frame
     _X = extractLocalScrewCoordVector(*(_ptr2abstract->gsai_ptr[0]), _ptr2abstract->active_twists[0]);
@@ -926,7 +939,8 @@ void ScrewsKinematics::setBodyPositionJacobian() {
     Eigen::Matrix<float, 3, 1> Jpos_col[DOF];
     for (size_t i = 0; i < DOF; i++)
     {
-        Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
+        //Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
+        Jpos_col[i] = ptr2Jbd_t_1[i]->block<3, 1>(0, 0);
     }
     Jbd_pos << Jpos_col[0], Jpos_col[1], Jpos_col[2];  
     return;   

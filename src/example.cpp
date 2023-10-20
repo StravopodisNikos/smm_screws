@@ -1,12 +1,13 @@
 //#include "ros/ros.h"
-#include <smm_screws/ScrewsKinematics.h>
+//#include <smm_screws/ScrewsKinematics.h>
+#include <smm_screws/robot_shared.h>
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "example");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     ros::NodeHandle nh;
-
+/*
     // Define the SMM structure properties (extracted by MATLAB analysis)
     Structure2Pseudos robot_def2; // object of the specific structure class, here is specified, later will be selected based the structure yaml file
     RobotAbstractBase *robot_ptr = &robot_def2; // pointer to abstract class(), can access derived class members
@@ -47,33 +48,41 @@ int main(int argc, char **argv)
     robot_def2.pseudo_angles[1] = 0;
     robot_def2.passive_twists[0] << -0.00 , 0.1660, -0.025, 1.0, 0.0 , 0.0;
     robot_def2.passive_twists[1] << -0.4685 , 0.00, -0.025, 0.0, -1.0 , 0.0;
+*/
+    robot_shared my_shared_lib;
+    if (my_shared_lib.initializeSharedLib()) {ROS_INFO("[example] Initialized Shared Library.");}
+    ScrewsKinematics& smm_robot_kin_solver = my_shared_lib.get_screws_kinematics_solver();
+    ScrewsDynamics& smm_robot_dyn_solver = my_shared_lib.get_screws_dynamics_solver();  
 
     // Tested ForwardKinematicsTCP
-    ScrewsKinematics smm_robot_kin_solver(robot_ptr);
+    //ScrewsKinematics smm_robot_kin_solver(robot_ptr);
     smm_robot_kin_solver.initializePseudoTfs();
     float q[3] = {0, 0.0658, 2.0236};
     float ddq[3] = {10.025 , -1.8294, 5.0236};
     float dq[3] = {0.25 , 0.8954, -2.0236};    
-    smm_robot_kin_solver.ForwardKinematicsTCP(q);
-    
+    //smm_robot_kin_solver.ForwardKinematicsTCP(q);
+
     smm_robot_kin_solver.updateJointState(q, dq, ddq);
+    smm_robot_kin_solver.ForwardKinematicsTCP();
 
     // Tested ForwardKinematics3DOF_1
-    Eigen::Isometry3f* robot_tfs[DOF+1]; // These pointers are uninitialized (they don't yet point to valid memory locations)
+    //Eigen::Isometry3f* robot_tfs[DOF+1]; // These pointers are uninitialized (they don't yet point to valid memory locations)
     //Eigen::Isometry3f g[DOF+1]; // joint frames tfs @q 
-    for (size_t i = 0; i < DOF+1; i++)
-    {
-        robot_tfs[i] = &smm_robot_kin_solver.g[i];
-    }
-    smm_robot_kin_solver.ForwardKinematics3DOF_1(q, robot_tfs);
+    //for (size_t i = 0; i < DOF+1; i++)
+    //{
+    //     robot_tfs[i] = &smm_robot_kin_solver.g[i];
+    //}
+    //smm_robot_kin_solver.ForwardKinematics3DOF_1(q, robot_tfs);
+    smm_robot_kin_solver.ForwardKinematics3DOF_1();
     // Tested ForwardKinematics3DOF_2
-    smm_robot_kin_solver.ForwardKinematics3DOF_2(q, robot_tfs);
+    //smm_robot_kin_solver.ForwardKinematics3DOF_2(q, robot_tfs);
+    smm_robot_kin_solver.ForwardKinematics3DOF_2();
 
     // Setting TCP Position to ROS_PARAMETER_SERVER
-    Eigen::Vector3f  _pos_tcp_vector = robot_tfs[3]->translation();
-    nh.setParam("/x_s_TCP", _pos_tcp_vector.x() );
-    nh.setParam("/y_s_TCP", _pos_tcp_vector.y() );
-    nh.setParam("/z_s_TCP", _pos_tcp_vector.z() );
+    //Eigen::Vector3f  _pos_tcp_vector = robot_tfs[3]->translation();
+    //nh.setParam("/x_s_TCP", _pos_tcp_vector.x() );
+    //nh.setParam("/y_s_TCP", _pos_tcp_vector.y() );
+    //nh.setParam("/z_s_TCP", _pos_tcp_vector.z() );
 
     // Initializing kinematic matrices for jacobian calculation
     Eigen::Isometry3f* rel_tfs[DOF+1]; 

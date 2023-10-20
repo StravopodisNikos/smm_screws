@@ -7,7 +7,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     robot_shared my_shared_lib;
-    if (my_shared_lib.initializeSharedLib()) {}
+    if (my_shared_lib.initializeSharedLib()) {ROS_INFO("[example_shared] Initialized Shared Library.");}
     ScrewsKinematics& smm_robot_kin_solver = my_shared_lib.get_screws_kinematics_solver();
     ScrewsDynamics& smm_robot_dyn_solver = my_shared_lib.get_screws_dynamics_solver();    
     
@@ -16,8 +16,11 @@ int main(int argc, char **argv)
     float dq[3] = {0 , -0.500, 0.7854};
 
     // Calculate Forward Kinematics
-    smm_robot_kin_solver.ForwardKinematicsTCP(q);
-    
+    smm_robot_kin_solver.updateJointState(q, dq);
+    smm_robot_kin_solver.ForwardKinematics3DOF_2();
+    smm_robot_kin_solver.BodyJacobian_Tool_1();
+    smm_robot_kin_solver.OperationalSpaceJacobian();
+
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);
     smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();

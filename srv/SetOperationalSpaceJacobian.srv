@@ -1,4 +1,6 @@
-float32 Jop_00
+bool give_op_jacob   # Request part: Boolean flag to trigger Jacobian calculation
+---
+float32 Jop_00       # Response part: Elements of the Jacobian matrix
 float32 Jop_01
 float32 Jop_02
 float32 Jop_10
@@ -7,5 +9,3 @@ float32 Jop_12
 float32 Jop_20
 float32 Jop_21
 float32 Jop_22
----
-bool success

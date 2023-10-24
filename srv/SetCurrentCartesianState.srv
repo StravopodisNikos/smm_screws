@@ -1,0 +1,8 @@
+bool give_cur_cart_state # Request part: Boolean flag to trigger current cartesian state {p_e_s, v_e_s}
+---
+float32 p_e_s_x # Response part: Position of TCP/{S}
+float32 p_e_s_y
+float32 p_e_s_z
+float32 v_e_s_x # Response part: Velocity of TCP/{S}
+float32 v_e_s_y
+float32 v_e_s_z

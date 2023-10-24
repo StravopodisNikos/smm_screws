@@ -27,24 +27,39 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
             ptr2BodyJacobiansFrames[i][j] = new Eigen::Matrix<float, 6, 1>;
         }
     }
-    // Preallocate memory for active exponential matrices used in internally calculations
+    // Preallocate memory for tf  matrices used in internal calculations
+    // for Mueller/Murray equations
     for (size_t i = 0; i < DOF+1; i++)
     {
-        g[i] = Eigen::Isometry3f::Identity();
-        B[i] = Eigen::Isometry3f::Identity();
+        g[i]  = Eigen::Isometry3f::Identity();
+        Bi[i] = Eigen::Isometry3f::Identity();
     }    
 }
 
-void ScrewsKinematics::initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]) {
+void ScrewsKinematics::initializeRelativeTfs() {
     // Initializes the matrices Bi ~ Ci_i1(0)
     _debug_verbosity = false;
 
-    Bi[0] = _ptr2abstract->gsai_ptr[0];
-    if (_debug_verbosity) { printIsometryMatrix(*Bi[0]); ROS_INFO(" ");}
+    Bi[0] = *_ptr2abstract->gsai_ptr[0];
+    if (_debug_verbosity) { printIsometryMatrix(Bi[0]); ROS_INFO(" ");}
     for (size_t i = 1; i < DOF+1; i++)
     {
-        *Bi[i] = extractRelativeTf(*_ptr2abstract->gsai_ptr[i], *_ptr2abstract->gsai_ptr[i-1]);
-        if (_debug_verbosity) { printIsometryMatrix(*Bi[i]); ROS_INFO(" ");}
+        Bi[i] = extractRelativeTf(*_ptr2abstract->gsai_ptr[i], *_ptr2abstract->gsai_ptr[i-1]);
+        if (_debug_verbosity) { printIsometryMatrix(Bi[i]); ROS_INFO(" ");}
+    }
+    return;
+}
+
+void ScrewsKinematics::initializeRelativeTfs(Eigen::Isometry3f* B_i[DOF+1]) {
+    // Initializes the matrices Bi ~ Ci_i1(0)
+    _debug_verbosity = false;
+
+    B_i[0] = _ptr2abstract->gsai_ptr[0];
+    if (_debug_verbosity) { printIsometryMatrix(*B_i[0]); ROS_INFO(" ");}
+    for (size_t i = 1; i < DOF+1; i++)
+    {
+        *B_i[i] = extractRelativeTf(*_ptr2abstract->gsai_ptr[i], *_ptr2abstract->gsai_ptr[i-1]);
+        if (_debug_verbosity) { printIsometryMatrix(*B_i[i]); ROS_INFO(" ");}
     }
     return;
 }
@@ -163,6 +178,18 @@ void ScrewsKinematics::ForwardKinematicsTCP(float *q) {
     ROS_INFO("gst_y: %f", _gst(1,3));
     ROS_INFO("gst_z: %f", _gst(2,3));
     return;
+}
+
+Eigen::Vector3f ScrewsKinematics::updatePositionTCP(float *q) {
+    // returns the TCP position only
+    Eigen::Vector3f p_tcp;
+    Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
+    setExponentials(q);
+    _gst = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *gst_0 ;
+    p_tcp[0] = _gst(0,3);
+    p_tcp[1] = _gst(1,3);
+    p_tcp[2] = _gst(2,3);
+    return p_tcp;
 }
 
 void ScrewsKinematics::ForwardKinematicsTCP() {
@@ -466,7 +493,7 @@ void ScrewsKinematics::BodyJacobian_Tool_1() {
     // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. The local screw coord vectors must be initialized!
     //          3. All 2D matrices for kinematics are stored in array of pointers!
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[DOF].inverse() * g[i] );
         *ptr2Jbd_t_1[i] = _ad * iXi[i];
@@ -695,7 +722,7 @@ void ScrewsKinematics::OperationalSpaceJacobian() {
     // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
     // the current configuration.
     // -> sets:Eigen::Matrix3f Jop
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setBodyPositionJacobian();
     Jop = g[DOF].rotation() * Jbd_pos;
     if (_debug_verbosity)
@@ -853,10 +880,22 @@ void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {
 
 void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector3f &v_qs) {
     // Operational Space Jacobian must have been previously extracted
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Vector3f dq_vector;
     dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     v_qs = Jop * dq_vector;
+    if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
+    return;
+}
+
+void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector3f &v_qs, Eigen::Matrix3f Jop_loc) {
+    // Operational Space Jacobian is passed to the function
+    // Is used when the matrix can be retrieved from another
+    // server in the ROS system
+    _debug_verbosity = true;
+    Eigen::Vector3f dq_vector;
+    dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
+    v_qs = Jop_loc * dq_vector;
     if (_debug_verbosity) {ROS_INFO("Cartesian Spatial Velocity: [%f, %f, %f]", v_qs[0], v_qs[1], v_qs[2]);}
     return;
 }
@@ -939,7 +978,6 @@ void ScrewsKinematics::setBodyPositionJacobian() {
     Eigen::Matrix<float, 3, 1> Jpos_col[DOF];
     for (size_t i = 0; i < DOF; i++)
     {
-        //Jpos_col[i] = Jbd_t_1[i].block<3, 1>(0, 0);
         Jpos_col[i] = ptr2Jbd_t_1[i]->block<3, 1>(0, 0);
     }
     Jbd_pos << Jpos_col[0], Jpos_col[1], Jpos_col[2];  
@@ -952,7 +990,8 @@ void ScrewsKinematics::setDtBodyPositionJacobian() {
     Eigen::Matrix<float, 3, 1> dJpos_col[DOF];
     for (size_t i = 0; i < DOF; i++)
     {
-        dJpos_col[i] = dJbd_t_1[i].block<3, 1>(0, 0);
+        dJpos_col[i] = ptr2dJbd_t_1[i]->block<3, 1>(0, 0);
+        //dJpos_col[i] = dJbd_t_1[i].block<3, 1>(0, 0);
     }
     dJbd_pos << dJpos_col[0], dJpos_col[1], dJpos_col[2];  
     return;   

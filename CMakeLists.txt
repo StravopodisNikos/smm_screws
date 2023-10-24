@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
-  message_generation # [18-10-23] Added for custom msg generation
+  message_generation # [18-10-23] Added for custom msg/srv generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -53,13 +53,14 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   JointAccel.msg
-  ToolCartesianState.msg
+  CurrentCartesianState.msg
  )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
   SetOperationalSpaceJacobian.srv
+  SetCurrentCartesianState.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -107,9 +108,9 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS message_runtime # [18-10-23] Added for custom msg generation
+#  CATKIN_DEPENDS  
 #  LIBRARIES smm_screws
-#  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros
+  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros message_runtime # [18-10-23] Added for custom msg generation
 #  DEPENDS system_lib
 )
 
@@ -152,6 +153,9 @@ add_executable(example_dynamics src/example_dynamics.cpp)
 add_executable(example_shared src/example_shared.cpp)
 add_executable(serverOperationalSpaceJacobian src/serverOperationalSpaceJacobian.cpp)
 add_executable(clientOperationalSpaceJacobian src/clientOperationalSpaceJacobian.cpp)
+add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
+add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
+add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -184,6 +188,18 @@ ${catkin_LIBRARIES}
 robot_shared 
 ) 
 target_link_libraries(clientOperationalSpaceJacobian
+${catkin_LIBRARIES}
+robot_shared 
+) 
+target_link_libraries(serverCurrentCartesianState
+${catkin_LIBRARIES}
+robot_shared 
+) 
+target_link_libraries(clientCurrentCartesianState
+${catkin_LIBRARIES}
+robot_shared 
+) 
+target_link_libraries(publishCurrentCartesianState
 ${catkin_LIBRARIES}
 robot_shared 
 ) 

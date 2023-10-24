@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     //Eigen::Isometry3f B[DOF+1];
     for (size_t i = 0; i < DOF+1; i++)
     {
-        rel_tfs[i] = &smm_robot_kin_solver.B[i];
+        rel_tfs[i] = &smm_robot_kin_solver.Bi[i];
     }
     smm_robot_kin_solver.initializeRelativeTfs(rel_tfs);
     

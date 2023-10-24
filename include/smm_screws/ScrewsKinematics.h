@@ -37,6 +37,7 @@ class ScrewsKinematics: public ScrewsMain {
 		// Initialize kinematic data @ zero configuration
 		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]);
 		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
+		void initializeRelativeTfs();
 		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
 		void initializeLocalScrewCoordVectors();
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
@@ -45,6 +46,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
 		Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
+		Eigen::Vector3f updatePositionTCP(float *q);
 		void ForwardKinematicsTCP();
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_1();
@@ -77,6 +79,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
 		void CartesianVelocity_jacob(Eigen::Vector3f &v_qs); // Returns spatial velocity {T} using the Operational Space Jacobian
 		void CartesianVelocity_jacob(Eigen::Vector4f &v_qs);
+		void CartesianVelocity_jacob(Eigen::Vector3f &v_qs, Eigen::Matrix3f Jop_loc); 
 		void CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs );
 		void CartesianAcceleration_jacob(Eigen::Vector3f &a_qs);
 		void CartesianAcceleration_jacob(Eigen::Vector4f &a_qs);		
@@ -85,7 +88,7 @@ class ScrewsKinematics: public ScrewsMain {
 		
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1];
-		Eigen::Isometry3f B[DOF+1]; 
+		Eigen::Isometry3f Bi[DOF+1]; 
 		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, DOF> Jbd63;
 		Eigen::Matrix<float, 6, DOF> dJbd63;

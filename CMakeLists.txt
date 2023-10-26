@@ -140,6 +140,9 @@ include_directories(
 add_library(robot_shared
 src/robot_shared.cpp
 )
+add_library(OperationalSpaceControllers
+src/OperationalSpaceControllers.cpp
+)
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -215,6 +218,10 @@ target_link_libraries(ScrewsDynamics
 target_link_libraries(robot_shared
   ${catkin_LIBRARIES}
   ScrewsDynamics
+)
+target_link_libraries(OperationalSpaceControllers
+  ${catkin_LIBRARIES}
+  robot_shared
 )
 #############
 ## Install ##

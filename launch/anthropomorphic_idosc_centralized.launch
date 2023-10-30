@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!-- Created on [26-10-23] -->
+<!-- Main updates: 
+     1. executes the xacro command for urdf-gazebo model generation
+     2. executes a p2p task implementing the IDOSC.
+     3. rqt_plot for real time data plotting
+-->
+<launch>
+
+  <!-- these are the arguments you can pass this launch file -->
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <!-- We resume the logic in empty_world.launch -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+
+  <!-- Load the URDF into the ROS Parameter Server -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find anthropomorphic_3dof_gazebo)/xacro/anthropomorphic_3dof_gazebo.xacro'" />
+
+  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+<node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+  args="-urdf -model anthropomorphic_3dof_gazebo -param robot_description -J link1_link2 0.0658 -J link2_link3 2.0236"/>
+
+  <!-- Load the controllers yaml file-->
+  <rosparam file="$(find anthropomorphic_3dof_gazebo)/config/yaml/anthropomorphic_3dof_controllers.yaml" command="load"/>
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="anthropomorphic_3dof_gazebo" args="joint_state_controller joint1_effort_controller joint2_effort_controller joint3_effort_controller"/>
+  
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <remap from="/joint_states" to="/anthropomorphic_3dof_gazebo/joint_states"/>
+  </node>
+  
+  <!-- Load the Inverse Dynamic Operational Space Controller yaml file -->
+  <rosparam file="$(find smm_screws)/config/idosc.yaml" command="load"/>
+
+  <!-- Execute the torque publisher node-->
+  <node name="idosc_centralized" pkg="smm_screws" type="idosc_centralized" output="screen"/>
+
+  <!-- Run rqt_plot node to generate graphs -->
+  <node pkg="rqt_plot" type="rqt_plot" name="rqt_plot_node" output="screen">
+    <param name="plot_title" value="Cartesian State Plot" />
+    <param name="plot_topics" value="[/current_cartesian_state/p_e_s_x, /current_cartesian_state/p_e_s_y, /current_cartesian_state/p_e_s_z]" />
+  </node>
+
+</launch>

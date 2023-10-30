@@ -47,7 +47,10 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix3f CoriolisMatrix();
         Eigen::Matrix<float, DOF, 1> GravityVector();
         Eigen::Matrix<float, DOF, 1> FrictionVector();
-
+        void MassMatrix_loc();
+        void CoriolisMatrix_loc();
+        void GravityVector_loc();
+        void FrictionVector_loc();
 	private:
         static constexpr float _g_z = -9.80665;
 

@@ -306,7 +306,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a
     // @ the given configuration. input is the pointer to active joints'
     // frame @ zero config
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setExponentials(q);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
@@ -703,7 +703,7 @@ void ScrewsKinematics::OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t) {
     // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
     // the current configuration.
     // -> sets:Eigen::Matrix3f Jop
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setBodyPositionJacobian();
     Jop_t = g[DOF].rotation() * Jbd_pos;
     if (_debug_verbosity)
@@ -740,7 +740,7 @@ void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
     // Needs the spatial velocity twist, the FK tf of {T} frame and
     // Body Jacobian and its first time derivative
     // -> sets:Eigen::Matrix3f dJop
-    _debug_verbosity = true; 
+    _debug_verbosity = false; 
     setBodyPositionJacobian(); // -> Jbd_pos
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
@@ -760,7 +760,7 @@ void ScrewsKinematics::DtOperationalSpaceJacobian() {
     // Needs the spatial velocity twist, the FK tf of {T} frame and
     // Body Jacobian and its first time derivative
     // -> sets:Eigen::Matrix3f dJop
-    _debug_verbosity = true; 
+    _debug_verbosity = false; 
     setBodyPositionJacobian(); // -> Jbd_pos
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
@@ -902,7 +902,7 @@ void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector3f &v_qs, Eigen::Mat
 
 void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector4f &v_qs) {
     // Operational Space Jacobian must have been previously extracted
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Vector3f dq_vector;
     dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     Eigen::Vector3f v_qs3 = Jop * dq_vector;

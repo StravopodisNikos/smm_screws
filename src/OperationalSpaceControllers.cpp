@@ -45,6 +45,9 @@ void InverseDynamicsController::set_error_state(Eigen::Matrix<float, IDOSC_STATE
     _X = _D - current_state_received;
     _x1 = _X.block<DOF, 1>(0, 0); // velocity error
     _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("error_state[ %d ]: %f", i, _X(i));
+    }
     return;
 }
 
@@ -64,11 +67,18 @@ void InverseDynamicsController::update_derivative_operational_jacob() {
 }
 
 void InverseDynamicsController::update_control_input() {
+    update_inverse_operational_jacob();
+    update_derivative_operational_jacob();
     _y = _iJop * ( _Kd * _x1 + _Kp * _x2 - _dtJop * _dq);
     return;
 }
 
 void InverseDynamicsController::update_torques() {
     _torque_cmd = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) ;
+    return;
+}
+
+void InverseDynamicsController::update_torques(Eigen::Vector3f &torque_out) {
+    torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) ;
     return;
 }

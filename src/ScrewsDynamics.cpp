@@ -54,7 +54,7 @@ void ScrewsDynamics::updateJointVel(float *dq_new) {
 
 void ScrewsDynamics::intializeLinkMassMatrices() {
     // Constructs the Links' Mass matrices @ Links Body (COM) Frame
-    /*
+    
     for (size_t i = 0; i < DOF; i++)
     {
         _Mib[i].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[i]) * Eigen::Matrix3f::Identity();
@@ -62,7 +62,8 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
         _Mib[i].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[i].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[i]) * Eigen::Matrix3f::Identity();
     }
-    */
+   
+   /*
     // Added extreme to test code.
         _Mib[0].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[0]) * Eigen::Matrix3f::Identity();
         _Mib[0](0,1) = 0.05; _Mib[0](0,2) = 0.009; _Mib[0](1,0) = _Mib[0](0,1);
@@ -85,12 +86,13 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
         _Mib[2].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[2].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[2]) * Eigen::Matrix3f::Identity();    
         //print66Matrix(_Mib[2]);                  
+         */
         return;
 }
 
 Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     // Calculates the Mass Matrix 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     //std::cout << "Joint Posistion1:" << _joint_pos[0] << std::endl;
     //std::cout << "Joint Posistion1:" << _joint_pos[1] << std::endl;
@@ -130,9 +132,36 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     return MM;
 }
 
+void ScrewsDynamics::MassMatrix_loc() {
+    // Calculates the Mass Matrix, used locally in class member functions
+    _debug_verbosity = false;
+    ScrewsDynamics::extractActiveTfs();
+
+    size_t max;
+    MM.setZero();
+    for (size_t i = 0; i < DOF; i++)
+    {
+        for (size_t j = 0; j < DOF; j++)
+        {
+            max = (i > j) ? i : j; // assigns the max to l
+            for (size_t l = max; l < DOF; l++)
+            {
+                _alpha[0] = setAlphamatrix(l, i); // print66Matrix(_alpha[0]); // -> ok  // Ali
+                _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
+                _Ml_temp = ad(((_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gsli_ptr[l])).inverse()); 
+                MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
+            }
+            if (_debug_verbosity) {std::cout << MM(i, j) << "\t";}
+        } 
+        if (_debug_verbosity) {std::cout << std::endl;}
+    }
+    
+    return;
+}
+
 Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix() {
-    // Calculates the Mass Matrix 
-    _debug_verbosity = true;
+    // Calculates the Coriolis Matrix 
+    _debug_verbosity = false;
     CM.setZero();
     for (size_t i = 0; i < DOF; i++)
     {
@@ -154,8 +183,31 @@ Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix() {
     return CM;
 }
 
+void ScrewsDynamics::CoriolisMatrix_loc() {
+    // Calculates the Coriolis Matrix, used locally in class member functions 
+    _debug_verbosity = false;
+    CM.setZero();
+    for (size_t i = 0; i < DOF; i++)
+    {
+        for (size_t j = 0; j < DOF; j++)
+        {
+            for (size_t k = 0; k < DOF; k++)
+            {   
+                parDerMass[0](i, j) = computeParDerMassElement(i, j, k)(0,0); // delat_Mij_theta_k
+                parDerMass[1](i, j) = computeParDerMassElement(i, k, j)(0,0); // delat_Mik_theta_j
+                parDerMass[2](i, j) = computeParDerMassElement(k, j, i)(0,0); // delat_Mkj_theta_i
+                ChristoffelSymbols[k](i, j) = 0.5 * (parDerMass[0](i, j) + parDerMass[1](i, j) - parDerMass[2](i, j));
+                CM(i, j) = CM(i, j) + ( ChristoffelSymbols[k](i, j) * _joint_vel[k] ); 
+            }
+            if (_debug_verbosity) {std::cout << CM(i, j) << "\t";}
+        } 
+        if (_debug_verbosity) {std::cout << std::endl;}
+    }
+    return;
+}
+
 Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     GV.setZero();
     _PotEnergy = computePotentialEnergy();
     float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
@@ -172,8 +224,26 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
     return GV;
 }
 
+void ScrewsDynamics::GravityVector_loc() {
+    _debug_verbosity = false;
+    GV.setZero();
+    _PotEnergy = computePotentialEnergy();
+    float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
+    _PotEnergy_prev = _PotEnergy;
+
+    for (size_t i = 0; i < DOF; i++)
+    {
+        if ( std::abs( _delta_joint_pos[i]) > 0.0001 ) { 
+            GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
+        } else { GV(i,0) = 0; }
+        if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
+    }
+
+    return;
+}
+
 Eigen::Matrix<float, 3, 1> ScrewsDynamics::FrictionVector() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     FV.setZero();
     Eigen::Matrix<float, 3, 1> fc;
     Eigen::Matrix<float, 3, 1> fv;
@@ -187,6 +257,22 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::FrictionVector() {
     }
     
     return FV;
+}
+
+void ScrewsDynamics::FrictionVector_loc() {
+    _debug_verbosity = false;
+    FV.setZero();
+    Eigen::Matrix<float, 3, 1> fc;
+    Eigen::Matrix<float, 3, 1> fv;
+    for (size_t i = 0; i < DOF; i++)
+    {
+        if ( std::signbit(_joint_vel[i]) ) { fc(i,0) = - *(_ptr2abstract->fc_coeffs[i]); }
+        else { fc(i,0) = *(_ptr2abstract->fc_coeffs[i]); }
+        fv(i,0) = *(_ptr2abstract->fv_coeffs[i]) * _joint_vel[i];
+        FV(i,0) = fc(i,0) + fv(i,0);
+        if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
+    }
+    return;
 }
 
 Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
@@ -264,7 +350,6 @@ float ScrewsDynamics::computePotentialEnergy() {
 }
 
 void ScrewsDynamics::updateCOMTfs() {
-    _debug_verbosity = true;
     // gpj are not updated, only initialized for each anatomy
     ScrewsDynamics::extractActiveTfs(); // updates gai[i]
     gsli[0] = gai[0] * (_ptr2abstract->gsli_ptr[0]) ;

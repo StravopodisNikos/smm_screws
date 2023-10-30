@@ -159,6 +159,7 @@ add_executable(clientOperationalSpaceJacobian src/clientOperationalSpaceJacobian
 add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
 add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
 add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
+add_executable(idosc_centralized src/idosc_centralized.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -205,6 +206,10 @@ robot_shared
 target_link_libraries(publishCurrentCartesianState
 ${catkin_LIBRARIES}
 robot_shared 
+) 
+target_link_libraries(idosc_centralized
+${catkin_LIBRARIES}
+OperationalSpaceControllers 
 ) 
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics

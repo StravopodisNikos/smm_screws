@@ -35,7 +35,8 @@ class InverseDynamicsController {
         // Update functions (functions that update matrices from outside class)
         void update_control_input();
         void update_torques(); // control output command -> torque command
-        
+        void update_torques(Eigen::Vector3f &torque_out);
+        void update_dq(float *dq_new);
 
     private:
         ScrewsKinematics *_ptr2_screws_kin_object;
@@ -59,7 +60,6 @@ class InverseDynamicsController {
         Eigen::Matrix3f _dtJop;
         
         // Update functions
-        void update_dq(float *dq_new);
         void update_inverse_operational_jacob();
         void update_derivative_operational_jacob();
 };

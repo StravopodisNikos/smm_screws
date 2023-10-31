@@ -1,4 +1,4 @@
 # Parameters for the IDOSC
 idosc:
- kp: 5.0
- kd: 2.0
+ kp: 100.0
+ kd: 50.0

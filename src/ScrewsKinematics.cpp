@@ -211,7 +211,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a
     // frame @ zero config
     // "_1" -> Implements eq.8/p.44/[2]
     // Calculates the "Ci_1" matrices /in screw_dynamics/calculateFwdKinMueller.m [laptop]
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // Calculate 1st joint frame
     _X = extractLocalScrewCoordVector(*(_ptr2abstract->gsai_ptr[0]), _ptr2abstract->active_twists[0]);
@@ -257,7 +257,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_1() {
     // NOTES:
     // "_1" -> Implements eq.8/p.44/[2]
     // Calculates the "Ci_1" matrices /in screw_dynamics/calculateFwdKinMueller.m [laptop]
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     printIsometryMatrix( *(_ptr2abstract->gsai_ptr[0]) );
     printIsometryMatrix( *(_ptr2abstract->gsai_ptr[1]) );
@@ -348,7 +348,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
@@ -390,7 +390,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_
     // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. The local screw coord vectors must be initialized!
     //          3. All 2D matrices for kinematics are stored in array of pointers!
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i]);
@@ -400,7 +400,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_
 }
 
 void ScrewsKinematics::SpatialJacobian_Tool_1() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i]);
         *ptr2Jsp1[i] = _ad * iXi[i];
@@ -412,7 +412,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_
     // Executes second "=" of eq.28/p.52/[2]
     // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. All 2D matrices for kinematics are stored in array of pointers!
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i] * _ptr2abstract->gsai_ptr[i]->inverse());
         *Jsp_t_2[i] = _ad * _ptr2abstract->active_twists[i];
@@ -421,7 +421,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_
 }
 
 void ScrewsKinematics::SpatialJacobian_Tool_2() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i] * _ptr2abstract->gsai_ptr[i]->inverse());
         *ptr2Jsp2[i] = _ad * _ptr2abstract->active_twists[i];
@@ -431,7 +431,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_2() {
 
 void ScrewsKinematics::BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]) {
     // Executes first "=" of eq.16/p.49/[2], for ALL active joints' frames && {T} frame
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1>* Jbd_i[DOF]; // array of pointers to access a single(!) 6x3 Body Jacobian
     // Allocate the memory for the above pointers!
 
@@ -454,7 +454,7 @@ void ScrewsKinematics::BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansF
 
 void ScrewsKinematics::BodyJacobians() {
     // Executes first "=" of eq.16/p.49/[2], for ALL active joints' frames && {T} frame
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1>* Jbd_i[DOF]; // array of pointers to access a single(!) 6x3 Body Jacobian
     // Allocate the memory for the above pointers!
 
@@ -480,7 +480,7 @@ void ScrewsKinematics::BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[D
     // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. The local screw coord vectors must be initialized!
     //          3. All 2D matrices for kinematics are stored in array of pointers!
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[DOF].inverse() * g[i] );
         *Jbd_t_1[i] = _ad * iXi[i];
@@ -619,7 +619,7 @@ void ScrewsKinematics::DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6,
     // Implements the first "=" in eq.(8)/p.223/[3], outputs the derivative of
     // the Body Jacobian /{T}
     
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1> dJ;
     for (size_t j = 0; j < DOF; j++)
     {
@@ -637,7 +637,7 @@ void ScrewsKinematics::DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6,
 void ScrewsKinematics::DtBodyJacobian_Tool_1() {
     // Implements the first "=" in eq.(8)/p.223/[3], outputs the derivative of
     // the Body Jacobian /{T}
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1> dJ;
     for (size_t j = 0; j < DOF; j++)
     {
@@ -656,7 +656,7 @@ void ScrewsKinematics::DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6,
     // Implements the second "=" in eq.(8)/p.223/[3], outputs the derivative of
     // the Body Jacobian /{T}
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1> dJ;
     Eigen::Matrix<float, 6, 1> Adad3;
     for (size_t j = 0; j < DOF; j++)
@@ -678,7 +678,7 @@ void ScrewsKinematics::DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6,
 void ScrewsKinematics::DtBodyJacobian_Tool_2() {
     // Implements the second "=" in eq.(8)/p.223/[3], outputs the derivative of
     // the Body Jacobian /{T}
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1> dJ;
     Eigen::Matrix<float, 6, 1> Adad3;
     for (size_t j = 0; j < DOF; j++)
@@ -722,16 +722,16 @@ void ScrewsKinematics::OperationalSpaceJacobian() {
     // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
     // the current configuration.
     // -> sets:Eigen::Matrix3f Jop
-    _debug_verbosity = false;
+    //_debug_verbosity = false;
     setBodyPositionJacobian();
     Jop = g[DOF].rotation() * Jbd_pos;
-    if (_debug_verbosity)
-    {
-        ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
-        Jop(0, 0), Jop(0, 1), Jop(0, 2),
-        Jop(1, 0), Jop(1, 1), Jop(1, 2),
-        Jop(2, 0), Jop(2, 1), Jop(2, 2)); 
-    }
+    //if (_debug_verbosity)
+    //{
+    //    ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+    //    Jop(0, 0), Jop(0, 1), Jop(0, 2),
+    //    Jop(1, 0), Jop(1, 1), Jop(1, 2),
+    //    Jop(2, 0), Jop(2, 1), Jop(2, 2)); 
+    //}
     return; 
 }
 
@@ -740,18 +740,18 @@ void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
     // Needs the spatial velocity twist, the FK tf of {T} frame and
     // Body Jacobian and its first time derivative
     // -> sets:Eigen::Matrix3f dJop
-    _debug_verbosity = false; 
+    //_debug_verbosity = false; 
     setBodyPositionJacobian(); // -> Jbd_pos
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
     dJop_t = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
-    if (_debug_verbosity)
-    {
-        ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
-        dJop_t(0, 0), dJop_t(0, 1), dJop_t(0, 2),
-        dJop_t(1, 0), dJop_t(1, 1), dJop_t(1, 2),
-        dJop_t(2, 0), dJop_t(2, 1), dJop_t(2, 2)); 
-    }
+    //if (_debug_verbosity)
+    //{
+    //    ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+    //    dJop_t(0, 0), dJop_t(0, 1), dJop_t(0, 2),
+    //    dJop_t(1, 0), dJop_t(1, 1), dJop_t(1, 2),
+    //    dJop_t(2, 0), dJop_t(2, 1), dJop_t(2, 2)); 
+    //}
     return; 
 }
 
@@ -760,25 +760,25 @@ void ScrewsKinematics::DtOperationalSpaceJacobian() {
     // Needs the spatial velocity twist, the FK tf of {T} frame and
     // Body Jacobian and its first time derivative
     // -> sets:Eigen::Matrix3f dJop
-    _debug_verbosity = false; 
+    //_debug_verbosity = false; 
     setBodyPositionJacobian(); // -> Jbd_pos
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
     dJop = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
-    if (_debug_verbosity)
-    {
-        ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
-        dJop(0, 0), dJop(0, 1), dJop(0, 2),
-        dJop(1, 0), dJop(1, 1), dJop(1, 2),
-        dJop(2, 0), dJop(2, 1), dJop(2, 2)); 
-    }
+    //if (_debug_verbosity)
+    //{
+    //    ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+    //    dJop(0, 0), dJop(0, 1), dJop(0, 2),
+    //    dJop(1, 0), dJop(1, 1), dJop(1, 2),
+    //    dJop(2, 0), dJop(2, 1), dJop(2, 2)); 
+    //}
     return; 
 }
 
 void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
     // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
     // Spatial and Body Jacobians must be be previously extracted for the current configuration.
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // Form vector from joint velocities/accelerations for proper multiplication
     Eigen::Vector3f dq_vector;
@@ -823,7 +823,7 @@ void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
 void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist ) {
     // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
     // Spatial and Body Jacobians must be be previously extracted for the current configuration.
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // Form vector from joint velocities/accelerations for proper multiplication
     Eigen::Vector3f dq_vector;
@@ -869,7 +869,7 @@ void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {
     // extracts the cartesian velocity by the Spatial Velocity twist
     // Spatial velocity twisat and forward kinematics tf of {T} at 
     // current configuration must be previously extracted.
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     formTwist(_twist_se3, Vsp_tool_twist);
     Eigen::Vector4f vector4f;
     vector4f << g[3](0, 3), g[3](1, 3), g[3](2, 3), 1.0;
@@ -892,7 +892,7 @@ void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector3f &v_qs, Eigen::Mat
     // Operational Space Jacobian is passed to the function
     // Is used when the matrix can be retrieved from another
     // server in the ROS system
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Vector3f dq_vector;
     dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     v_qs = Jop_loc * dq_vector;
@@ -912,7 +912,7 @@ void ScrewsKinematics::CartesianVelocity_jacob(Eigen::Vector4f &v_qs) {
 }
 
 void ScrewsKinematics::CartesianAcceleration_twist(Eigen::Vector4f &a_qs, Eigen::Vector4f v_qs ) {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Matrix4f dV_twist_matrix;
     Eigen::Matrix4f V_twist_matrix;
     formTwist(dV_twist_matrix, dVsp_tool_twist);
@@ -929,7 +929,7 @@ void ScrewsKinematics::CartesianAcceleration_jacob(Eigen::Vector3f &a_qs) {
     // previously extracted through functions:
     // 1. OperationalSpaceJacobian
     // 2. DtOperationalSpaceJacobian
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Vector3f dq_vector;
     dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
     Eigen::Vector3f ddq_vector;

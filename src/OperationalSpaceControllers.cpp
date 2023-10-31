@@ -17,13 +17,13 @@ void InverseDynamicsController::initialize_gain_matrices() {
         ROS_ERROR("[InverseDynamicsController/initialize_gain_matrices] Failed to load: Kp");
         _Kp = Eigen::Matrix<float, DOF, DOF>::Zero();
     } else {
-        _Kp = -_kp * _I_dof;
+        _Kp = _kp * _I_dof;
     }
     if (!nh.getParam("idosc/kd", _kd)) {
         ROS_ERROR("[InverseDynamicsController/initialize_gain_matrices] Failed to load: Kp");
         _Kd = Eigen::Matrix<float, DOF, DOF>::Zero();
     } else {
-        _Kd = -_kd * _I_dof;
+        _Kd = _kd * _I_dof;
     }
     return;
 }
@@ -58,6 +58,10 @@ void InverseDynamicsController::update_dq(float *dq_new) {
 
 void InverseDynamicsController::update_inverse_operational_jacob() {
     _iJop = _ptr2_screws_kin_object->Jop.inverse();
+    //ROS_INFO("Inverse Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+    //_iJop(0, 0), _iJop(0, 1), _iJop(0, 2),
+    //_iJop(1, 0), _iJop(1, 1), _iJop(1, 2),
+    //_iJop(2, 0), _iJop(2, 1), _iJop(2, 2)); 
     return;
 }
 
@@ -70,6 +74,9 @@ void InverseDynamicsController::update_control_input() {
     update_inverse_operational_jacob();
     update_derivative_operational_jacob();
     _y = _iJop * ( _Kd * _x1 + _Kp * _x2 - _dtJop * _dq);
+    //ROS_INFO(" y[0]: %f", _y(0));
+    //ROS_INFO(" y[1]: %f", _y(1));
+    //ROS_INFO(" y[2]: %f", _y(2));
     return;
 }
 
@@ -80,5 +87,6 @@ void InverseDynamicsController::update_torques() {
 
 void InverseDynamicsController::update_torques(Eigen::Vector3f &torque_out) {
     torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) ;
+    //torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->FrictionVector() ) ;
     return;
 }

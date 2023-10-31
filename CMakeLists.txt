@@ -160,6 +160,7 @@ add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
 add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
 add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
 add_executable(idosc_centralized src/idosc_centralized.cpp)
+add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -208,6 +209,10 @@ ${catkin_LIBRARIES}
 robot_shared 
 ) 
 target_link_libraries(idosc_centralized
+${catkin_LIBRARIES}
+OperationalSpaceControllers 
+) 
+target_link_libraries(example_idosc_centralized
 ${catkin_LIBRARIES}
 OperationalSpaceControllers 
 ) 

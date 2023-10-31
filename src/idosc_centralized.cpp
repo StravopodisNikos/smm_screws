@@ -3,8 +3,6 @@
 #include "smm_screws/CurrentCartesianState.h"
 #include "sensor_msgs/JointState.h"
 #include <std_msgs/Float64.h>
-#include "smm_screws/SetOperationalSpaceJacobian.h" 
-#include "smm_screws/SetCurrentCartesianState.h" 
 
 /*
  *  Here the simplest controller is implemented. The centralized approach is followed.
@@ -52,7 +50,7 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     smm_robot_kin_solver.ForwardKinematics3DOF_2();     // update g[]   
     smm_robot_kin_solver.BodyJacobian_Tool_1();
     smm_robot_kin_solver.OperationalSpaceJacobian();    // -> computes Jop
-    smm_robot_kin_solver.DtOperationalSpaceJacobian();  // -> computes d(Jop)/dt
+    smm_robot_kin_solver.DtOperationalSpaceJacobian();  // -> computes dJop
     
     // 3. Call ScrewsDynamics Library tools
     smm_robot_dyn_solver.updateJointPos(q_received);
@@ -79,8 +77,13 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     ptr2_idosc->update_control_input();
     // 4.4 Comput the torques, given control input & robot dynamics
     ptr2_idosc->update_torques(torques);
+    // Print extracted torque command
+    for (int i = 0; i < DOF; i++)
+    {
+        ROS_INFO("[PUBLISHER-IDOSC] Torque cmd joint [ %d ]: %f", i+1, torques(i));
+    }
 
-    // 5.1 Publish torque commands
+    // 5.1 Publish torque commands -> gazebo model / rqt_plot
     torque_msg.data = torques(0);
     joint1_torque_pub.publish(torque_msg);
     torque_msg.data = torques(1);
@@ -88,7 +91,7 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     torque_msg.data = torques(2);
     joint3_torque_pub.publish(torque_msg);
 
-    // 5.2 Publish current cartesian state
+    // 5.2 Publish current cartesian state -> rqt_plot
     smm_screws::CurrentCartesianState cur_cart_state_msg;
     cur_cart_state_msg.header.stamp = current_time;
     cur_cart_state_msg.p_e_s_x = p_qs.x();
@@ -122,9 +125,9 @@ int main(int argc, char **argv)
     desired_state(0) = 0.0f;
     desired_state(1) = 0.0f;
     desired_state(2) = 0.0f;
-    desired_state(3) = 0.75f;
+    desired_state(3) = 0.50f;
     desired_state(4) = 0.0f;
-    desired_state(5) = 1.0f;
+    desired_state(5) = 2.00f; // + 1.0 to the matlab value
     ptr2_idosc->set_desired_state(desired_state);
 
     // 2.1 Start the publisher to /current_cartesian_state
@@ -138,17 +141,6 @@ int main(int argc, char **argv)
     // 2.3 Start the subscriber to /joint_states
     ros::Subscriber joint_state_sub = nh.subscribe<sensor_msgs::JointState>("/anthropomorphic_3dof_gazebo/joint_states", 1, boost::bind(jointStatesCallback, _1, joint1_torque_pub, joint2_torque_pub, joint3_torque_pub, cartesian_state_pub));
 
-    // Next steps are for the distributed approach... coming next...
-    // Create the services needed for controller operation
-    // Build error-state data (2.1)
-    // 2.1.1 Create a subscriber to "desired_cartesian_state" topic
-    // 2.1.2 Create a service server for "current_cartesian_state" server
-    // Build controller input vector "y"
-    // 2.2.1 Create a service server for "Opeational Space Jacobian"
-    // 2.2.2 Create a service server for "1st Time Derivative of Opeational Space Jacobian"
-    // Build controller output vector "u"
-    // 2.3.1 Create a service server for "Mass_Matrix"
-    // 2.3.2 Create a service server for "n_vector"
     ROS_INFO("[PUBLISHER-IDOSC] Ready to start publishing torques...");
 
     // 4. Loop the server

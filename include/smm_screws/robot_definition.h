@@ -15,8 +15,8 @@
 namespace robot_definition {
     // Members for the abstract class
     float __active_twist_0[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-    float __active_twist_1[6] = {0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f};
-    float __active_twist_2[6] = {0.0f, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f};
+    float __active_twist_1[6] = {1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f};
+    float __active_twist_2[6] = {1.0f, 0.0f, -1.0f, 0.0f, -1.0f, 0.0f};
     float gsa10[4][4]= {
     {1.0f , 0.0f , 0.0f , 0.0f },
     {0.0f , 1.0f , 0.0f , 0.0f },
@@ -26,23 +26,23 @@ namespace robot_definition {
     float gsa20[4][4]= {
     {1.0f , 0.0f , 0.0f , 0.0f },
     {0.0f , 0.0f , -1.0f , 0.0f },
-    {0.0f , 1.0f , 0.0f , 0.0f },
+    {0.0f , 1.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
 };
     float gsa30[4][4]= {
     {1.0f , 0.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , -1.0f , 0.0f },
-    {0.0f , 1.0f , 1.0f , 0.0f },
+    {0.0f , 1.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
 };
     float gst0[4][4]= {
     {1.0f , 0.0f , 0.0f , 1.5f },
     {0.0f , 0.0f , -1.0f , 0.0f },
-    {0.0f , 1.0f , 0.0f , 0.0f },
+    {0.0f , 1.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
 };
     float gsl10[4][4]= {
-    {1.0f , 0.0f , 0.0f , 0.0f },
+    {1.0f , 0.0f , 0.0f , 0.5f },
     {0.0f , 0.0f , -1.0f , 0.0f },
     {0.0f , 1.0f , 0.0f , 0.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
@@ -50,13 +50,13 @@ namespace robot_definition {
     float gsl20[4][4]= {
     {1.0f , 0.0f , 0.0f , 0.5f },
     {0.0f , 0.0f , -1.0f , 0.0f },
-    {0.0f , 1.0f , 0.0f , 0.0f },
+    {0.0f , 1.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
 };
     float gsl30[4][4]= {
     {1.0f , 0.0f , 0.0f , 1.25f },
     {0.0f , 0.0f , -1.0f , 0.0f },
-    {0.0f , 1.0f , 0.0f , 0.0f },
+    {0.0f , 1.0f , 0.0f , 1.0f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
 };    
     float __masses[DOF] = {0.5f, 1.0f, 1.0f};

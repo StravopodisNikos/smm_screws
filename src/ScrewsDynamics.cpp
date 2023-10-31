@@ -210,15 +210,16 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
     _debug_verbosity = false;
     GV.setZero();
     _PotEnergy = computePotentialEnergy();
+    //std::cout << "Potential Energy: " << _PotEnergy << std::endl;
     float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
     _PotEnergy_prev = _PotEnergy;
 
     for (size_t i = 0; i < DOF; i++)
     {
-        if ( std::abs( _delta_joint_pos[i]) > 0.0001 ) { 
+        if ( std::abs( _delta_joint_pos[i]) > 0.0001f ) { 
             GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
         } else { GV(i,0) = 0; }
-        if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
+        //if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
     }
 
     return GV;
@@ -236,7 +237,7 @@ void ScrewsDynamics::GravityVector_loc() {
         if ( std::abs( _delta_joint_pos[i]) > 0.0001 ) { 
             GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
         } else { GV(i,0) = 0; }
-        if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
+        //if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
     }
 
     return;
@@ -253,7 +254,7 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::FrictionVector() {
         else { fc(i,0) = *(_ptr2abstract->fc_coeffs[i]); }
         fv(i,0) = *(_ptr2abstract->fv_coeffs[i]) * _joint_vel[i];
         FV(i,0) = fc(i,0) + fv(i,0);
-        if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
+        //if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
     }
     
     return FV;
@@ -270,7 +271,7 @@ void ScrewsDynamics::FrictionVector_loc() {
         else { fc(i,0) = *(_ptr2abstract->fc_coeffs[i]); }
         fv(i,0) = *(_ptr2abstract->fv_coeffs[i]) * _joint_vel[i];
         FV(i,0) = fc(i,0) + fv(i,0);
-        if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
+        //if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
     }
     return;
 }
@@ -286,7 +287,6 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
         }
     } else if ( i == 1) {
         if ( j == 0) {
-            //_ad_temp = ad(gpj[j] * gai[i]); 
             _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
@@ -296,11 +296,9 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
         }        
     } else if ( i == 2) {
         if ( j == 0) {
-            //_ad_temp = ad(gpj[j] * gai[j+1] * gpj[j+1] * gai[i]);
             _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[j+1] * *ptr2passive_tfs[j+1] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
-            //_ad_temp = ad(gpj[j] * gai[i]);
             _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if ( j == 2) {
@@ -344,7 +342,7 @@ float ScrewsDynamics::computePotentialEnergy() {
     updateCOMTfs(); // updates gsli;
     for (size_t i = 0; i < DOF; i++)
     {
-        pot_energy = pot_energy + ( *(_ptr2abstract->link_mass[i]) * _g_z * gsli[i].translation()(2) );
+        pot_energy = pot_energy - ( *(_ptr2abstract->link_mass[i]) * _g_z * gsli[i].translation()(2) );
     }
     return pot_energy;
 }
@@ -352,10 +350,9 @@ float ScrewsDynamics::computePotentialEnergy() {
 void ScrewsDynamics::updateCOMTfs() {
     // gpj are not updated, only initialized for each anatomy
     ScrewsDynamics::extractActiveTfs(); // updates gai[i]
-    gsli[0] = gai[0] * (_ptr2abstract->gsli_ptr[0]) ;
-    gsli[1] = gai[0] * gpj[0] * gai[1] * (_ptr2abstract->gsli_ptr[1]) ;
-    gsli[2] = gai[0] * gpj[0] * gai[1] * gpj[1] *gai[2] * (_ptr2abstract->gsli_ptr[2]) ; 
-
+    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gsli_ptr[0]) ; 
+    gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gsli_ptr[1]) ;
+    gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gsli_ptr[2]) ; 
     return;
 }
 

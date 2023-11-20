@@ -30,8 +30,9 @@ class InverseDynamicsController {
         
         //void update_error_state();
         void set_error_state(Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state_received);
+        void set_error_state(float *q_new);
         void set_state_transition_matrix();
-
+        
         // Update functions (functions that update matrices from outside class)
         void update_control_input();
         void update_torques(); // control output command -> torque command

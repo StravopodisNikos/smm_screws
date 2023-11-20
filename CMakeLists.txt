@@ -13,7 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
-  message_generation # [18-10-23] Added for custom msg/srv generation
+  message_generation # [18-10-23] Added for custom msg/srv files generation
+  actionlib_msgs     # [ 3-11-23] Added for custom action files generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -64,17 +65,17 @@ add_service_files(
 )
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  DIRECTORY action
+  FILES idosc.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   geometry_msgs
   std_msgs
+  actionlib_msgs
  )
 
 ################################################
@@ -110,7 +111,7 @@ catkin_package(
   INCLUDE_DIRS include
 #  CATKIN_DEPENDS  
 #  LIBRARIES smm_screws
-  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros message_runtime # [18-10-23] Added for custom msg generation
+  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros message_runtime  actionlib_msgs # [18-10-23] Added for custom msg generation # [3-11-23] Added action generation
 #  DEPENDS system_lib
 )
 

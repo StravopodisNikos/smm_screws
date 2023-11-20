@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
     ROS_INFO("[PUBLISHER-IDOSC] Ready to start publishing torques...");
 
-    // 4. Loop the server
+    // 3. Loop the server
     ros::Rate rate(100); // 100Hz
     while (ros::ok())
     {

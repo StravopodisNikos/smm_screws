@@ -51,6 +51,31 @@ void InverseDynamicsController::set_error_state(Eigen::Matrix<float, IDOSC_STATE
     return;
 }
 
+void InverseDynamicsController::set_error_state(float *q_new) {
+    Eigen::Vector3f p_qs;
+    Eigen::Vector3f v_qs;
+    Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state;
+    p_qs = _ptr2_screws_kin_object->updatePositionTCP(q_new);
+    _ptr2_screws_kin_object->CartesianVelocity_jacob(v_qs);
+    current_state(0) = v_qs.x();
+    current_state(1) = v_qs.y();
+    current_state(2) = v_qs.z(); 
+    current_state(3) = p_qs.x();
+    current_state(4) = p_qs.y();
+    current_state(5) = p_qs.z(); 
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("current_state[ %d ]: %f", i, current_state(i));
+    }    
+
+    _X = _D - current_state;
+    _x1 = _X.block<DOF, 1>(0, 0); // velocity error
+    _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
 void InverseDynamicsController::update_dq(float *dq_new) {
     for (size_t i = 0; i < DOF; i++) {_dq[i] = dq_new[i];}
     return;

@@ -1,0 +1,11 @@
+# goal definition
+geometry_msgs/Vector3 desired_state_vel
+geometry_msgs/Vector3 desired_state_pos
+---
+# result definition
+geometry_msgs/Vector3 current_state_vel
+geometry_msgs/Vector3 current_state_pos
+---
+# feedback
+geometry_msgs/Vector3 current_state_vel
+geometry_msgs/Vector3 current_state_pos

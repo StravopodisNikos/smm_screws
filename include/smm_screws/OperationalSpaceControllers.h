@@ -30,6 +30,7 @@ class InverseDynamicsController {
         
         //void update_error_state();
         void set_error_state(Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state_received);
+        void set_error_state(Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, IDOSC_STATE_DIM, 1> & error_state);
         void set_error_state(float *q_new);
         void set_state_transition_matrix();
         

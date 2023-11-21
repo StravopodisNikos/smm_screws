@@ -51,6 +51,17 @@ void InverseDynamicsController::set_error_state(Eigen::Matrix<float, IDOSC_STATE
     return;
 }
 
+void InverseDynamicsController::set_error_state(Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, IDOSC_STATE_DIM, 1> & error_state) {
+    error_state = _D - current_state_received;
+    _X = error_state;
+    _x1 = _X.block<DOF, 1>(0, 0); // velocity error
+    _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
 void InverseDynamicsController::set_error_state(float *q_new) {
     Eigen::Vector3f p_qs;
     Eigen::Vector3f v_qs;

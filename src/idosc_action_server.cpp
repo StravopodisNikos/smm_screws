@@ -20,9 +20,12 @@ float q_received[DOF];
 float dq_received[DOF];
 Eigen::Matrix<float, IDOSC_STATE_DIM, 1> desired_state;
 Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state;
+Eigen::Matrix<float, IDOSC_STATE_DIM, 1> error_state;
 Eigen::Vector3f torques;
 Eigen::Vector3f p_qs;
 Eigen::Vector3f v_qs;
+Eigen::Vector3f pos_error;
+Eigen::Vector3f vel_error;
 
 // msgs published in robots joints
 std_msgs::Float64 torque_msg;
@@ -66,6 +69,8 @@ public:
     ~idoscAction(void){}
 
     void executeCallback(const smm_screws::idoscActionGoalConstPtr &goal) { // goal type is automatic defined in devel/include/smm_screws/idoscActionGoal.h
+        bool success = true;
+        
         // Extract desired state from the client received goal
         geometry_msgs::Vector3 desired_state_pos = goal->goal.desired_state_pos;
         geometry_msgs::Vector3 desired_state_vel = goal->goal.desired_state_vel;
@@ -100,8 +105,16 @@ public:
         current_state(4) = p_qs.y();
         current_state(5) = p_qs.z(); 
 
+        // Send the current state as feedback
+        feedback_.feedback.current_state_pos.x = p_qs.x();
+        feedback_.feedback.current_state_pos.y = p_qs.y();
+        feedback_.feedback.current_state_pos.z = p_qs.z();
+        feedback_.feedback.current_state_vel.x = v_qs.x();
+        feedback_.feedback.current_state_vel.y = v_qs.y();
+        feedback_.feedback.current_state_vel.z = v_qs.z();
+
         // Set the controller error state
-        ptr2_idosc->set_error_state(current_state);
+        ptr2_idosc->set_error_state(current_state, error_state);
 
         // Execute the controller
         ptr2_idosc->update_dq(dq_received);
@@ -117,11 +130,33 @@ public:
         cartesianStatePublisher(cartesian_state_pub );
 
         // Prepare the result message
-        smm_screws::idoscActionResult result;
-        //result.result.current_state_pos = 
+        vel_error.x() = error_state(0);
+        vel_error.y() = error_state(1);
+        vel_error.z() = error_state(2);
+        pos_error.x() = error_state(3);
+        pos_error.y() = error_state(4);
+        pos_error.z() = error_state(5);
 
-        // Set the result and finish the action
-        //as_.setSucceeded(result);        
+        if (as_.isPreemptRequested() || !ros::ok() )
+        {
+            ROS_INFO("[ACTION SERVER IDOSC] Preempted during ExecuteCb! ");
+            as_.setPreempted();
+            success = false;
+        }
+        
+        if (success)
+        {
+            if ( (pos_error.norm() < 0.01f) && (vel_error.norm() < 0.01f) )
+            {
+                result_.result.current_state_pos.x = feedback_.feedback.current_state_pos.x;
+                result_.result.current_state_pos.y = feedback_.feedback.current_state_pos.y;
+                result_.result.current_state_pos.z = feedback_.feedback.current_state_pos.z;
+                result_.result.current_state_vel.x = feedback_.feedback.current_state_vel.x;
+                result_.result.current_state_vel.y = feedback_.feedback.current_state_vel.y;
+                result_.result.current_state_vel.z = feedback_.feedback.current_state_vel.z;                
+                as_.setSucceeded(result_.result); 
+            }
+        }           
     }
 
     void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state) {
@@ -138,11 +173,12 @@ public:
 
         if (as_.isPreemptRequested() || !ros::ok())
         {
-            ROS_INFO("[ACTION SERVER IDOSC] Preempted");
+            ROS_INFO("[ACTION SERVER IDOSC] Preempted during JointStatesCb! ");
             // Set the action state to preempted and exit
             as_.setPreempted();
             return;
         }
+        return;
     }
 
     void jointTorquePublisher(ros::Publisher& joint_torque_pub, size_t joint_id ) {

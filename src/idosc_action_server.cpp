@@ -62,15 +62,16 @@ public:
         // boost::bind : binds the member function executeCallback within the idoscAction class
         // to the action server as the callback function to be executed when a goal is received.
         // This function is responsible for handling the goal.
-        as_(nh_, name, boost::bind(&idoscAction::executeCallback, this, _1), false), action_name_(name) {
+        as_(nh_, name, boost::bind(&idoscAction::executeCallback, this, _1), false), action_name_(name)
+        {
             as_.start();
         }
     
     ~idoscAction(void){}
 
-    void executeCallback(const smm_screws::idoscActionGoalConstPtr &goal) { // goal type is automatic defined in devel/include/smm_screws/idoscActionGoal.h
+    void executeCallback(const smm_screws::idoscActionGoalConstPtr& goal) { // goal type is automatic defined in devel/include/smm_screws/idoscActionGoal.h
+        ros::Rate r(1);
         bool success = true;
-        
         // Extract desired state from the client received goal
         geometry_msgs::Vector3 desired_state_pos = goal->goal.desired_state_pos;
         geometry_msgs::Vector3 desired_state_vel = goal->goal.desired_state_vel;
@@ -122,12 +123,14 @@ public:
         ptr2_idosc->update_torques(torques);
 
         // Publish torques
+        /*
         jointTorquePublisher( joint1_torque_pub, 0);
         jointTorquePublisher( joint1_torque_pub, 1);
         jointTorquePublisher( joint1_torque_pub, 2);
 
         // Publish Cartesian State
         cartesianStatePublisher(cartesian_state_pub );
+        */
 
         // Prepare the result message
         vel_error.x() = error_state(0);
@@ -158,7 +161,26 @@ public:
             }
         }           
     }
+    /*
+    static void jointTorquePublisher(ros::Publisher& joint_torque_pub, size_t joint_id ) {
+        torque_msg.data = torques(joint_id);
+        joint_torque_pub.publish(torque_msg);
+    }   
 
+    static void cartesianStatePublisher(ros::Publisher& cartesian_state_pub) {
+        cur_cart_state_msg.header.stamp = current_time;
+        cur_cart_state_msg.p_e_s_x = p_qs.x();
+        cur_cart_state_msg.p_e_s_y = p_qs.y();
+        cur_cart_state_msg.p_e_s_z = p_qs.z();
+        cur_cart_state_msg.v_e_s_x = v_qs.x();
+        cur_cart_state_msg.v_e_s_y = v_qs.y();
+        cur_cart_state_msg.v_e_s_z = v_qs.z();   
+        cartesian_state_pub.publish(cur_cart_state_msg); 
+    }
+    */
+};
+
+// 3. MAIN LOOP
     void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state) {
         // in this cb only the joint positions-velocities are updated
 
@@ -171,35 +193,15 @@ public:
             dq_received[i] = static_cast<float>(jointVelocities[i]);
         }  
 
-        if (as_.isPreemptRequested() || !ros::ok())
-        {
-            ROS_INFO("[ACTION SERVER IDOSC] Preempted during JointStatesCb! ");
-            // Set the action state to preempted and exit
-            as_.setPreempted();
-            return;
-        }
+        //if (as_.isPreemptRequested() || !ros::ok())
+        //{
+        //    ROS_INFO("[ACTION SERVER IDOSC] Preempted during JointStatesCb! ");
+        //    // Set the action state to preempted and exit
+        //    as_.setPreempted();
+        //    return;
+        //}
         return;
     }
-
-    void jointTorquePublisher(ros::Publisher& joint_torque_pub, size_t joint_id ) {
-        torque_msg.data = torques(joint_id);
-        joint_torque_pub.publish(torque_msg);
-    }   
-
-    void cartesianStatePublisher(ros::Publisher& cartesian_state_pub) {
-        cur_cart_state_msg.header.stamp = current_time;
-        cur_cart_state_msg.p_e_s_x = p_qs.x();
-        cur_cart_state_msg.p_e_s_y = p_qs.y();
-        cur_cart_state_msg.p_e_s_z = p_qs.z();
-        cur_cart_state_msg.v_e_s_x = v_qs.x();
-        cur_cart_state_msg.v_e_s_y = v_qs.y();
-        cur_cart_state_msg.v_e_s_z = v_qs.z();   
-        cartesian_state_pub.publish(cur_cart_state_msg); 
-    }
-};
-
-// 3. MAIN LOOP
-
 
 int main(int argc, char **argv)
 {
@@ -220,18 +222,19 @@ int main(int argc, char **argv)
     ptr2_idosc = &idosc;
 
     // 2.1 Initialize and start running the action server
-    idoscAction idoscAction("idosc_centralized_action_server");
+    idoscAction idosc_action_server("idosc_action_server");
 
     // 2.2 Start the publisher to /current_cartesian_state
-    joint1_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint1_effort_controller/command", 1);
-    joint2_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint2_effort_controller/command", 1);
-    joint3_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint3_effort_controller/command", 1);
+    //joint1_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint1_effort_controller/command", 1);
+    //joint2_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint2_effort_controller/command", 1);
+    //joint3_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint3_effort_controller/command", 1);
     
     // 2.3 Start the publisher to /current_cartesian_state
-    cartesian_state_pub = nh.advertise<smm_screws::CurrentCartesianState>("/current_cartesian_state", 1);
+    //cartesian_state_pub = nh.advertise<smm_screws::CurrentCartesianState>("/current_cartesian_state", 1);
 
     // 2.4 Start the subscriber to /joint_states
-    joint_states_sub = nh.subscribe<sensor_msgs::JointState>("/anthropomorphic_3dof_gazebo/joint_states", 1, &idoscAction::jointStatesCallback, &idoscAction );
+    //joint_states_sub = nh.subscribe<sensor_msgs::JointState>("/anthropomorphic_3dof_gazebo/joint_states", 1, jointStatesCallback);
+    joint_states_sub = nh.subscribe<sensor_msgs::JointState>("/anthropomorphic_3dof_gazebo/joint_states", 1, jointStatesCallback);
 
     ROS_INFO("[ACTION SERVER IDOSC] Ready...");
 

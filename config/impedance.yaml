@@ -1,0 +1,5 @@
+# Parameters for the IMPEDANCE
+impedance:
+ md: 2.0
+ kp: 100.0
+ kd: 10.0

@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   message_generation # [18-10-23] Added for custom msg/srv files generation
+  actionlib
   actionlib_msgs     # [ 3-11-23] Added for custom action files generation
 )
 
@@ -55,6 +56,7 @@ add_message_files(
   FILES
   JointAccel.msg
   CurrentCartesianState.msg
+  ForceMeasurements.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -161,7 +163,10 @@ add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
 add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
 add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
 add_executable(idosc_centralized src/idosc_centralized.cpp)
+add_executable(impedance_centralized src/impedance_centralized.cpp)
 add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
+#add_executable(idosc_action_server src/idosc_action_server.cpp)
+add_executable(idosc_action_client src/idosc_action_client.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -170,22 +175,23 @@ add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
+#  add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(idosc_action_server  ${smm_screws_EXPORTED_TARGETS} )
+add_dependencies(idosc_action_client  ${smm_screws_EXPORTED_TARGETS} )
 ## Specify libraries to link a library or executable target against
 ## ONLY FOR LIBRARIES THAT HAVE A .cpp FILE!
- target_link_libraries(example
+target_link_libraries(example
    ${catkin_LIBRARIES}
    # ScrewsMain # -> [4-10-23] Removed since ScrewsKinematics inherits from ScrewsMain
    #ScrewsKinematics
    robot_shared
  )
- target_link_libraries(example_dynamics
+target_link_libraries(example_dynamics
    ${catkin_LIBRARIES}
    #ScrewsDynamics
    robot_shared # only test
  ) 
- target_link_libraries(example_shared
+target_link_libraries(example_shared
  ${catkin_LIBRARIES}
  robot_shared 
 ) 
@@ -213,9 +219,20 @@ target_link_libraries(idosc_centralized
 ${catkin_LIBRARIES}
 OperationalSpaceControllers 
 ) 
+target_link_libraries(impedance_centralized
+${catkin_LIBRARIES}
+OperationalSpaceControllers 
+) 
 target_link_libraries(example_idosc_centralized
 ${catkin_LIBRARIES}
 OperationalSpaceControllers 
+) 
+#target_link_libraries(idosc_action_server
+#${catkin_LIBRARIES}
+#OperationalSpaceControllers 
+#) 
+target_link_libraries(idosc_action_client
+${catkin_LIBRARIES}
 ) 
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics

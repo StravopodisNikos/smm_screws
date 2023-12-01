@@ -2,6 +2,8 @@
 
 using namespace OperationalSpaceControllers;
 
+// ****************** INVERSE DYNAMICS CONTROLLER ******************
+
 InverseDynamicsController::InverseDynamicsController() {};
 InverseDynamicsController::InverseDynamicsController(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
     _I_dof = Eigen::Matrix<float, DOF, DOF>::Identity();
@@ -124,5 +126,134 @@ void InverseDynamicsController::update_torques() {
 void InverseDynamicsController::update_torques(Eigen::Vector3f &torque_out) {
     torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) ;
     //torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->FrictionVector() ) ;
+    return;
+}
+
+// ****************** IMPEDANCE CONTROLLER ******************
+
+ImpedanceController::ImpedanceController() {};
+ImpedanceController::ImpedanceController(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
+    _I_dof = Eigen::Matrix<float, DOF, DOF>::Identity();
+    _O_dof = Eigen::Matrix<float, DOF, DOF>::Zero();
+    initialize_gain_matrices();
+}
+
+void ImpedanceController::initialize_gain_matrices() {
+    ros::NodeHandle nh;
+    
+    if (!nh.getParam("impedance/md", _md)) {
+        ROS_ERROR("[ImpedanceController/initialize_gain_matrices] Failed to load: Md");
+        _Md = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Md = _md * _I_dof;
+    }    
+    if (!nh.getParam("impedance/kp", _kp)) {
+        ROS_ERROR("[ImpedanceController/initialize_gain_matrices] Failed to load: Kp");
+        _Kp = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Kp = _kp * _I_dof;
+    }
+    if (!nh.getParam("impedance/kd", _kd)) {
+        ROS_ERROR("[ImpedanceController/initialize_gain_matrices] Failed to load: Kp");
+        _Kd = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Kd = _kd * _I_dof;
+    }
+    return;
+}
+
+void ImpedanceController::set_desired_state(Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> desired_state_received) {
+    _D = desired_state_received;
+    return;
+}
+
+void ImpedanceController::set_error_state(Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> current_state_received) {
+    _X = _D - current_state_received;
+    _x1 = _X.block<DOF, 1>(0, 0); // velocity error
+    _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("[ImpedanceController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void ImpedanceController::set_error_state(Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, IDOSC_STATE_DIM, 1> & error_state) {
+    error_state = _D - current_state_received;
+    _X = error_state;
+    _x1 = _X.block<DOF, 1>(0, 0); // velocity error
+    _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("[ImpedanceController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void ImpedanceController::set_error_state(float *q_new) {
+    Eigen::Vector3f p_qs;
+    Eigen::Vector3f v_qs;
+    Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> current_state;
+    p_qs = _ptr2_screws_kin_object->updatePositionTCP(q_new);
+    _ptr2_screws_kin_object->CartesianVelocity_jacob(v_qs);
+    current_state(0) = v_qs.x();
+    current_state(1) = v_qs.y();
+    current_state(2) = v_qs.z(); 
+    current_state(3) = p_qs.x();
+    current_state(4) = p_qs.y();
+    current_state(5) = p_qs.z(); 
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("[ImpedanceController/set_error_state] Current_state[ %d ]: %f", i, current_state(i));
+    }    
+
+    _X = _D - current_state;
+    _x1 = _X.block<DOF, 1>(0, 0); // velocity error
+    _x2 = _X.block<DOF, 1>(3, 0); // position error
+    for (int i = 0; i < 6; i++) {
+        ROS_INFO("[ImpedanceController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void ImpedanceController::update_dq(float *dq_new) {
+    for (size_t i = 0; i < DOF; i++) {_dq[i] = dq_new[i];}
+    return;
+}
+
+void ImpedanceController::update_force_measurements(float *force_meas) {
+    for (int i = 0; i < DOF; i++) {
+        _he[i] = force_meas[i];
+        _hA[i] = _he[i]; // only in the 3dof case study!
+        ROS_INFO("[ImpedanceController/update_force_measurements] Force axis [ %d ]: %f", i, _he[i]);
+    }
+    return;
+}
+
+void ImpedanceController::update_inverse_operational_jacob() {
+    _iJop = _ptr2_screws_kin_object->Jop.inverse();
+    return;
+}
+
+void ImpedanceController::update_derivative_operational_jacob() {
+    _dtJop = _ptr2_screws_kin_object->dJop;
+    return;
+}
+
+void ImpedanceController::update_control_input() {
+    // Based on eq.9.31/p.373 /in [1]
+    update_inverse_operational_jacob();
+    update_derivative_operational_jacob();
+    _y = _iJop * _Md.inverse() * ( _Kd * _x1 + _Kp * _x2 - _Md * _dtJop * _dq - _hA);
+    //ROS_INFO(" y[0]: %f", _y(0));
+    //ROS_INFO(" y[1]: %f", _y(1));
+    //ROS_INFO(" y[2]: %f", _y(2));
+    return;
+}
+
+void ImpedanceController::update_torques() {
+    _torque_cmd = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) + _ptr2_screws_kin_object->Jop.transpose() * _he;
+    return;
+}
+
+void ImpedanceController::update_torques(Eigen::Vector3f &torque_out) {
+    torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) + _ptr2_screws_kin_object->Jop.transpose() * _he;
     return;
 }

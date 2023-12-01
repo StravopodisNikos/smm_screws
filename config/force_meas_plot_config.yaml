@@ -1,0 +1,10 @@
+/topics:
+  /force_measurements/force_meas_x:
+    max: 5
+    min: -5
+  /force_measurements/force_meas_y:
+      max: 5
+      min: -5
+  /force_measurements/force_meas_z:
+      max: 5
+      min: -5

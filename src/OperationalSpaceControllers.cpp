@@ -22,7 +22,7 @@ void InverseDynamicsController::initialize_gain_matrices() {
         _Kp = _kp * _I_dof;
     }
     if (!nh.getParam("idosc/kd", _kd)) {
-        ROS_ERROR("[InverseDynamicsController/initialize_gain_matrices] Failed to load: Kp");
+        ROS_ERROR("[InverseDynamicsController/initialize_gain_matrices] Failed to load: Kd");
         _Kd = Eigen::Matrix<float, DOF, DOF>::Zero();
     } else {
         _Kd = _kd * _I_dof;
@@ -154,7 +154,7 @@ void ImpedanceController::initialize_gain_matrices() {
         _Kp = _kp * _I_dof;
     }
     if (!nh.getParam("impedance/kd", _kd)) {
-        ROS_ERROR("[ImpedanceController/initialize_gain_matrices] Failed to load: Kp");
+        ROS_ERROR("[ImpedanceController/initialize_gain_matrices] Failed to load: Kd");
         _Kd = Eigen::Matrix<float, DOF, DOF>::Zero();
     } else {
         _Kd = _kd * _I_dof;
@@ -255,5 +255,105 @@ void ImpedanceController::update_torques() {
 
 void ImpedanceController::update_torques(Eigen::Vector3f &torque_out) {
     torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) + _ptr2_screws_kin_object->Jop.transpose() * _he;
+    return;
+}
+
+// ****************** HYBRID CONTROLLER ******************
+
+HybridController::HybridController() {};
+HybridController::HybridController(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
+    _I_dof = Eigen::Matrix<float, DOF, DOF>::Identity();
+    _O_dof = Eigen::Matrix<float, DOF, DOF>::Zero();
+    initialize_gain_matrices();
+    initialize_subspace_matrices();
+}
+
+void HybridController::initialize_gain_matrices() {
+    ros::NodeHandle nh;
+    
+    if (!nh.getParam("hybrid/kil", _ki_l)) {
+        ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kil");
+        _Ki_l = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Ki_l = _ki_l * _I_dof;
+    }    
+    if (!nh.getParam("hybrid/kpv", _kp_v)) {
+        ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kpv");
+        _Kp_v = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Kp_v = _kp_v * _I_dof;
+    }
+    if (!nh.getParam("hybrid/kdv", _kd_v)) {
+        ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kdv");
+        _Kd_v = Eigen::Matrix<float, DOF, DOF>::Zero();
+    } else {
+        _Kd_v = _kd_v * _I_dof;
+    }
+    return;
+}
+
+void HybridController::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Vector3f pf, Eigen::Vector3f & zf_s) {
+    zf_s = zf_s.normalized();
+    Eigen::Vector3f yv_s;
+    Eigen::Vector3f xv_s = (pf - pi).normalized();
+    bool hybrid_feas = false;
+    if ( ( xv_s.cross(zf_s)).norm() != 0 )
+    {
+        hybrid_feas = true;
+        yv_s = zf_s.cross(xv_s);
+    }
+    // Build the rotation matrix
+    _gsc = Eigen::Isometry3f::Identity();
+    _gsc.linear().col(0) = xv_s;
+    _gsc.linear().col(1) = yv_s;
+    _gsc.linear().col(2) = zf_s;
+
+    // Set the translation part (first three elements of the last column)
+    _gsc.translation() = pi;
+    
+    return;   
+}
+
+void HybridController::initialize_subspace_matrices() {
+    // Since {C} frame is strictly defined, the selection matrices can
+    // be uniquely defined (given the limitations presented in header file)
+    _Sv_c = Eigen::Matrix<float, DOF, VELOCITY_CONTROL_SUBSPACE_DIM>::Zero();
+    _Sv_c(0,0) = 1.0f;
+    _Sv_c(1,1) = 1.0f;
+    _Sf_c = Eigen::Matrix<float, DOF, FORCE_CONTROL_SUBSPACE_DIM>::Zero();
+    _Sf_c(2,0) = 1.0f;
+
+    _W_v = Eigen::Matrix<float, DOF, DOF>::Identity();
+    _W_f = Eigen::Matrix<float, DOF, DOF>::Identity();
+    return;
+}
+
+template<typename Derived>  
+void HybridController::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial) {
+    Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> tempIv;
+    Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> tempIf;
+
+    if (isVelocitySubspace)
+    {
+        tempIv = (S.transpose() * _W_v * S).inverse();
+        if (isSpatial) {
+            _pi_Sv_s = tempIv * S.transpose() * _W_v;
+        } else {
+            _pi_Sv_c = tempIv * S.transpose() * _W_v;
+        }
+    } else {
+        tempIf = (S.transpose() * _W_f * S).inverse();
+        if (isSpatial) {
+            _pi_Sf_s = tempIf * S.transpose() * _W_f;
+        } else {
+            _pi_Sf_c = tempIf * S.transpose() * _W_f;
+        }
+    }
+    
+    return;
+}
+
+void HybridController::set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received) {
+    _D = desired_state_received;
     return;
 }

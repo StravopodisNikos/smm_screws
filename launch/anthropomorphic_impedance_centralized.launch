@@ -67,6 +67,7 @@
           /force_measurements/force_meas_y
           /force_measurements/force_meas_z"/>
           
-  <!-- Execute the external force application node        
-  <node name="apply_wrench_node" pkg="anthropomorphic_3dof_gazebo" type="apply_wrench_node" output="screen"/>  -->
+  <!-- Execute the external force application node -->        
+  <!-- This is executed outside the launch file (after simulation is unpaused) :
+       rosrun anthropomorphic_3dof_gazebo apply_wrench_node 10.0 0.0 0.0 0.0 0.0 0.0 -->
 </launch>

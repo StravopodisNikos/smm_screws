@@ -192,6 +192,17 @@ Eigen::Vector3f ScrewsKinematics::updatePositionTCP(float *q) {
     return p_tcp;
 }
 
+Eigen::Vector3f ScrewsKinematics::updatePositionTCP(Eigen::Matrix<float, 3, 1>& q) {
+    Eigen::Vector3f p_tcp;
+    Eigen::Isometry3f gst_0 = *(_ptr2abstract->gsai_ptr[3]);   
+    setExponentials(q.data()); // Assuming setExponentials still requires a float pointer
+    _gst = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * gst_0;
+    p_tcp[0] = _gst(0, 3);
+    p_tcp[1] = _gst(1, 3);
+    p_tcp[2] = _gst(2, 3);
+    return p_tcp;
+}
+
 void ScrewsKinematics::ForwardKinematicsTCP() {
     Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
     ROS_INFO("_joint_pos_x: %f", _joint_pos[0]);

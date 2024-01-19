@@ -47,6 +47,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		Eigen::Vector3f updatePositionTCP(float *q);
+		Eigen::Vector3f updatePositionTCP(Eigen::Matrix<float, 3, 1>& q); 
 		void ForwardKinematicsTCP();
 		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_1();

@@ -260,15 +260,15 @@ void ImpedanceController::update_torques(Eigen::Vector3f &torque_out) {
 
 // ****************** HYBRID CONTROLLER ******************
 
-HybridController::HybridController() {};
-HybridController::HybridController(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
+HybridController3::HybridController3() {};
+HybridController3::HybridController3(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
     _I_dof = Eigen::Matrix<float, DOF, DOF>::Identity();
     _O_dof = Eigen::Matrix<float, DOF, DOF>::Zero();
     initialize_gain_matrices();
     initialize_subspace_matrices();
 }
 
-void HybridController::initialize_gain_matrices() {
+void HybridController3::initialize_gain_matrices() {
     ros::NodeHandle nh;
     
     if (!nh.getParam("hybrid/kil", _ki_l)) {
@@ -292,7 +292,7 @@ void HybridController::initialize_gain_matrices() {
     return;
 }
 
-void HybridController::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Vector3f pf, Eigen::Vector3f & zf_s) {
+void HybridController3::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Vector3f pf, Eigen::Vector3f & zf_s) {
     zf_s = zf_s.normalized();
     Eigen::Vector3f yv_s;
     Eigen::Vector3f xv_s = (pf - pi).normalized();
@@ -307,6 +307,7 @@ void HybridController::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Ve
     _gsc.linear().col(0) = xv_s;
     _gsc.linear().col(1) = yv_s;
     _gsc.linear().col(2) = zf_s;
+    _Rsc = _gsc.linear(); // save rotation matrix
 
     // Set the translation part (first three elements of the last column)
     _gsc.translation() = pi;
@@ -314,7 +315,7 @@ void HybridController::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Ve
     return;   
 }
 
-void HybridController::initialize_subspace_matrices() {
+void HybridController3::initialize_subspace_matrices() {
     // Since {C} frame is strictly defined, the selection matrices can
     // be uniquely defined (given the limitations presented in header file)
     _Sv_c = Eigen::Matrix<float, DOF, VELOCITY_CONTROL_SUBSPACE_DIM>::Zero();
@@ -329,7 +330,7 @@ void HybridController::initialize_subspace_matrices() {
 }
 
 template<typename Derived>  
-void HybridController::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial) {
+void HybridController3::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial) {
     Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> tempIv;
     Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> tempIf;
 
@@ -353,7 +354,125 @@ void HybridController::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derive
     return;
 }
 
-void HybridController::set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received) {
+void HybridController3::set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received) {
     _D = desired_state_received;
+    return;
+}
+
+void HybridController3::set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received) {
+    _X = _D - current_state_received;
+    _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
+    _x2 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(2, 0); // constraint frame position error
+    _x3 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(4, 0); // constraint frame force error
+    _x4 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(5, 0); // constraint frame force sum error
+    for (int i = 0; i < HYBRID_STATE_DIM; i++) {
+        ROS_INFO("[HybridController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void HybridController3::set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, HYBRID_STATE_DIM, 1> & error_state) {
+    error_state = _D - current_state_received;
+    _X = error_state;
+    _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
+    _x2 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(2, 0); // constraint frame position error
+    _x3 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(4, 0); // constraint frame force error
+    _x4 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(5, 0); // constraint frame force sum error
+    for (int i = 0; i < HYBRID_STATE_DIM; i++) {
+        ROS_INFO("[HybridController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void HybridController3::update_error_state() {
+    // Pos, Vel, Force measurements are already acquired. The new erros state is
+    // computed internally and updated.
+    // Error state is calculated in {C} frame.
+
+    // 1. Extract the variables from {S}
+    Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state;
+    _pe = _ptr2_screws_kin_object->updatePositionTCP(_q_meas); // set new _pe
+    _ptr2_screws_kin_object->CartesianVelocity_jacob(_ve);     // set new _ve
+    // update_force_measurements is already executed -> _fe is already set
+
+    // 2. Transfrom to {C}
+    tf2Cframe(); // sets the _p_c, _v_c, _f_c, _Integral_f_c
+
+    current_state.segment<2>(0) = _v_c;
+    current_state.segment<2>(2) = _p_c;
+    current_state.segment<1>(4) = _f_c;
+    current_state.segment<1>(5) = _Integral_f_c; 
+
+    for (int i = 0; i < HYBRID_STATE_DIM; i++) {
+        ROS_INFO("[HybridController/set_error_state] Current_state[ %d ]: %f", i, current_state(i));
+    }    
+
+    // 2. Extract error state
+    _X = _D - current_state;
+
+    _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
+    _x2 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(2, 0); // constraint frame position error
+    _x3 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(4, 0); // constraint frame force error
+    _x4 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(5, 0); // constraint frame force sum error
+    for (int i = 0; i < HYBRID_STATE_DIM; i++) {
+        ROS_INFO("[HybridController/set_error_state] Error_state[ %d ]: %f", i, _X(i));
+    }
+    return;
+}
+
+void HybridController3::update_q(float *q_new) {
+    for (size_t i = 0; i < DOF; i++) {_q_meas[i] = q_new[i];}
+    return;
+}
+
+void HybridController3::update_dq(float *dq_new) {
+    for (size_t i = 0; i < DOF; i++) {_dq_meas[i] = dq_new[i];}
+    return;
+}
+
+void HybridController3::update_force_measurements(float *force_meas) {
+    for (int i = 0; i < DOF; i++) {
+        _f_meas[i] = force_meas[i];
+        _fe[i] = _f_meas[i];
+        ROS_INFO("[HybridController/update_force_measurements] Force axis [ %d ]: %f", i, _fe[i]);
+    }
+    return;
+}
+
+void HybridController3::update_inverse_operational_jacob() {
+    _iJop = _ptr2_screws_kin_object->Jop.inverse();
+    return;
+}
+
+void HybridController3::update_derivative_operational_jacob() {
+    _dtJop = _ptr2_screws_kin_object->dJop;
+    return;
+}
+
+void HybridController3::tf2Sframe() {
+    // Transforms TCP position, velocity, force, from {C} to {S} frame
+    _pe = _Rsc * ( _Sv_c * _p_c );
+    _ve = _Rsc * ( _Sv_c * _v_c );
+    _fe = _Rsc * ( _Sf_c * _f_c );
+    return;
+}
+
+void HybridController3::tf2Cframe() {
+    // Transforms TCP position, velocity, force, from {S} to {C} frame
+    _p_c = _pi_Sv_c * _Rsc.inverse() * _pe;
+    _v_c = _pi_Sv_c * _Rsc.inverse() * _ve;
+    _f_c = _pi_Sf_c * _Rsc.inverse() * _fe;
+
+    // Set the new integral
+    _Integral_f_c += _f_c;
+    return;
+}
+
+void HybridController3::tf2Cframe_desired() { 
+    // Transforms TCP position, velocity, force, from {S} to {C} frame
+    // Used to tf desired task values from {S} to {C} frame
+    _pd_c = _pi_Sv_c * ( _Rsc.inverse() * _pd_s );
+    _vd_c = _pi_Sv_c * ( _Rsc.inverse() * _vd_s );
+    _fd_c = _pi_Sf_c * ( _Rsc.inverse() * _fd_s );
     return;
 }

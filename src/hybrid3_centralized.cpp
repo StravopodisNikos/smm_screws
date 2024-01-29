@@ -7,9 +7,11 @@
 #include <std_msgs/Float64.h>
 
 /*
- *  Here a simple impedance controller is implemented
+ *  Here a simple hybrid(position+force) controller is implemented
  *  -> A simple subscriber to /joint_states updates the joint positions/velocities
  *  -> A simple subscriber to /ft_sensor updates the 3D force sensor measurements (xacro file must include the libgazebo_ros_ft_sensor.so)
+ *  -> Xacro file must include a spherical end-effector for better contact simulation
+ *  -> Gazebo world file must include a xy rigid plane in the environment
  *  -> Each kinematic-dynamic matrix used for controller torque output is computed locally
  *  -> The torques are published in the designated effort_controller topic of the gazebo robot model
  */
@@ -20,7 +22,7 @@ ScrewsKinematics smm_robot_kin_solver;
 ScrewsDynamics smm_robot_dyn_solver;
 ScrewsKinematics *ptr2_smm_robot_kin_solver;
 ScrewsDynamics *ptr2_smm_robot_dyn_solver;
-OperationalSpaceControllers::ImpedanceController *ptr2_impedance;
+OperationalSpaceControllers::HybridController3 *ptr2_hybrid3;
 
 std::vector<double> jointPositions;
 std::vector<double> jointVelocities;
@@ -28,8 +30,8 @@ std::vector<double> ForceMeasurements;
 float q_received[DOF];
 float dq_received[DOF];
 float force_received[DOF];
-Eigen::Matrix<float, IDOSC_STATE_DIM, 1> desired_state;
-Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state;
+Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state;
+Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state;
 Eigen::Vector3f torques;
 std_msgs::Float64 torque_msg;
 
@@ -62,26 +64,21 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     smm_robot_dyn_solver.updateJointVel(dq_received);
 
     // 4. CONTROLLER ACTION
-    // 4.1 Update the current cartesian state
-    p_qs = smm_robot_kin_solver.updatePositionTCP(q_received);
-    smm_robot_kin_solver.CartesianVelocity_jacob(v_qs);
-    current_state(0) = v_qs.x();
-    current_state(1) = v_qs.y();
-    current_state(2) = v_qs.z(); 
-    current_state(3) = p_qs.x();
-    current_state(4) = p_qs.y();
-    current_state(5) = p_qs.z(); 
-    for (int i = 0; i < 6; i++) {
-        ROS_INFO("[hybrid3_centralized] Current_state[ %d ]: %f", i, current_state(i));
-    }
-    // 4.2 Build the current error state
-    ptr2_impedance->set_error_state(current_state);
+    // 4.1 Update the error state
+    ptr2_hybrid3->update_error_state();
 
-    // 4.3 Execute the main controller
-    ptr2_impedance->update_dq(dq_received);
-    ptr2_impedance->update_control_input();
-    // 4.4 Comput the torques, given control input & robot dynamics
-    ptr2_impedance->update_torques(torques);
+    // 4.2 Force Controller Part
+    ptr2_hybrid3->calculate_force_control_component(); // Needs _lamda_d, K matrices, error state
+    // 4.3 Motion Controller Part
+    ptr2_hybrid3->calculate_motion_control_component(); // Needs K matrices, error state
+
+    // 4.4 Task Space Dynamic Matrices: Be, Ne
+    ptr2_hybrid3->calculate_MassMatrix_task_space();
+    ptr2_hybrid3->calculate_CoriolisVector_task_space();
+    
+    // 4.5 Comput the torques, given control input & robot dynamics
+    ptr2_hybrid3->update_dq(dq_received);
+    ptr2_hybrid3->update_torques(torques); // Needs Be, Ne
     // Print extracted torque command
     for (int i = 0; i < DOF; i++)
     {
@@ -123,7 +120,7 @@ void forceMeasurementsCallback(const geometry_msgs::WrenchStamped::ConstPtr& msg
         ROS_INFO("[hybrid3_centralized] Force axis [ %d ]: %f", i+1, force_received[i]);
     }
     // update the measurement vector in the controller
-    ptr2_impedance->update_force_measurements(force_received);
+    ptr2_hybrid3->update_force_measurements(force_received); // updates the _fe_c
 
     // publish the force components -> rqt_plot
     smm_screws::ForceMeasurements force_measurements_msg;
@@ -151,8 +148,8 @@ int main(int argc, char **argv)
         ptr2_smm_robot_dyn_solver = &smm_robot_dyn_solver;
     }
     // 1.2 Initialize the impedance class object
-    OperationalSpaceControllers::ImpedanceController impedance(ptr2_smm_robot_kin_solver, ptr2_smm_robot_dyn_solver);
-    ptr2_impedance = &impedance;
+    OperationalSpaceControllers::HybridController3 hybrid3(ptr2_smm_robot_kin_solver, ptr2_smm_robot_dyn_solver);
+    ptr2_hybrid3 = &hybrid3;
     // 1.3 Set the desired state to trigger controller action (MUST YAML INPUT)
     desired_state(0) = 0.0f;
     desired_state(1) = 0.0f;
@@ -160,7 +157,7 @@ int main(int argc, char **argv)
     desired_state(3) = 0.25f;
     desired_state(4) = 0.0f;
     desired_state(5) = 2.00f; // + 1.0 to the matlab value
-    ptr2_impedance->set_desired_state(desired_state);
+    ptr2_hybrid3->set_desired_state(desired_state);
 
     // 2.1.1 Start the publisher to /torque_commands
     ros::Publisher joint1_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint1_effort_controller/command", 1);

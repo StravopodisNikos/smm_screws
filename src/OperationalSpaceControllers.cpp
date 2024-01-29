@@ -249,11 +249,13 @@ void ImpedanceController::update_control_input() {
 }
 
 void ImpedanceController::update_torques() {
+    // Based on eq.9.30/p.373 /in [1]
     _torque_cmd = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) + _ptr2_screws_kin_object->Jop.transpose() * _he;
     return;
 }
 
 void ImpedanceController::update_torques(Eigen::Vector3f &torque_out) {
+    // Based on eq.9.30/p.373 /in [1]
     torque_out = _ptr2_screws_dyn_object->MassMatrix() * _y + (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) + _ptr2_screws_kin_object->Jop.transpose() * _he;
     return;
 }
@@ -343,6 +345,7 @@ void HybridController3::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Deriv
             _pi_Sv_c = tempIv * S.transpose() * _W_v;
         }
     } else {
+        // Implements eq.9.55/pdf.403 /in [1]
         tempIf = (S.transpose() * _W_f * S).inverse();
         if (isSpatial) {
             _pi_Sf_s = tempIf * S.transpose() * _W_f;
@@ -359,7 +362,13 @@ void HybridController3::set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM,
     return;
 }
 
+void HybridController3::set_lamda_desired_S(float lamda_desired) {
+    _lamda_d << lamda_desired;
+    return;
+}
+
 void HybridController3::set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received) {
+    // internal usage of the error_state
     _X = _D - current_state_received;
     _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
     _x2 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(2, 0); // constraint frame position error
@@ -372,6 +381,7 @@ void HybridController3::set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1
 }
 
 void HybridController3::set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, HYBRID_STATE_DIM, 1> & error_state) {
+    // makes the error_state available to the main node
     error_state = _D - current_state_received;
     _X = error_state;
     _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
@@ -391,25 +401,29 @@ void HybridController3::update_error_state() {
 
     // 1. Extract the variables from {S}
     Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state;
-    _pe = _ptr2_screws_kin_object->updatePositionTCP(_q_meas); // set new _pe
-    _ptr2_screws_kin_object->CartesianVelocity_jacob(_ve);     // set new _ve
+    _pe_s = _ptr2_screws_kin_object->updatePositionTCP(_q_meas); // set new _pe /in {S}
+    _ptr2_screws_kin_object->CartesianVelocity_jacob(_ve_s);     // set new _ve /in {S}
     // update_force_measurements is already executed -> _fe is already set
 
-    // 2. Transfrom to {C}
-    tf2Cframe(); // sets the _p_c, _v_c, _f_c, _Integral_f_c
-
-    current_state.segment<2>(0) = _v_c;
-    current_state.segment<2>(2) = _p_c;
-    current_state.segment<1>(4) = _f_c;
-    current_state.segment<1>(5) = _Integral_f_c; 
+    // 2. Transfrom from {S} to {C}
+    // _ve_s -> _velocity_c
+    // _pe_s -> _position_c
+    // _fe_s -> _lamda_c // _Integral_lamda_c
+    update_velocity_S();
+    update_position_S(); // Need Rsc!
+    update_lamda_S(); // Needs force measurments! fe_c! -> implemented in other cb fn
+                                                        // in the main hybrid3_centralized.cpp node!
+    current_state.segment<2>(0) = _velocity_c;
+    current_state.segment<2>(2) = _position_c;
+    current_state.segment<1>(4) = _lamda_c;
+    current_state.segment<1>(5) = _Integral_lamda_c; 
 
     for (int i = 0; i < HYBRID_STATE_DIM; i++) {
         ROS_INFO("[HybridController/set_error_state] Current_state[ %d ]: %f", i, current_state(i));
     }    
 
-    // 2. Extract error state
+    // 3. Extract error state
     _X = _D - current_state;
-
     _x1 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(0, 0); // constraint frame velocity error
     _x2 = _X.block<VELOCITY_CONTROL_SUBSPACE_DIM, 1>(2, 0); // constraint frame position error
     _x3 = _X.block<FORCE_CONTROL_SUBSPACE_DIM, 1>(4, 0); // constraint frame force error
@@ -433,9 +447,61 @@ void HybridController3::update_dq(float *dq_new) {
 void HybridController3::update_force_measurements(float *force_meas) {
     for (int i = 0; i < DOF; i++) {
         _f_meas[i] = force_meas[i];
-        _fe[i] = _f_meas[i];
-        ROS_INFO("[HybridController/update_force_measurements] Force axis [ %d ]: %f", i, _fe[i]);
+        _fe_c[i] = _f_meas[i]; // here _fe_c ~ he_c (Siciliano), 
+                               // index {c} denotes that measurement is expressed 
+                               // in constraint frame {C}={T} tool frame
+        ROS_INFO("[HybridController/update_force_measurements] Force axis [ %d ]: %f", i, _fe_c[i]);
     }
+
+    return;
+}
+
+void HybridController3::update_lamda_C() {
+    // Implements eq.9.54/pdf 403/in [1], in {C} frame
+    // lamda is vector in the force-controlled-subspace
+    // index {c} is redundant for _lamda !!!
+    _lamda_c = _pi_Sf_c * _fe_c;
+    _Integral_lamda_c += _lamda_c;
+    return;
+}
+
+void HybridController3::update_lamda_S() {
+    // Implements eq.9.54/pdf 403/in [1], in {C} frame
+    // lamda is vector in the force-controlled-subspace
+    // index {c} is redundant for _lamda !!!
+    // Here the tf between sensor frame~constraint frame {C} and
+    // spatial frame {S} is executed. Lamda vector must remain 
+    // the same for both tfs!
+    _fe_s = _Rsc * _fe_c;          // tfs force measurements to spatial frame
+    _lamda_c = _pi_Sf_s * _fe_s;   // cuts dimensions to force control subspace
+    _Integral_lamda_c += _lamda_c;
+    // SOS: _lamda_c can also be regared as lamda_s
+    return;
+}
+
+void HybridController3::update_velocity_C() {
+    // Implements eq.9.60/pdf 405/in [1], using 
+    // TCP velocity expressed in {C} frame
+    _velocity_c = _pi_Sv_c * _ve_c;
+    return;
+}
+
+void HybridController3::update_position_C() { 
+    // TCP position is expressed in {C} frame
+    _position_c = _pi_Sv_c * _pe_c;
+    return;
+}
+
+void HybridController3::update_velocity_S() {
+    // Implements eq.9.60/pdf 405/in [1], using 
+    // TCP velocity expressed in {S} frame
+    _velocity_c = _pi_Sv_c * _Rsc.inverse() * _ve_s;
+    return;
+}
+
+void HybridController3::update_position_S() {
+     // TCP position is expressed in {S} frame
+    _position_c = _pi_Sv_c * _Rsc.inverse() * _pe_s;
     return;
 }
 
@@ -444,35 +510,56 @@ void HybridController3::update_inverse_operational_jacob() {
     return;
 }
 
+void HybridController3::update_inverse_transpose_operational_jacob() {
+    _itJop = _ptr2_screws_kin_object->Jop.transpose().inverse();
+    return;
+}
+
 void HybridController3::update_derivative_operational_jacob() {
     _dtJop = _ptr2_screws_kin_object->dJop;
     return;
 }
 
-void HybridController3::tf2Sframe() {
-    // Transforms TCP position, velocity, force, from {C} to {S} frame
-    _pe = _Rsc * ( _Sv_c * _p_c );
-    _ve = _Rsc * ( _Sv_c * _v_c );
-    _fe = _Rsc * ( _Sf_c * _f_c );
+void HybridController3::calculate_MassMatrix_task_space() {
+    // Transforms Mass Matrix to task frame (end-effector).
+    // Implements the 1st eq /in p.414(pdf)/[1]
+    update_inverse_operational_jacob();
+    update_inverse_transpose_operational_jacob();
+    _Be = _itJop * _ptr2_screws_dyn_object->MassMatrix() * _iJop;
     return;
 }
 
-void HybridController3::tf2Cframe() {
-    // Transforms TCP position, velocity, force, from {S} to {C} frame
-    _p_c = _pi_Sv_c * _Rsc.inverse() * _pe;
-    _v_c = _pi_Sv_c * _Rsc.inverse() * _ve;
-    _f_c = _pi_Sf_c * _Rsc.inverse() * _fe;
-
-    // Set the new integral
-    _Integral_f_c += _f_c;
+void HybridController3::calculate_CoriolisVector_task_space() {
+    // Transforms Coriolis Vector to task frame (end-effector).
+    // Implements the 2nd eq /in p.414(pdf)/[1]    
+    update_inverse_operational_jacob();
+    update_inverse_transpose_operational_jacob();
+    _Ne = _itJop * (_ptr2_screws_dyn_object->CoriolisMatrix() * _dq_meas + _ptr2_screws_dyn_object->GravityVector() + _ptr2_screws_dyn_object->FrictionVector() ) - (_Be * _dtJop * _dq_meas);
     return;
 }
 
-void HybridController3::tf2Cframe_desired() { 
-    // Transforms TCP position, velocity, force, from {S} to {C} frame
-    // Used to tf desired task values from {S} to {C} frame
-    _pd_c = _pi_Sv_c * ( _Rsc.inverse() * _pd_s );
-    _vd_c = _pi_Sv_c * ( _Rsc.inverse() * _vd_s );
-    _fd_c = _pi_Sf_c * ( _Rsc.inverse() * _fd_s );
+void HybridController3::calculate_force_control_component() {
+    // Computes f_lamda
+    // Implements eq.(9.94) /in p.420(pdf)/[1] 
+    _f_lamda = _lamda_d + _ki_l * _x4;
+    return;
+}
+
+void HybridController3::calculate_motion_control_component() {
+    // Computes alpha_v 
+    // Implements eq.(9.95) /in p.420(pdf)/[1] 
+    _alpha_v = _Kd_v * _x1 + _Kp_v * _x2; // misses r_d_ddot because it is set to zero for my tasks
+    return;
+}
+
+void HybridController3::update_torques() {
+    // Based on eq.9.91/pdf.419 /in [1]
+    _torque_cmd = _Be * _Sv_s * _alpha_v + _Sf_s * _f_lamda + _Ne;
+    return;
+}
+
+void HybridController3::update_torques(Eigen::Vector3f &torque_out) {
+    // Based on eq.9.91/pdf.419 /in [1]
+    torque_out = _Be * _Sv_s * _alpha_v + _Sf_s * _f_lamda + _Ne;
     return;
 }

@@ -28,8 +28,8 @@ std::vector<double> ForceMeasurements;
 float q_received[DOF];
 float dq_received[DOF];
 float force_received[DOF];
-Eigen::Matrix<float, IDOSC_STATE_DIM, 1> desired_state;
-Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state;
+Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> desired_state;
+Eigen::Matrix<float, IMPEDANCE_STATE_DIM, 1> current_state;
 Eigen::Vector3f torques;
 std_msgs::Float64 torque_msg;
 

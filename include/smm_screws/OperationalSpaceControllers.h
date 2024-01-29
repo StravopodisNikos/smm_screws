@@ -153,16 +153,29 @@ class HybridController3 {
         void set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received);
         void set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received);
         void set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received, Eigen::Matrix<float, HYBRID_STATE_DIM, 1> & error_state);
+        void set_lamda_desired_S(float lamda_desired);
 
         // Calculate functions
         template<typename Derived>
         void calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial);  
+        void calculate_MassMatrix_task_space();
+        void calculate_CoriolisVector_task_space();
+        void calculate_motion_control_component();
+        void calculate_force_control_component();
 
         // Update functions
         void update_q(float *q_new) ;
         void update_dq(float *dq_new);  
         void update_force_measurements(float *force_meas);
         void update_error_state();
+        void update_lamda_C();
+        void update_lamda_S();
+        void update_velocity_C();
+        void update_velocity_S();
+        void update_position_C();
+        void update_position_S();
+        void update_torques();
+        void update_torques(Eigen::Vector3f &torque_out);
 
     private:
         ScrewsKinematics *_ptr2_screws_kin_object;
@@ -203,14 +216,26 @@ class HybridController3 {
         Eigen::Matrix3f _Rsc;
         Eigen::Isometry3f _gsc;    
         Eigen::Matrix3f _iJop;
+        Eigen::Matrix3f _itJop;
         Eigen::Matrix3f _dtJop;
-        Eigen::Matrix<float, DOF, 1> _pe;
-        Eigen::Matrix<float, DOF, 1> _ve;
-        Eigen::Matrix<float, DOF, 1> _fe;
-        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _v_c;
-        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _p_c;
+        Eigen::Matrix3f _Be;
+        Eigen::Matrix<float, DOF, 1> _Ne;
+        Eigen::Matrix<float, DOF, 1> _pe_s;
+        Eigen::Matrix<float, DOF, 1> _ve_s;
+        Eigen::Matrix<float, DOF, 1> _fe_s;
+        Eigen::Matrix<float, DOF, 1> _pe_c;
+        Eigen::Matrix<float, DOF, 1> _ve_c;
+        Eigen::Matrix<float, DOF, 1> _fe_c;
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _lamda_d;       // desired control subspace R(Sf) vector
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _lamda_c;       // control subspace R(Sf) vector
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _lamda_s;       // control subspace R(Sf) vector
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _f_lamda;       // force control input
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _alpha_v;    // motion control input        
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _velocity_c; // control subspace R(Sv) vector
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _position_c;
         Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _f_c;
-        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _Integral_f_c;
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _Integral_lamda_c;
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _Integral_lamda_s;
         Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _vd_c; // desired velocity in {C}
         Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, 1> _pd_c; // desired position in {C}
         Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _fd_c;    // desired force in {C}
@@ -219,12 +244,9 @@ class HybridController3 {
         Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, 1> _fd_s;  
         // Update functions
         void update_inverse_operational_jacob();
+        void update_inverse_transpose_operational_jacob();
         void update_derivative_operational_jacob();
 
-        // Frame transformations
-        void tf2Sframe();
-        void tf2Cframe();
-        void tf2Cframe_desired();
 };
 
 } // OperationalSpaceControllers namespace

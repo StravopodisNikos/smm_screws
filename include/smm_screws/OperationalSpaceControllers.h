@@ -148,7 +148,8 @@ class HybridController3 {
         void initialize_gain_matrices();
         void initialize_subspace_matrices();
         void initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Vector3f pf, Eigen::Vector3f & zf_s);
-        
+        void rotate_subspace_matrices_S();
+
         // Set functions
         void set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received);
         void set_error_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state_received);
@@ -156,6 +157,7 @@ class HybridController3 {
         void set_lamda_desired_S(float lamda_desired);
 
         // Calculate functions
+        void calculate_pinv_subspace_matrices();
         template<typename Derived>
         void calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial);  
         void calculate_MassMatrix_task_space();

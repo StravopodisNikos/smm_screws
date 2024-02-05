@@ -35,6 +35,10 @@ Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state;
 Eigen::Vector3f torques;
 std_msgs::Float64 torque_msg;
 
+// Save parames loaded from launch file
+Eigen::Vector3f pi, pf, zf_s;
+std::vector<double> pi_param, pf_param, zf_s_param;
+
 void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, ros::Publisher& joint1_torque_pub, ros::Publisher& joint2_torque_pub, ros::Publisher& joint3_torque_pub , ros::Publisher& cartesian_state_pub)
 {
     bool _debug_verbosity = true;
@@ -54,6 +58,8 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     }
     // 2. Call ScrewsKinematics Library tools
     smm_robot_kin_solver.updateJointState(q_received, dq_received);
+    ptr2_hybrid3->update_q(q_received);
+    ptr2_hybrid3->update_dq(dq_received);
     smm_robot_kin_solver.ForwardKinematics3DOF_2();     // update g[]   
     smm_robot_kin_solver.BodyJacobian_Tool_1();
     smm_robot_kin_solver.OperationalSpaceJacobian();    // -> computes Jop
@@ -66,19 +72,16 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     // 4. CONTROLLER ACTION
     // 4.1 Update the error state
     ptr2_hybrid3->update_error_state();
-
     // 4.2 Force Controller Part
     ptr2_hybrid3->calculate_force_control_component(); // Needs _lamda_d, K matrices, error state
     // 4.3 Motion Controller Part
     ptr2_hybrid3->calculate_motion_control_component(); // Needs K matrices, error state
-
     // 4.4 Task Space Dynamic Matrices: Be, Ne
     ptr2_hybrid3->calculate_MassMatrix_task_space();
     ptr2_hybrid3->calculate_CoriolisVector_task_space();
-    
     // 4.5 Comput the torques, given control input & robot dynamics
-    ptr2_hybrid3->update_dq(dq_received);
     ptr2_hybrid3->update_torques(torques); // Needs Be, Ne
+    
     // Print extracted torque command
     for (int i = 0; i < DOF; i++)
     {
@@ -138,7 +141,18 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "hybrid3_centralized");
     ros::NodeHandle nh;
 
-    // 1.1 Initialize the shared library for robot analytical solvers using screws
+    // 1.1 Load the task params from ROS_PARAMETER_SERVER (params MUST be set in the .launch file)
+    if (!nh.getParam("pi", pi_param) ||
+        !nh.getParam("pf", pf_param) ||
+        !nh.getParam("zf_s", zf_s_param)) {
+        ROS_ERROR("[hybrid3_centralized] Failed to retrieve TASK_PARAMS from ROS_PARAMETER_SERVER.");
+        return 1;
+    }
+    pi << pi_param[0], pi_param[1], pi_param[2];
+    pf << pf_param[0], pf_param[1], pf_param[2];
+    zf_s << zf_s_param[0], zf_s_param[1], zf_s_param[2];
+    
+    // 1.2 Initialize the shared library for robot analytical solvers using screws
     robot_shared my_shared_lib;
     if (my_shared_lib.initializeSharedLib()) {
         ROS_INFO("[hybrid3_centralized] Initialized Shared Library.");
@@ -147,16 +161,29 @@ int main(int argc, char **argv)
         ptr2_smm_robot_kin_solver = &smm_robot_kin_solver;  
         ptr2_smm_robot_dyn_solver = &smm_robot_dyn_solver;
     }
-    // 1.2 Initialize the impedance class object
+    // 1.3 Initialize the hybrid class object
     OperationalSpaceControllers::HybridController3 hybrid3(ptr2_smm_robot_kin_solver, ptr2_smm_robot_dyn_solver);
     ptr2_hybrid3 = &hybrid3;
-    // 1.3 Set the desired state to trigger controller action (MUST YAML INPUT)
-    desired_state(0) = 0.0f;
-    desired_state(1) = 0.0f;
-    desired_state(2) = 0.0f;
-    desired_state(3) = 0.25f;
-    desired_state(4) = 0.0f;
-    desired_state(5) = 2.00f; // + 1.0 to the matlab value
+    // 1.3.1. The Selection Matrices _Sv_c/_Sf_c and the Weight Matrices are set
+    // 1.3.2  The Gain Matrices _Ki_l, _Kp_v, _Kd_v are set
+
+    // 1.4 Set the {C} frame
+    ptr2_hybrid3->initialize_constraint_frame(pi, pf, zf_s);
+    ptr2_hybrid3->rotate_subspace_matrices_S();
+    // 1.4.1 The _gsc tf is computed, _Rsc Rotation Matrix is saved
+    // 1.4.2 Selection Matrices are expressed in the {S} frame
+    
+    // 1.5 Calculate the Pseudo-Inverse of the task Selection matrices
+    ptr2_hybrid3->calculate_pinv_subspace_matrices();
+    // 1.5.1 Calculated _pi_Sv_s,_pi_Sv_c,_pi_Sf_s,_pi_Sf_c
+
+    // 1.6 Set the desired state to trigger controller action (MUST YAML INPUT)
+    desired_state(0) = 0.0f;  // v(1)
+    desired_state(1) = 0.0f;  // v(2)
+    desired_state(2) = 0.0f;  // r(1)
+    desired_state(3) = 0.0f;  // r(2)
+    desired_state(4) = 0.0f;  // λ(1)
+    desired_state(5) = 0.00f; // Ιλ(1)
     ptr2_hybrid3->set_desired_state(desired_state);
 
     // 2.1.1 Start the publisher to /torque_commands

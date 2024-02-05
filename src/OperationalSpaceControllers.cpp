@@ -295,6 +295,7 @@ void HybridController3::initialize_gain_matrices() {
 }
 
 void HybridController3::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::Vector3f pf, Eigen::Vector3f & zf_s) {
+    // Executed in hybrid3_centralized.cpp node 
     zf_s = zf_s.normalized();
     Eigen::Vector3f yv_s;
     Eigen::Vector3f xv_s = (pf - pi).normalized();
@@ -331,8 +332,42 @@ void HybridController3::initialize_subspace_matrices() {
     return;
 }
 
+void HybridController3::rotate_subspace_matrices_S() {
+    // Executed in hybrid3_centralized.cpp node 
+    // The Selection Matrices defined in {C} are expressed in {S}
+    _Sv_s = _Rsc * _Sv_c;
+    _Sf_s = _Rsc * _Sf_c;
+    return;
+}
+
+void HybridController3::calculate_pinv_subspace_matrices() {
+    // Executed in hybrid3_centralized.cpp node 
+    // Implements eq.9.55/pdf.386 /in [1]
+    Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> tempIv_s;
+    Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> tempIv_c;
+    Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> tempIf_s;
+    Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> tempIf_c;
+    
+    tempIv_s = (_Sv_s.transpose() * _W_v * _Sv_s).inverse();
+    tempIv_c = (_Sv_c.transpose() * _W_v * _Sv_c).inverse();
+    tempIf_s = (_Sf_s.transpose() * _W_f * _Sf_s).inverse();
+    tempIf_c = (_Sf_c.transpose() * _W_f * _Sf_c).inverse();
+
+    _pi_Sv_s = tempIv_s * _Sv_s.transpose() * _W_v;
+    _pi_Sv_c = tempIv_c * _Sv_c.transpose() * _W_v;
+    _pi_Sf_s = tempIf_s * _Sf_s.transpose() * _W_f;
+    _pi_Sf_c = tempIf_c * _Sf_c.transpose() * _W_f;
+    return;
+}
+
 template<typename Derived>  
 void HybridController3::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Derived>& S, bool isVelocitySubspace, bool isSpatial) {
+    // Implements eq.9.55/pdf.386 /in [1]
+    // This is just a practice example of hoe to construct
+    // a template that supports input arguments of different
+    // matrix dimensions
+    // It is NOT USED, because selection matrices are private members
+    // and no extra complexity should be added for my simple tasks
     Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> tempIv;
     Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> tempIf;
 
@@ -345,7 +380,7 @@ void HybridController3::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Deriv
             _pi_Sv_c = tempIv * S.transpose() * _W_v;
         }
     } else {
-        // Implements eq.9.55/pdf.403 /in [1]
+        // Implements eq.9.55/pdf.386 /in [1]
         tempIf = (S.transpose() * _W_f * S).inverse();
         if (isSpatial) {
             _pi_Sf_s = tempIf * S.transpose() * _W_f;
@@ -358,7 +393,9 @@ void HybridController3::calculate_pinv_subspace_matrices(Eigen::MatrixBase<Deriv
 }
 
 void HybridController3::set_desired_state(Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state_received) {
+    // Must be expressed in {C} frame and in the velocity/force - control subspaces
     _D = desired_state_received;
+    set_lamda_desired_S(_D[4]); // assigns 5th element to the lamda desired value
     return;
 }
 
@@ -541,7 +578,7 @@ void HybridController3::calculate_CoriolisVector_task_space() {
 void HybridController3::calculate_force_control_component() {
     // Computes f_lamda
     // Implements eq.(9.94) /in p.420(pdf)/[1] 
-    _f_lamda = _lamda_d + _ki_l * _x4;
+    _f_lamda = _lamda_d + _Ki_l * _x4;
     return;
 }
 

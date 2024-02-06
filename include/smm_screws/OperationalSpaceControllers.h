@@ -197,9 +197,13 @@ class HybridController3 {
         Eigen::Matrix<float, HYBRID_STATE_DIM, 1> _D;    // Desired state vector, always expressed in {C}
         Eigen::Matrix<float, DOF, DOF> _I_dof;
         Eigen::Matrix<float, DOF, DOF> _O_dof;
-        Eigen::Matrix<float, DOF, DOF> _Ki_l;
-        Eigen::Matrix<float, DOF, DOF> _Kp_v;
-        Eigen::Matrix<float, DOF, DOF> _Kd_v;
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> _I_v;
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> _O_v;
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> _I_f;
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> _O_f;                
+        Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM> _Ki_l;
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> _Kp_v;
+        Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM> _Kd_v;
         Eigen::Matrix<float, DOF, DOF> _W_v; // weight matrices for pseudoinverse calculation of Velocity Subscpace Selection Matrix
         Eigen::Matrix<float, DOF, DOF> _W_f; // weight matrices for pseudoinverse calculation of Force Subscpace Selection Matrix
         Eigen::Matrix<float, DOF, VELOCITY_CONTROL_SUBSPACE_DIM> _Sv_s;

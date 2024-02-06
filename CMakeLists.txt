@@ -164,6 +164,7 @@ add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
 add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
 add_executable(idosc_centralized src/idosc_centralized.cpp)
 add_executable(impedance_centralized src/impedance_centralized.cpp)
+add_executable(hybrid3_centralized src/hybrid3_centralized.cpp)
 add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
 #add_executable(idosc_action_server src/idosc_action_server.cpp)
 add_executable(idosc_action_client src/idosc_action_client.cpp)
@@ -224,6 +225,10 @@ ${catkin_LIBRARIES}
 OperationalSpaceControllers 
 ) 
 target_link_libraries(example_idosc_centralized
+${catkin_LIBRARIES}
+OperationalSpaceControllers 
+) 
+target_link_libraries(hybrid3_centralized
 ${catkin_LIBRARIES}
 OperationalSpaceControllers 
 ) 

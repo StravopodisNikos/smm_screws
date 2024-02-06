@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<!-- Created on [1-12-23] -->
+<!-- Main updates: 
+     1. Executes the xacro command for urdf-gazebo model generation. Model has a force-torque sensor installed in the {T} frame
+     2. Executes a p2p task implementing the HYBRID3 CONTROLLER for 3dof serial robot and linear motion only.
+     3. rqt_plot for real time data plotting
+-->
+<launch>
+   <!-- Define parameters for Task properties:
+         1. Initial Cartesian Point
+         2. Final Cartesian Point
+         3. Normal plane vector -->
+  <!-- Loaded in config/hybrid3.yaml -->		
+    
+  <!-- these are the arguments you can pass this launch file -->
+  <arg name="paused" default="true"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <!-- We resume the logic in empty_world.launch -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find anthropomorphic_3dof_gazebo)/worlds/rigid_plane_03.world"/>
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+
+  <!-- Load the URDF into the ROS Parameter Server -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find anthropomorphic_3dof_gazebo)/xacro/anthropomorphic_3dof_force_gazebo.xacro'" />
+
+  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+<node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+  args="-urdf -model anthropomorphic_3dof_gazebo -param robot_description -J base_link_link1 0.0167 -J link1_link2 1.2090 -J link2_link3 -2.2652"/>
+
+  <!-- Load the controllers yaml file -->
+  <rosparam file="$(find anthropomorphic_3dof_gazebo)/config/yaml/anthropomorphic_3dof_controllers.yaml" command="load"/>
+  <!-- Load the Inverse Dynamic Operational Space Controller yaml file -->
+  <rosparam file="$(find smm_screws)/config/hybrid3.yaml" command="load"/>
+
+  <!-- Run the effort controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="anthropomorphic_3dof_gazebo" args="joint_state_controller joint1_effort_controller joint2_effort_controller joint3_effort_controller"/>
+  
+  <!-- Run the joint publisher -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <remap from="/joint_states" to="/anthropomorphic_3dof_gazebo/joint_states"/>
+  </node>
+  
+  <!-- Execute the torque publisher, implementing impedance control -->
+  <node name="hybrid3_centralized" pkg="smm_screws" type="hybrid3_centralized" output="screen"/>
+
+  <!-- Run rqt_plot node to generate graphs -->
+  <node pkg="rqt_plot" type="rqt_plot" output="screen" name="rqt_plot_tcp_pos"
+    args=" /current_cartesian_state/p_e_s_x
+           /current_cartesian_state/p_e_s_y
+           /current_cartesian_state/p_e_s_z"/>
+  <node pkg="rqt_plot" type="rqt_plot" output="screen" name="rqt_plot_tcp_vel"
+   args=" /current_cartesian_state/v_e_s_x
+          /current_cartesian_state/v_e_s_y
+          /current_cartesian_state/v_e_s_z"/>
+  <node pkg="rqt_plot" type="rqt_plot" output="screen" name="rqt_plot_torques" 
+    args="/anthropomorphic_3dof_gazebo/joint1_effort_controller/command
+          /anthropomorphic_3dof_gazebo/joint2_effort_controller/command
+          /anthropomorphic_3dof_gazebo/joint3_effort_controller/command"/>
+          
+  <param name="plot_config" textfile="$(find smm_screws)/config/force_meas_plot_config.yaml" />
+  <node pkg="rqt_plot" type="rqt_plot" output="screen" name="rqt_plot_force_meas" 
+    args="/force_measurements/force_meas_x
+          /force_measurements/force_meas_y
+          /force_measurements/force_meas_z"/>
+</launch>

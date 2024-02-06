@@ -1,0 +1,14 @@
+# Parameters for the HYBRID3
+hybrid3:
+ kil: 2.0
+ kpv: 100.0
+ kdv: 10.0
+ pi_x: 0.6
+ pi_y: 0.01
+ pi_z: 1.5
+ pf_x: 0.8
+ pf_y: 0.01
+ pf_z: 1.5
+ zf_s_x: 0.0
+ zf_s_y: 0.0
+ zf_s_z: 1.0

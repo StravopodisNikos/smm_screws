@@ -264,8 +264,9 @@ void ImpedanceController::update_torques(Eigen::Vector3f &torque_out) {
 
 HybridController3::HybridController3() {};
 HybridController3::HybridController3(ScrewsKinematics *ptr2kinematics, ScrewsDynamics *ptr2dynamics):  _ptr2_screws_kin_object(ptr2kinematics), _ptr2_screws_dyn_object(ptr2dynamics) {
-    _I_dof = Eigen::Matrix<float, DOF, DOF>::Identity();
-    _O_dof = Eigen::Matrix<float, DOF, DOF>::Zero();
+    _I_v = Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM>::Identity();
+    _O_v = Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM>::Zero();
+    _I_f = Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM>::Identity();   
     initialize_gain_matrices();
     initialize_subspace_matrices();
 }
@@ -273,23 +274,23 @@ HybridController3::HybridController3(ScrewsKinematics *ptr2kinematics, ScrewsDyn
 void HybridController3::initialize_gain_matrices() {
     ros::NodeHandle nh;
     
-    if (!nh.getParam("hybrid/kil", _ki_l)) {
+    if (!nh.getParam("hybrid3/kil", _ki_l)) {
         ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kil");
-        _Ki_l = Eigen::Matrix<float, DOF, DOF>::Zero();
+        _Ki_l = Eigen::Matrix<float, FORCE_CONTROL_SUBSPACE_DIM, FORCE_CONTROL_SUBSPACE_DIM>::Zero();
     } else {
-        _Ki_l = _ki_l * _I_dof;
+        _Ki_l = _ki_l * _I_f;
     }    
-    if (!nh.getParam("hybrid/kpv", _kp_v)) {
+    if (!nh.getParam("hybrid3/kpv", _kp_v)) {
         ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kpv");
-        _Kp_v = Eigen::Matrix<float, DOF, DOF>::Zero();
+        _Kp_v = Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM>::Zero();
     } else {
-        _Kp_v = _kp_v * _I_dof;
+        _Kp_v = _kp_v * _I_v;
     }
-    if (!nh.getParam("hybrid/kdv", _kd_v)) {
+    if (!nh.getParam("hybrid3/kdv", _kd_v)) {
         ROS_ERROR("[HybridController/initialize_gain_matrices] Failed to load: Kdv");
-        _Kd_v = Eigen::Matrix<float, DOF, DOF>::Zero();
+        _Kd_v = Eigen::Matrix<float, VELOCITY_CONTROL_SUBSPACE_DIM, VELOCITY_CONTROL_SUBSPACE_DIM>::Zero();
     } else {
-        _Kd_v = _kd_v * _I_dof;
+        _Kd_v = _kd_v * _I_v;
     }
     return;
 }

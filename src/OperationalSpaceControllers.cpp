@@ -315,7 +315,10 @@ void HybridController3::initialize_constraint_frame(Eigen::Vector3f pi, Eigen::V
 
     // Set the translation part (first three elements of the last column)
     _gsc.translation() = pi;
-    
+
+    // Print the gsc tf
+    ROS_INFO("[HybridController3/initialize_constraint_frame]: ");
+    _ptr2_screws_kin_object->printIsometryMatrix(_gsc);
     return;   
 }
 
@@ -488,7 +491,7 @@ void HybridController3::update_force_measurements(float *force_meas) {
         _fe_c[i] = _f_meas[i]; // here _fe_c ~ he_c (Siciliano), 
                                // index {c} denotes that measurement is expressed 
                                // in constraint frame {C}={T} tool frame
-        ROS_INFO("[HybridController/update_force_measurements] Force axis [ %d ]: %f", i, _fe_c[i]);
+        //ROS_INFO("[HybridController/update_force_measurements] Force axis [ %d ]: %f", i, _fe_c[i]);
     }
 
     return;

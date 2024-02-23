@@ -814,7 +814,7 @@ void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
             }
         }
         dVsp_tool_twist = dV1 + dV2;
-        if (_debug_verbosity) {  ROS_INFO("Spatial Acceleration Twist: "); printTwist(dVsp_tool_twist);}
+        if (_debug_verbosity) {  ROS_INFO(" [ScrewsKinematics/DtToolVelocityTwist] Spatial Acceleration Twist: "); printTwist(dVsp_tool_twist);}
         break;
     case typ_jacobian::BODY :
         dq_vector << _joint_vel[0], _joint_vel[1], _joint_vel[2];
@@ -825,7 +825,7 @@ void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
         if (_debug_verbosity) {  ROS_INFO("Body Acceleration Twist: "); printTwist(dVbd_tool_twist);}
         break;    
     default:
-        ROS_ERROR("WRONG JACOBIAN SELECTION FOR ACCELEARATION TWIST");
+        ROS_ERROR("[ScrewsKinematics/DtToolVelocityTwist] WRONG JACOBIAN SELECTION FOR ACCELEARATION TWIST");
         break;
     }    
     return;

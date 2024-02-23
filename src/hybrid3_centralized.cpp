@@ -145,15 +145,15 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     // 1.1 Load the task params from ROS_PARAMETER_SERVER (params MUST be set in the .launch file)
-    if (!nh.getParam("hybrid3/pi_x", pi_x_param) ||
-        !nh.getParam("hybrid3/pi_y", pi_y_param) ||
-        !nh.getParam("hybrid3/pi_z", pi_z_param) ||
-        !nh.getParam("hybrid3/pf_x", pf_x_param) ||
-        !nh.getParam("hybrid3/pf_y", pf_y_param) ||
-        !nh.getParam("hybrid3/pf_z", pf_z_param) ||
-        !nh.getParam("hybrid3/zf_s_x", zf_s_x_param) ||
-        !nh.getParam("hybrid3/zf_s_y", zf_s_y_param) ||
-        !nh.getParam("hybrid3/zf_s_z", zf_s_z_param)) {
+    if (!nh.getParam("task_init_point/pi_x", pi_x_param) ||
+        !nh.getParam("task_init_point/pi_y", pi_y_param) ||
+        !nh.getParam("task_init_point/pi_z", pi_z_param) ||
+        !nh.getParam("task_final_point/pf_x", pf_x_param) ||
+        !nh.getParam("task_final_point/pf_y", pf_y_param) ||
+        !nh.getParam("task_final_point/pf_z", pf_z_param) ||
+        !nh.getParam("force_axis/zf_s_x", zf_s_x_param) ||
+        !nh.getParam("force_axis/zf_s_y", zf_s_y_param) ||
+        !nh.getParam("force_axis/zf_s_z", zf_s_z_param)) {
         ROS_ERROR("[hybrid3_centralized] Failed to retrieve TASK_PARAMS from ROS_PARAMETER_SERVER.");
         return 1;
     }
@@ -189,9 +189,9 @@ int main(int argc, char **argv)
     // 1.6 Set the desired state to trigger controller action (MUST YAML INPUT)
     desired_state(0) = 0.0f;  // v(1)
     desired_state(1) = 0.0f;  // v(2)
-    desired_state(2) = 0.0f;  // r(1)
+    desired_state(2) = 0.2f;  // r(1)
     desired_state(3) = 0.0f;  // r(2)
-    desired_state(4) = 0.0f;  // λ(1)
+    desired_state(4) = 5.0f;  // λ(1)
     desired_state(5) = 0.0f; // Ιλ(1)
     ptr2_hybrid3->set_desired_state(desired_state);
 

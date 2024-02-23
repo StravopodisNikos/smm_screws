@@ -21,14 +21,23 @@
 
   <!-- We resume the logic in empty_world.launch -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find anthropomorphic_3dof_gazebo)/worlds/rigid_plane_03.world"/>
+    <!--<arg name="world_name" value="$(find anthropomorphic_3dof_gazebo)/worlds/rigid_plane_03.world"/> -->
     <arg name="debug" value="$(arg debug)" />
     <arg name="gui" value="$(arg gui)" />
     <arg name="paused" value="$(arg paused)"/>
     <arg name="use_sim_time" value="$(arg use_sim_time)"/>
     <arg name="headless" value="$(arg headless)"/>
-  </include>
-
+  </include> 
+  <!-- We resume the logic in empty_world.launch 
+  <include file="$(find anthropomorphic_3dof_gazebo)/worlds/test_hybrid3_centralized.launch">
+    <arg name="world_name" value="$(find anthropomorphic_3dof_gazebo)/worlds/test_hybrid3_centralized.world"/> 
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include> -->
+  
   <!-- Load the URDF into the ROS Parameter Server -->
   <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find anthropomorphic_3dof_gazebo)/xacro/anthropomorphic_3dof_force_gazebo.xacro'" />
 
@@ -49,8 +58,8 @@
     <remap from="/joint_states" to="/anthropomorphic_3dof_gazebo/joint_states"/>
   </node>
   
-  <!-- Execute the torque publisher, implementing impedance control -->
-  <node name="hybrid3_centralized" pkg="smm_screws" type="hybrid3_centralized" output="screen"/>
+  <!-- Execute the torque publisher, implementing hybrid position+force control -->
+  <node name="hybrid3_centralized" pkg="smm_screws" type="hybrid3_centralized" output="screen"/> 
 
   <!-- Run rqt_plot node to generate graphs -->
   <node pkg="rqt_plot" type="rqt_plot" output="screen" name="rqt_plot_tcp_pos"

@@ -359,7 +359,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = false;
+    _debug_verbosity = true;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
@@ -393,6 +393,79 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     ROS_DEBUG_COND(_debug_verbosity,"gst_y_2: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"gst_z_2: %f", _trans_vector.z()); 
     
+    return;
+}
+
+void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometry3f* gs_l_i[DOF]) {
+    // Returns a matrix of pointers of the robot's link COM frames
+    // @ the given configuration. input is the pointer to active joints'
+    // frame @ zero config
+    // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
+    _debug_verbosity = false;
+    setExponentials(q);
+    // Calculate 1st joint frame
+    //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
+    *gs_l_i[0] = _active_expos[0] * *(_ptr2abstract->gsai_ptr[0]) ;
+    _trans_vector = gs_l_i[0]->translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_z: %f", _trans_vector.z()); 
+
+    // Calculate 2nd joint frame
+    //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
+    // *gs_l_i[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
+    *gs_l_i[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsli_ptr[1]) ;
+    _trans_vector = gs_l_i[1]->translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_z: %f", _trans_vector.z());    
+
+    // Calculate 3rd joint frame
+    //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
+    //*gs_l_i[2] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] *_active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)   
+    *gs_l_i[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsli_ptr[2]) ;
+    _trans_vector = gs_l_i[2]->translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_z: %f", _trans_vector.z()); 
+
+    return;
+}
+
+void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
+    // MUST CALL BEFORE USE:
+    // 1. updateJointState
+    // NOTES:
+    // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
+    _debug_verbosity = true;
+    setExponentials(_joint_pos);
+    // Calculate 1st joint frame
+    //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
+    gl[0] = _active_expos[0] * *(_ptr2abstract->gsli_ptr[0]) ;
+    _trans_vector = gl[0].translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl1_z: %f", _trans_vector.z()); 
+
+    // Calculate 2nd joint frame
+    //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
+    //gl[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ;
+    gl[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsli_ptr[1]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
+    _trans_vector = gl[1].translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl2_z: %f", _trans_vector.z());    
+
+    // Calculate 3rd joint frame
+    //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
+    //gl[2] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] *_active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ;    // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
+    gl[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsli_ptr[2]) ;    
+    
+    _trans_vector = gl[2].translation();
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_x: %f", _trans_vector.x());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_y: %f", _trans_vector.y());
+    ROS_DEBUG_COND(_debug_verbosity,"gsl3_z: %f", _trans_vector.z()); 
+
     return;
 }
 
@@ -537,6 +610,77 @@ void ScrewsKinematics::BodyJacobian_Tool_2() {
     }
     if (_debug_verbosity) {  ROS_INFO("Body Jacobian Tool 2: "); print6nMatrix(ptr2Jbd_t_2, DOF);}
 }
+
+void ScrewsKinematics::LinkGeometricJacobians() {
+    // This is MATLAB function: ~/matlab_ws/screw_dynamics/calculateLinkGeometricJacobians.m
+
+    // 1. Build the T
+    // [NEED UPGRADE] current joint tfs will be retrieved from /robot_screw_states
+    ForwardKinematics3DOF_2();
+
+    // 2. Build Tl
+    // [NEED UPGRADE] current joint tfs will be retrieved from /robot_screw_states
+    ForwardKinematicsComFrames3DOF_2();
+
+    // 3. Extract the z-rot-axis vectors
+    // ln.16-18 in MATLAB file. 1st axis is z, 2nd+3rd axes are x!
+    Eigen::Vector3f z_01 = g[0].matrix().block<3, 1>(0, 2); // extracts a block starting at row 0, column 2, with a size of 3 rows and 1 column
+    Eigen::Vector3f z_02 = g[1].matrix().block<3, 1>(0, 0);
+    Eigen::Vector3f z_03 = g[2].matrix().block<3, 1>(0, 0);
+    std::cout << "Vector z_01:\n" << z_01 << std::endl;
+
+    // 4. Extract the points
+    Eigen::Vector3f p_01 = g[0].matrix().block<3, 1>(0, 3); std::cout << "Vector p_01:\n" << p_01 << std::endl;
+    Eigen::Vector3f p_02 = g[1].matrix().block<3, 1>(0, 3);
+    Eigen::Vector3f p_03 = g[2].matrix().block<3, 1>(0, 3);
+    Eigen::Vector3f pl_01 = gl[0].matrix().block<3, 1>(0, 3); std::cout << "Vector pl_01:\n" << pl_01 << std::endl;
+    Eigen::Vector3f pl_02 = gl[1].matrix().block<3, 1>(0, 3);
+    Eigen::Vector3f pl_03 = gl[2].matrix().block<3, 1>(0, 3);
+
+    // 5. Build the columns
+    Eigen::Vector3f O31 = Eigen::Vector3f::Zero();
+
+    Eigen::Vector3f Jp1_11 = z_01.cross( (pl_01 - p_01) ); std::cout << "Vector Jp1_11:\n" << Jp1_11 << std::endl;
+    
+    Eigen::Vector3f Jp1_12 = z_01.cross( (pl_02 - p_01) ); std::cout << "Vector Jp1_12:\n" << Jp1_11 << std::endl;
+    Eigen::Vector3f Jp2_12 = z_01.cross( (pl_02 - p_02) ); std::cout << "Vector Jp2_12:\n" << Jp1_11 << std::endl;
+
+    Eigen::Vector3f Jp1_13 = z_01.cross( (pl_03 - p_01) ); std::cout << "Vector Jp1_13:\n" << Jp1_13 << std::endl;
+    Eigen::Vector3f Jp2_13 = z_01.cross( (pl_03 - p_02) ); std::cout << "Vector Jp2_13:\n" << Jp2_13 << std::endl;
+    Eigen::Vector3f Jp3_13 = z_01.cross( (pl_03 - p_03) ); std::cout << "Vector Jp3_13:\n" << Jp3_13 << std::endl;
+
+    // 6. Fill the Jacobians
+    // 1st Link Geometric Jacobian
+    // Assign values to Jgl and ptr2Jgl
+    Jgl[0][0] = Jp1_11;
+    Jgl[0][1] = O31;
+    Jgl[0][2] = O31;
+    // Assign pointers to ptr2Jgl
+    ptr2Jgl[0][0] = &Jgl[0][0];
+    ptr2Jgl[0][1] = &Jgl[0][1];
+    ptr2Jgl[0][2] = &Jgl[0][2];
+    // 2nd Link Geometric Jacobian
+    // Assign values to Jgl and ptr2Jgl
+    Jgl[1][0] = Jp1_12;
+    Jgl[1][1] = Jp2_12;
+    Jgl[1][2] = O31;
+    // Assign pointers to ptr2Jgl
+    ptr2Jgl[1][0] = &Jgl[1][0];
+    ptr2Jgl[1][1] = &Jgl[1][1];
+    ptr2Jgl[1][2] = &Jgl[1][2];
+    // 3rd Link Geometric Jacobian
+    // Assign values to Jgl and ptr2Jgl
+    Jgl[2][0] = Jp1_13;
+    Jgl[2][1] = Jp2_13;
+    Jgl[2][2] = Jp3_13;
+    // Assign pointers to ptr2Jgl
+    ptr2Jgl[2][0] = &Jgl[2][0];
+    ptr2Jgl[2][1] = &Jgl[2][1];
+    ptr2Jgl[2][2] = &Jgl[2][2];   
+
+    return; 
+}
+
 
 void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]

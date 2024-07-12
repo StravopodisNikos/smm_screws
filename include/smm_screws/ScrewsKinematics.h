@@ -53,6 +53,8 @@ class ScrewsKinematics: public ScrewsMain {
 		void ForwardKinematics3DOF_1();
 		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
 		void ForwardKinematics3DOF_2();
+		void ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometry3f* gs_l_i[DOF]);
+		void ForwardKinematicsComFrames3DOF_2();
 		void SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF]); // Returns {T} frame Spatial Jacobian
 		void SpatialJacobian_Tool_1(); // sets Jsp_t_1 @ memory position: ptr2Jsp1
 		void SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_2[DOF]); // Returns {T} frame Spatial Jacobian
@@ -63,6 +65,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void BodyJacobian_Tool_1();
 		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]); // Returns {T} frame Body Jacobian
 		void BodyJacobian_Tool_2();
+		void LinkGeometricJacobians();
 		void ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ); // Calculates {T} frame Velocity twists
 		void ToolVelocityTwist(typ_jacobian jacob_selection); 
 		void DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[DOF] ); // Time derivative of spatial jacobian
@@ -88,12 +91,13 @@ class ScrewsKinematics: public ScrewsMain {
 		// Public Kinematic data members
 		
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
-		Eigen::Isometry3f g[DOF+1];
+		Eigen::Isometry3f g[DOF+1]; // stores joint frames+tcp
+		Eigen::Isometry3f gl[DOF];  // stores links' COM frames
 		Eigen::Isometry3f Bi[DOF+1]; 
 		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, DOF> Jbd63;
 		Eigen::Matrix<float, 6, DOF> dJbd63;
-		Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF]; // Declares an array of 3 pointers. Each pointer in this array can point to a different Eigen::Matrix<float, 6, 1> object
 		Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> Jsp_t_2[DOF];
@@ -109,6 +113,8 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_2[DOF];
 		Eigen::Matrix<float, 6, 1> dJbd_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
+		Eigen::Matrix<float, DOF, 1>* ptr2Jgl[DOF][DOF]; // Pointer to the 3 6x3 arrays of Link Geometric Jacobians 
+		Eigen::Matrix<float, DOF, 1> Jgl[DOF][DOF];
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
 		Eigen::Matrix3f dJbd_pos;

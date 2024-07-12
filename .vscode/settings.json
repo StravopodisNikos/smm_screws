@@ -76,7 +76,8 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "bit": "cpp",
-        "csignal": "cpp"
+        "csignal": "cpp",
+        "forward_list": "cpp"
     },
     "cmake.configureOnOpen": false
 }

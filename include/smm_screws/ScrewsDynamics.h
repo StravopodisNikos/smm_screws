@@ -46,13 +46,14 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix3f MassMatrix();
         Eigen::Matrix3f CoriolisMatrix();
         Eigen::Matrix<float, DOF, 1> GravityVector();
+        Eigen::Matrix<float, DOF, 1> GravityVectorAnalytical();
         Eigen::Matrix<float, DOF, 1> FrictionVector();
         void MassMatrix_loc();
         void CoriolisMatrix_loc();
         void GravityVector_loc();
         void FrictionVector_loc();
 	private:
-        static constexpr float _g_z = -9.80665;
+        static constexpr float _g_z = -9.80665f;
 
         // Constructor essentials to inherit from Structure Abstract Class
 		RobotAbstractBase *_ptr2abstract; // pointer that has memory address of the abstract class (defined structure parameters of the smm)
@@ -68,7 +69,8 @@ class ScrewsDynamics: public ScrewsKinematics {
         float _joint_pos_prev[DOF];
         float _joint_pos[DOF];
         float _joint_vel[DOF];
-        Eigen::Matrix<float, 6, 6> _Mib[DOF]; // Link Mass matrices /{Links' Body Frames}
+        Eigen::Matrix<float, 6, 6> _Mib[DOF]; // Link Mass matrices / {Links' Body Frames}
+        Eigen::Matrix<float, 6, 6> _Mis[DOF]; // Link Mass matrices / {S}
         Eigen::Matrix<float, 6, 6> _Ml_temp;
         Eigen::Matrix<float, 6, 6> _ad_temp;
         Eigen::Matrix<float, 6, 6> _alpha_temp;

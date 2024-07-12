@@ -12,7 +12,9 @@ ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(
     _Mib[0].setIdentity();
     _Mib[1].setIdentity();
     _Mib[2].setIdentity();
-    
+    _Mis[0].setIdentity();
+    _Mis[1].setIdentity();
+    _Mis[2].setIdentity();    
     _alpha_temp.setZero();
     _ad_temp.setZero();
     _Ml_temp.setZero();
@@ -55,20 +57,20 @@ void ScrewsDynamics::updateJointVel(float *dq_new) {
 void ScrewsDynamics::intializeLinkMassMatrices() {
     // Constructs the Links' Mass matrices @ Links Body (COM) Frame
     
-    for (size_t i = 0; i < DOF; i++)
-    {
-        _Mib[i].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[i]) * Eigen::Matrix3f::Identity();
-        _Mib[i].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
-        _Mib[i].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-        _Mib[i].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[i]) * Eigen::Matrix3f::Identity();
-    }
+    //for (size_t i = 0; i < DOF; i++)
+    //{
+    //    _Mib[i].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[i]) * Eigen::Matrix3f::Identity();
+    //    _Mib[i].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
+    //    _Mib[i].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
+    //    _Mib[i].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[i]) * Eigen::Matrix3f::Identity();
+    //}
    
-   /*
     // Added extreme to test code.
+    /*
         _Mib[0].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[0]) * Eigen::Matrix3f::Identity();
         _Mib[0](0,1) = 0.05; _Mib[0](0,2) = 0.009; _Mib[0](1,0) = _Mib[0](0,1);
         _Mib[0](1,2) = 0.04; _Mib[0](2,0) = _Mib[0](0,2); _Mib[0](2,1) = _Mib[0](1,2);  
-        _Mib[0].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
+        _Mib[0].block<3, 3>(0, 3) = Eigen::`Matrix3f::Zero();
         _Mib[0].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[0].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[0]) * Eigen::Matrix3f::Identity();    
         //print66Matrix(_Mib[0]);
@@ -86,13 +88,18 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
         _Mib[2].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
         _Mib[2].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[2]) * Eigen::Matrix3f::Identity();    
         //print66Matrix(_Mib[2]);                  
-         */
+    */
+    
+    _Mis[0] = *(_ptr2abstract->Mi_s_ptr[0]);
+    _Mis[1] = *(_ptr2abstract->Mi_s_ptr[1]);
+    _Mis[2] = *(_ptr2abstract->Mi_s_ptr[2]);
+
         return;
 }
 
 Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     // Calculates the Mass Matrix 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     //std::cout << "Joint Posistion1:" << _joint_pos[0] << std::endl;
     //std::cout << "Joint Posistion1:" << _joint_pos[1] << std::endl;
@@ -120,7 +127,13 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
                 _alpha[0] = setAlphamatrix(l, i); // print66Matrix(_alpha[0]); // -> ok  // Ali
                 _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
                 //print66Matrix(_Mib[l]); // -> ok
-                _Ml_temp = ad(((_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gsli_ptr[l])).inverse()); 
+
+                // [12-7-24] On 13-2-24 a huge BUG was found in MATLAB code file: compute_mij_429_3DoF_2_sym.m
+                // Link Inertia Matrix is already expressed in {S} frame during assembly, so it is not needed to
+                // re-execute the adjoint tf! The inertias of each link must be provided in robot_definition.h
+                // based on data obtained by M_s_link_as_anat 3D array!
+                //_Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
+                _Ml_temp = _Mis[l];
                 //print66Matrix(_Ml_temp); // -> not ok
                 MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
             }
@@ -148,7 +161,8 @@ void ScrewsDynamics::MassMatrix_loc() {
             {
                 _alpha[0] = setAlphamatrix(l, i); // print66Matrix(_alpha[0]); // -> ok  // Ali
                 _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
-                _Ml_temp = ad(((_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gsli_ptr[l])).inverse()); 
+                //_Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
+                _Ml_temp = _Mis[l];
                 MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
             }
             if (_debug_verbosity) {std::cout << MM(i, j) << "\t";}
@@ -221,6 +235,40 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
         } else { GV(i,0) = 0; }
         //if (_debug_verbosity) {std::cout << GV(i,0) << std::endl;}
     }
+
+    return GV;
+}
+
+Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVectorAnalytical() {
+    // [11-7-24] Implements MATLAB function in laptop-WIN10: 
+    // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalytical.m
+
+    _debug_verbosity = true;
+    GV.setZero();
+    Eigen::Vector3f g_earth(0.0f, 0.0f, 9.80665f);
+    
+    LinkGeometricJacobians();
+
+    float gv1_1,gv1_2,gv1_3;
+    gv1_1 = ( *(_ptr2abstract->link_mass[0]) * g_earth.transpose() * Jgl[0][0]) ; std::cout << gv1_1<< "\n";
+    gv1_2 = ( *(_ptr2abstract->link_mass[1]) * g_earth.transpose() * Jgl[1][0]) ;
+    gv1_3 = ( *(_ptr2abstract->link_mass[2]) * g_earth.transpose() * Jgl[2][0]) ;
+    GV(0) = gv1_1 + gv1_2 + gv1_3;
+
+    float gv2_1,gv2_2,gv2_3;
+    gv2_1 = ( *(_ptr2abstract->link_mass[0]) * g_earth.transpose() * Jgl[0][1]) ;
+    gv2_2 = ( *(_ptr2abstract->link_mass[1]) * g_earth.transpose() * Jgl[1][1]) ;
+    gv2_3 = ( *(_ptr2abstract->link_mass[2]) * g_earth.transpose() * Jgl[2][1]) ;
+    GV(1) = gv2_1 + gv2_2 + gv2_3;
+
+    float gv3_1,gv3_2,gv3_3;
+    gv3_1 = ( *(_ptr2abstract->link_mass[0]) * g_earth.transpose() * Jgl[0][2]) ;
+    gv3_2 = ( *(_ptr2abstract->link_mass[1]) * g_earth.transpose() * Jgl[1][2]) ;
+    gv3_3 = ( *(_ptr2abstract->link_mass[2]) * g_earth.transpose() * Jgl[2][2]) ;
+    GV(2) = gv3_1 + gv3_2 + gv3_3;      
+
+    for (size_t i = 0; i < DOF; i++) {
+        if (_debug_verbosity) {std::cout << GV(i) << "\t";} }
 
     return GV;
 }
@@ -328,7 +376,7 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
         _alphaParDer[4] = setAlphamatrix(k, j);   // Akj  
         _LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists[j]), _ptr2abstract->active_twists[k] );
 
-        _Ml_temp = ad(((_ptr2abstract->gsli_ptr[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gsli_ptr[l])).inverse()); 
+        _Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
         
         _parDer_MassIJ_ThetaK = _parDer_MassIJ_ThetaK + \
         ( (_LieBracketParDer[0].transpose() * _alphaParDer[1].transpose() * _Ml_temp * _alphaParDer[2] * (_ptr2abstract->active_twists[j]) ) + \
@@ -350,9 +398,9 @@ float ScrewsDynamics::computePotentialEnergy() {
 void ScrewsDynamics::updateCOMTfs() {
     // gpj are not updated, only initialized for each anatomy
     ScrewsDynamics::extractActiveTfs(); // updates gai[i]
-    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gsli_ptr[0]) ; 
-    gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gsli_ptr[1]) ;
-    gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gsli_ptr[2]) ; 
+    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gl[0]) ; 
+    gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl[1]) ;
+    gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl[2]) ; 
     return;
 }
 

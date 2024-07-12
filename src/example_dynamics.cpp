@@ -19,24 +19,27 @@ int main(int argc, char **argv)
     // Kinematics solver using screws
     ScrewsKinematics smm_robot_kin_solver(robot_ptr);
     smm_robot_kin_solver.initializePseudoTfs();
-    // Dynmaics solver using screws
+    // Dynamics solver using screws
     ScrewsDynamics smm_robot_dyn_solver(robot_ptr);
     smm_robot_dyn_solver.intializeLinkMassMatrices();
     smm_robot_kin_solver.extractPassiveTfs(smm_robot_dyn_solver.ptr2passive_tfs); 
 */
     // Test code:
-    float q[3] = {1.5748, 0.2758, 2.5436};
-    float dq[3] = {-0.25 , 0.8934, 1.5748};
+    float q[3]  = {-0.4675 , 1.4464 , -1.5092};
+    float dq[3] = {0.2516  , 0.0147 , -0.0227};
+    smm_robot_kin_solver.updateJointState(q, dq);
+    
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);
     smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
 
     // Calculate Coriolis Matrix
     smm_robot_dyn_solver.updateJointVel(dq);
-    smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix();
+    //smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix();
 
     // Calculate Gravity Vector
-    smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVector();
+    //smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVector();
+    smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalytical();
 
     // Calculate the Friction Vector
     smm_robot_dyn_solver.FV = smm_robot_dyn_solver.FrictionVector();

@@ -15,13 +15,20 @@ class RobotAbstractBase {
 public:
     // DATA COMMON FOR ALL:
     // 1. the active joints twists
-    // 2. the home configuration homogeneous tfs(joints+tool)
+    // 2. the joint frames (joints+tcp)
+    // 3. the links COM frames
+    // 4.
+    // 5.
+    // 6.
     Eigen::Matrix<float, 6, 1> active_twists[DOF]; 
     Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
+    Eigen::Isometry3f* gsli_ptr[DOF];   // matrix of pointers to the arrays of the ljnks com tfs
     Eigen::Isometry3f g[DOF+1];
-    Eigen::Isometry3f gsli_ptr[DOF];
+    Eigen::Isometry3f gl[DOF];
     float* link_mass[DOF];
     float* link_inertia[DOF];
+    Eigen::Matrix<float, 6, 6> Mi_s[DOF];
+    Eigen::Matrix<float, 6, 6>* Mi_s_ptr[DOF];
     float* fc_coeffs[DOF]; // Active Joints friction coeffs
     float* fv_coeffs[DOF];
 
@@ -43,13 +50,27 @@ public:
         for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[3](i, j) = robot_definition::gst0[i][j]; } }
         gsai_ptr[3] = &g[3];
         // Links COM exponentials @ zero configuration 
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gsli_ptr[0](i, j) = robot_definition::gsl10[i][j]; } }
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gsli_ptr[1](i, j) = robot_definition::gsl20[i][j]; } }
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gsli_ptr[2](i, j) = robot_definition::gsl30[i][j]; } }
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[0](i, j) = robot_definition::gsl10[i][j]; } }
+        gsli_ptr[0] = &gl[0];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[1](i, j) = robot_definition::gsl20[i][j]; } }
+        gsli_ptr[1] = &gl[1];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[2](i, j) = robot_definition::gsl30[i][j]; } }
+        gsli_ptr[2] = &gl[2];
         // Links masses
         for (int i = 0; i < DOF; i++) { link_mass[i] = &robot_definition::__masses[i]; }
         // Link inertias
         for (int i = 0; i < DOF; i++) { link_inertia[i] = &robot_definition::__inertias[i]; }
+        // Link Inertia Matrices / {S}
+        for (int i = 0; i < 6; ++i) {
+            for (int j = 0; j < 6; ++j) {
+                Mi_s[0](i, j) = robot_definition::M_s_1[i][j];
+                Mi_s[1](i, j) = robot_definition::M_s_2[i][j];
+                Mi_s[2](i, j) = robot_definition::M_s_3[i][j];
+            }
+        }
+        Mi_s_ptr[0] = &Mi_s[0];
+        Mi_s_ptr[1] = &Mi_s[1];
+        Mi_s_ptr[2] = &Mi_s[2];
         // Joints Friction coeffs
         for (int i = 0; i < DOF; i++) { fc_coeffs[i] = &robot_definition::__fc_coeffs[i]; }
         for (int i = 0; i < DOF; i++) { fv_coeffs[i] = &robot_definition::__fv_coeffs[i]; }
@@ -83,7 +104,7 @@ public:
     float get_PSEUDO_ANGLES(int index) {return pseudo_angles;}
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists;}
 };
-
+        
 // This the Class that handles the structures with 2 pseudojoints. In this case
 // it is obvious that each metamorphic link has 1 pseudojoint. Despite that, the
 // variables META1_PSEUDOS,META2_PSEUDOS are not defined "static constexpr" for

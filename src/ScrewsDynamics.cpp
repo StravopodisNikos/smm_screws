@@ -478,9 +478,11 @@ float ScrewsDynamics::computePotentialEnergy() {
 void ScrewsDynamics::updateCOMTfs() {
     // gpj are not updated, only initialized for each anatomy
     ScrewsDynamics::extractActiveTfs(); // updates gai[i]
-    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gl[0]) ; 
-    gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl[1]) ;
-    gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl[2]) ; 
+    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gl_test_0[0]) ; 
+    //gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl_test_0[1]) ;
+    //gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl_test_0[2]) ; 
+    gsli[1] = *ptr2active_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl_test_0[1]) ;
+    gsli[2] = *ptr2active_tfs[0] * *ptr2active_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl_test_0[2]) ;
     return;
 }
 
@@ -489,9 +491,9 @@ void ScrewsDynamics::updateActiveTfs() {
     //gai[0] = *ptr2active_tfs[0] * (_ptr2abstract->g[0]) ; 
     //gai[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->g[1]) ;
     //gai[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->g[2]) ; 
-    gai[0] = *ptr2active_tfs[0] * (_ptr2abstract->g[0]) ; 
-    gai[1] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] * (_ptr2abstract->g[1]) ;
-    gai[2] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] *  *ptr2active_tfs[2] * (_ptr2abstract->g[2]) ; 
+    gai[0] = *ptr2active_tfs[0] * (_ptr2abstract->g_test_0[0]) ; 
+    gai[1] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] * (_ptr2abstract->g_test_0[1]) ;
+    gai[2] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] *  *ptr2active_tfs[2] * (_ptr2abstract->g_test_0[2]) ; 
     return;
 }
 
@@ -501,7 +503,7 @@ void ScrewsDynamics::extractActiveTfs() {
     for (size_t i = 0; i < DOF; i++)
     {
         //print61Matrix(_ptr2abstract->active_twists[i]);
-        *ptr2active_tfs[i] = twistExp(_ptr2abstract->active_twists[i], _joint_pos[i]) ;
+        *ptr2active_tfs[i] = twistExp(_ptr2abstract->active_twists_anat[i], _joint_pos[i]) ;
     }
     return;
 }

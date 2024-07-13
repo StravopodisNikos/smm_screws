@@ -24,6 +24,9 @@ int main(int argc, char **argv)
     float dq[3] = {0.2516  , 0.0147 , -0.0227};
     smm_robot_kin_solver.updateJointState(q, dq);
 
+    // Working on ScrewsKinematics shake-up
+    smm_robot_kin_solver.ForwardKinematics3DOF_1();
+    smm_robot_kin_solver.ForwardKinematics3DOF_2();
     /*
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);

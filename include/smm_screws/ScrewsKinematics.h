@@ -45,7 +45,8 @@ class ScrewsKinematics: public ScrewsMain {
 		// Extract kinematic data @ current configuration 
 		//void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
 		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
-		Eigen::Isometry3f* extractActiveTfs(float *q);
+		void extractActiveTfsAnat(float *q, Eigen::Isometry3f* active_expos[DOF]);
+		//Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		Eigen::Vector3f updatePositionTCP(float *q);
 		Eigen::Vector3f updatePositionTCP(Eigen::Matrix<float, 3, 1>& q); 
@@ -149,6 +150,7 @@ class ScrewsKinematics: public ScrewsMain {
 
 		// Set functions for elememts used in calculations
 		void setExponentials(float *q);		
+		void setExponentialsAnat(float *q);
 		void setBodyPositionJacobian();
 		void setDtBodyPositionJacobian();
 		void setDtRotationMatrix();

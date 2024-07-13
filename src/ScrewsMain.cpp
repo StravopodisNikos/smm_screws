@@ -279,6 +279,7 @@ Eigen::Isometry3f ScrewsMain::extractRelativeTf(Eigen::Isometry3f Ai, Eigen::Iso
 Eigen::Matrix<float, 6, 1> ScrewsMain::extractLocalScrewCoordVector(Eigen::Isometry3f Ai, Eigen::Matrix<float, 6, 1> Yi) {
     // Computes the constant screw coordinate vector of joint <i> represented in the joint frame
     // fixed at body <i> @ reference configuration (q=0), iXi /in R(6)
+    // [14-7-24] This is the MATLAB var: s_mueller.XI_ii calculated in relateMurray2Mueller.m
     ad(_ad, Ai.inverse());
     _iXi = _ad * Yi;
     return _iXi;
@@ -287,6 +288,7 @@ Eigen::Matrix<float, 6, 1> ScrewsMain::extractLocalScrewCoordVector(Eigen::Isome
 Eigen::Matrix<float, 6, 1> ScrewsMain::extractLocalScrewPrevCoordVector(Eigen::Isometry3f Bi, Eigen::Matrix<float, 6, 1> iXi) {
     // Computes the constant screw coordinate vector of joint <i> represented in the joint frame
     // fixed at the previous body <i-1> @ reference configuration (q=0), i_1Xi /in R(6) 
+    // [14-7-24] This is the MATLAB var: s_mueller.XI_i_i1 calculated in relateMurray2Mueller.m
     ad(_ad, Bi);
     _i_1Xi = _ad * iXi;  
     return _i_1Xi;

@@ -14,6 +14,7 @@
 // Define and initialize your constants
 namespace robot_definition {
     // Members for the abstract class
+    /*
     // xi_ai_anat
     float __active_twist_0[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
     float __active_twist_1[6] = {0.0f, -0.2483f, -0.0782f, -1.0f, 0.0f, 0.0f};
@@ -63,7 +64,86 @@ namespace robot_definition {
 };    
     float __masses[DOF] = {4.0407f, 6.2914f, 0.4290f};
     float __inertias[DOF] = {0.5f, 5.0f, 5.0f};
+    */
 
+    // Ref anatomy
+    // xi_ai_ref: Provided in order to avoid huge changes in class members
+    float __active_twist_0[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    float __active_twist_1[6] = {0.0f, -0.2980f, 0.0250f, -1.0f, 0.0f, 0.0f};
+    float __active_twist_2[6] = {0.0f, -0.6379, -0.1850, -1.0f, 0.0f, 0.0f};
+    // g_ai_ref: Provided in order to avoid huge changes in class members
+    float gsa10[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0f },
+    {0.0f , -1.0f , 0.0f , 0.0f },
+    {0.0f , 0.0f , 1.0f , 0.0f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsa20[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0f },
+    {0.0f , 0.0f , 1.0f , 0.0250f },
+    {0.0f , 1.0f , 0.0f , 0.2980f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsa30[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0250f },
+    {0.0f , -1.0f , 0.0f , -0.1850f },
+    {0.0f , 0.0f , 1.0f , 0.6379f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gst0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.025f },
+    {0.0f , 0.0f , -1.0f , -0.3685f },
+    {0.0f , -1.0f , -0.0f , 0.6429f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+}; 
+    // g_ai_anat: Provided for compliance with data extracted from MATLAB
+    float gsa1_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0f },
+    {0.0f , -1.0f , 0.0f , 0.0f },
+    {0.0f , 0.0f , 1.0f , 0.0f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsa2_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0f },
+    {0.0f , -0.7818f , 0.6235f , -0.0782f },
+    {0.0f , 0.6235f , 0.7818f , 0.2483f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsa3_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0250f },
+    {0.0f , -0.6235f , -0.7818f , -0.4749f },
+    {0.0f , -0.7818f , 0.6235f , 0.2960f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gst_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.025f },
+    {0.0f , 0.7818f , -0.6235f , -0.5932f },
+    {0.0f , -0.6235f , -0.7818f , 0.1557f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    // gsli0_test [Test anatomy]
+    float gsl1_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0003f },
+    {0.0f , -1.0f , 0.0f , 0.0047f },
+    {0.0f , 0.0f , 1.0f , 0.1405f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsl2_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0154f },
+    {0.0f , -0.7818f , 0.6235f , -0.2963f },
+    {0.0f , 0.6235f , 0.7818f , 0.3583f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};
+    float gsl3_test_0[4][4]= {
+    {-1.0f , 0.0f , 0.0f , 0.0131f },
+    {0.0f , -0.6235f , -0.7818f , -0.5397f },
+    {0.0f , -0.7818f , 0.6235f , 0.2187f },
+    {0.0f , 0.0f , 0.0f , 1.0f } 
+};  
+    float __masses[DOF] = {4.0407f, 6.2914f, 0.4290f};
+    float __inertias[DOF] = {0.5f, 5.0f, 5.0f};
+
+   // M_s_link_as_anat [Test anatomy]
     float M_s_1[6][6] = {
         { 4.0407,    0.0000,   -0.0000,    0.0000,    0.5676,   -0.0191  },
         { 0.0000,    4.0407,    0.0000,   -0.5676,    0.0000,    0.0010  },

@@ -27,6 +27,8 @@ class ScrewsDynamics: public ScrewsKinematics {
         void updateJointPos(float *q_new);
         void updateJointVel(float *dq_new);
 
+        void LinkGeometricJacobians();
+
         // Initialize Functions
         void intializeLinkMassMatrices();
 
@@ -41,6 +43,8 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Isometry3f gpj[METALINKS]; // Passive joints frames
         Eigen::Isometry3f * ptr2links_com_tfs[DOF];
         Eigen::Isometry3f gsli[DOF]; // Links COM frames
+		Eigen::Matrix<float, DOF, 1>* ptr2Jgl[DOF][DOF]; // Pointer to the 3 6x3 arrays of Link Geometric Jacobians 
+		Eigen::Matrix<float, DOF, 1> Jgl[DOF][DOF];
 
         // Basic functions for dynamic matrices
         Eigen::Matrix3f MassMatrix();
@@ -90,6 +94,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix<float, 6, 6> setAlphamatrix(size_t i, size_t j);
         Eigen::Matrix<float, 1, 1> computeParDerMassElement(size_t i, size_t j, size_t k);
         void updateCOMTfs();
+        void updateActiveTfs();
         float computePotentialEnergy();
         void extractActiveTfs();
 

@@ -6,13 +6,21 @@
 class robot_shared
 {
 private:
-    Structure2Pseudos robot_def2;
-    RobotAbstractBase *robot_ptr = &robot_def2;
+    //Structure2Pseudos robot_def2;
+    //RobotAbstractBase *robot_ptr = &robot_def2;
+    RobotAbstractBase *robot_ptr;
     ScrewsKinematics smm_robot_kin_solver;
     ScrewsDynamics smm_robot_dyn_solver;
 
 public:
-    robot_shared(/* args */);
+    // Enumeration for supported robot structures
+    enum RobotStructure {
+        STRUCTURE_2_PSEUDOS,
+        STRUCTURE_3_PSEUDOS
+    };
+
+    //robot_shared(/* args */);
+    robot_shared(RobotStructure structure = STRUCTURE_3_PSEUDOS);
     ~robot_shared();
 
     bool initializeSharedLib();

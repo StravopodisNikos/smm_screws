@@ -10,19 +10,19 @@
  *         2. Add conditions given the yaml file that defines the structure string
  */
 
-#define METALINKS 2 // available: 2,3,4 (for 3DoF SMM)
-
+#define METALINKS               2 // available: 2 (for 3DoF SMM)
+#define NUM_OF_PSEUDOJOINTS     3 // available: 2,3,4 (for 3DoF SMM)
 // Define and initialize your constants
 namespace passive_definition {
 
     // Members for the derived classes 
-    float __pseudo_angles[METALINKS] = {0, 0}; // depends on METALINKS definition
+    float __pseudo_angles[NUM_OF_PSEUDOJOINTS] = {0.8976, 0, 0}; 
     float __passive_twist_0[6] = {-0.0f, 0.1660f, -0.025f, 1.0f, 0.0f, 0.0f};
     float __passive_twist_1[6] = {-0.4685f, 0.0f, -0.025f, 0.0f, -1.0f, 0.0f};
-    //float __passive_twist_2[6] = ...
+    float __passive_twist_2[6] = {-0.0000f, 0.6379f, 0.0530f, 1.0f, 0.0f, 0.0f};
     //const float __passive_twist_3[6] = ...
     int __META1_PSEUDOS = 1; // available: 1,2 (each metamorphic link must have 1 pseudojoint, and max 2 )
-    int __META2_PSEUDOS = 1; // available: 1,2
+    int __META2_PSEUDOS = 2; // available: 1,2
     
 }
 

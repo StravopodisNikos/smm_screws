@@ -20,11 +20,15 @@ public:
     // 4.
     // 5.
     // 6.
-    Eigen::Matrix<float, 6, 1> active_twists[DOF]; 
+    Eigen::Matrix<float, 6, 1> active_twists[DOF];      // these are the twists in reference anatomy!
+    Eigen::Matrix<float, 6, 1> active_twists_anat[DOF]; // these are the twists in implemented anatomy(based on passive_definition & urdf robot)!
+    Eigen::Matrix<float, 6, 1>* ptr2_active_twists_anat[DOF];
     Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
-    Eigen::Isometry3f* gsli_ptr[DOF];   // matrix of pointers to the arrays of the ljnks com tfs
-    Eigen::Isometry3f g[DOF+1];
-    Eigen::Isometry3f gl[DOF];
+    Eigen::Isometry3f* gsai_test_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ test anatomy && @ zero configuration
+    Eigen::Isometry3f* gsli_test_ptr[DOF];   // matrix of pointers to the arrays of the ljnks com tfs
+    Eigen::Isometry3f g_ref_0[DOF+1];
+    Eigen::Isometry3f g_test_0[DOF+1];
+    Eigen::Isometry3f gl_test_0[DOF];
     float* link_mass[DOF];
     float* link_inertia[DOF];
     Eigen::Matrix<float, 6, 6> Mi_s[DOF];
@@ -39,23 +43,33 @@ public:
         for (int i = 0; i < 6; i++) { active_twists[1](i, 0) = robot_definition::__active_twist_1[i]; }  
         for (int i = 0; i < 6; i++) { active_twists[2](i, 0) = robot_definition::__active_twist_2[i]; }  
         // Active Joints exponentials @ zero configuration
-        //Eigen::Isometry3f g[DOF+1]; // mega bug, this matrix MUST be a public class member!  
-        for (int i = 0; i < DOF+1; i++) { g[i].setIdentity();} // preallocate memory 
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[0](i, j) = robot_definition::gsa10[i][j]; } }
-        gsai_ptr[0] = &g[0];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[1](i, j) = robot_definition::gsa20[i][j]; } }
-        gsai_ptr[1] = &g[1];   
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[2](i, j) = robot_definition::gsa30[i][j]; } }
-        gsai_ptr[2] = &g[2];  
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g[3](i, j) = robot_definition::gst0[i][j]; } }
-        gsai_ptr[3] = &g[3];
-        // Links COM exponentials @ zero configuration 
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[0](i, j) = robot_definition::gsl10[i][j]; } }
-        gsli_ptr[0] = &gl[0];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[1](i, j) = robot_definition::gsl20[i][j]; } }
-        gsli_ptr[1] = &gl[1];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl[2](i, j) = robot_definition::gsl30[i][j]; } }
-        gsli_ptr[2] = &gl[2];
+        // Joints TFs exponentials @ ref anatomy && @ zero configuration 
+        for (int i = 0; i < DOF+1; i++) { g_ref_0[i].setIdentity();} // preallocate memory
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[0](i, j) = robot_definition::gsa10[i][j]; } }
+        gsai_ptr[0] = &g_ref_0[0];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[1](i, j) = robot_definition::gsa20[i][j]; } }
+        gsai_ptr[1] = &g_ref_0[1];   
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[2](i, j) = robot_definition::gsa30[i][j]; } }
+        gsai_ptr[2] = &g_ref_0[2];  
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[3](i, j) = robot_definition::gst0[i][j]; } }
+        gsai_ptr[3] = &g_ref_0[3];
+        // Joints TFs exponentials @ test anatomy && @ zero configuration 
+        for (int i = 0; i < DOF+1; i++) { g_test_0[i].setIdentity();} // preallocate memory 
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[0](i, j) = robot_definition::gsa1_test_0[i][j]; } }
+        gsai_test_ptr[0] = &g_test_0[0];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[1](i, j) = robot_definition::gsa2_test_0[i][j]; } }
+        gsai_test_ptr[1] = &g_test_0[1];   
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[2](i, j) = robot_definition::gsa3_test_0[i][j]; } }
+        gsai_test_ptr[2] = &g_test_0[2];  
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[3](i, j) = robot_definition::gst_test_0[i][j]; } }
+        gsai_test_ptr[3] = &g_test_0[3];        
+        // Links COM exponentials @ test anatomy && @ zero configuration 
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[0](i, j) = robot_definition::gsl1_test_0[i][j]; } }
+        gsli_test_ptr[0] = &gl_test_0[0];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[1](i, j) = robot_definition::gsl2_test_0[i][j]; } }
+        gsli_test_ptr[1] = &gl_test_0[1];
+        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[2](i, j) = robot_definition::gsl3_test_0[i][j]; } }
+        gsli_test_ptr[2] = &gl_test_0[2];
         // Links masses
         for (int i = 0; i < DOF; i++) { link_mass[i] = &robot_definition::__masses[i]; }
         // Link inertias
@@ -131,30 +145,31 @@ public:
     float get_PSEUDO_ANGLES(int index)  { return pseudo_angles[index]; }
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists[index]; }
 };
-// to be expanded soon...
-/*
+
 class Structure3Pseudos : public RobotAbstractBase {
 public:
-    static constexpr int SMM_PSEUDOS = 3;
-    float  pseudo_angles[SMM_PSEUDOS];
+    Structure3Pseudos () {
+        initializeActiveElements();
+        for (int i = 0; i < METALINKS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
+        for (int i = 0; i < 6; i++) { passive_twists[0](i, 0) = passive_definition::__passive_twist_0[i]; }   
+        for (int i = 0; i < 6; i++) { passive_twists[1](i, 0) = passive_definition::__passive_twist_1[i]; }   
+        META1_PSEUDOS = passive_definition::__META1_PSEUDOS;
+        META2_PSEUDOS = passive_definition::__META2_PSEUDOS;
+    }
+    static constexpr int SMM_PSEUDOS = 3; // static, no change after compile
+    uint8_t META1_PSEUDOS; // must change in node (in the class object construction)
+    uint8_t META2_PSEUDOS; // " ... "
+    float pseudo_angles[SMM_PSEUDOS];
     Eigen::Matrix<float, 6, 1> passive_twists[SMM_PSEUDOS];
 
-    uint8_t get_STRUCTURE_ID() const override { return SMM_PSEUDOS; }
-    const Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) const override {
-        // Ensure index is within bounds (0 <= index < SMM_PSEUDOS)
-        if (index >= 0 && index < SMM_PSEUDOS) {
-            return passive_twists[index];
-        } else {
-            // Return some default value or handle the error as per your requirement
-            // Here, we return the first passive_twists by default
-            return passive_twists[0];
-        }
-    }
-    const float getPSEUDO_ANGLE(int index) const override {
-        return pseudo_angles[index];
-    }
+    uint8_t get_STRUCTURE_ID()  { return SMM_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK1()  { return META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2()  { return META2_PSEUDOS; }
+    float get_PSEUDO_ANGLES(int index)  { return pseudo_angles[index]; }
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists[index]; }
 };
-
+// to be expanded soon...
+/*
 class Structure4Pseudos : public RobotAbstractBase {
 public:
     static constexpr int SMM_PSEUDOS = 4;

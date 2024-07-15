@@ -140,6 +140,9 @@ include_directories(
  add_library(ScrewsDynamics
  src/ScrewsDynamics.cpp
 )
+add_library(ScrewsVisualization
+src/ScrewsVisualization.cpp
+)
 add_library(robot_shared
 src/robot_shared.cpp
 )
@@ -251,6 +254,7 @@ target_link_libraries(ScrewsDynamics
 target_link_libraries(robot_shared
   ${catkin_LIBRARIES}
   ScrewsDynamics
+  ScrewsVisualization # [15-7-24] added to enable visual debugging tool
 )
 target_link_libraries(OperationalSpaceControllers
   ${catkin_LIBRARIES}

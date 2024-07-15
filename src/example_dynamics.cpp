@@ -25,8 +25,12 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.updateJointState(q, dq);
 
     // Working on ScrewsKinematics shake-up
+    smm_robot_kin_solver.ForwardKinematicsTCP();
     smm_robot_kin_solver.ForwardKinematics3DOF_1();
     smm_robot_kin_solver.ForwardKinematics3DOF_2();
+    smm_robot_kin_solver.SpatialJacobian_Tool_1();
+    smm_robot_kin_solver.SpatialJacobian_Tool_2();
+    
     /*
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);

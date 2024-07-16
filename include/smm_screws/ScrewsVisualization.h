@@ -13,6 +13,7 @@ public:
 
     void publishTwists(const Eigen::Matrix<float, 6, 1>* twists, size_t dof);
     void publishTCPpos(const Eigen::Vector3f& tcp_pos);
+    
 private:
     ros::Publisher twist_pub;
     ros::Publisher tcp_pos_pub;

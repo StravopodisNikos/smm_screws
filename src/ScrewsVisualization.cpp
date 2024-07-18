@@ -70,9 +70,15 @@ void ScrewsVisualization::publishTCPpos(const Eigen::Vector3f& tcp_pos) {
     marker.pose.position.y = tcp_pos.y();
     marker.pose.position.z = tcp_pos.z();
 
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.scale.z = 0.1;
+    // Initialize orientation to identity (no rotation)
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+
+    marker.scale.x = 0.05;
+    marker.scale.y = 0.05;
+    marker.scale.z = 0.05;
 
     marker.color.r = 0.0;
     marker.color.g = 1.0;

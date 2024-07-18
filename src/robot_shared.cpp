@@ -1,10 +1,22 @@
 #include "smm_screws/robot_shared.h"
 
-// Constructor for backward compatibility
+// Default constructor for backward compatibility
+robot_shared::robot_shared()
+    : smm_robot_kin_solver(nullptr), // Initialize with null pointers
+      smm_robot_dyn_solver(nullptr),
+      smm_robot_viz_solver(nullptr)
+{
+    robot_ptr = new Structure3Pseudos();
+    smm_robot_kin_solver = ScrewsKinematics(robot_ptr);
+    smm_robot_dyn_solver = ScrewsDynamics(robot_ptr);
+    smm_robot_viz_solver = ScrewsVisualization(robot_ptr);
+}
+
+// Constructor with structure type
 robot_shared::robot_shared(RobotStructure structure)
     : smm_robot_kin_solver(nullptr), // Initialize with null pointers
       smm_robot_dyn_solver(nullptr),
-      smm_robot_viz_solver(nullptr) // Default constructor without NodeHandle
+      smm_robot_viz_solver(nullptr)
 {
     switch (structure) {
         case STRUCTURE_2_PSEUDOS:
@@ -20,29 +32,17 @@ robot_shared::robot_shared(RobotStructure structure)
 
     smm_robot_kin_solver = ScrewsKinematics(robot_ptr);
     smm_robot_dyn_solver = ScrewsDynamics(robot_ptr);
-    smm_robot_viz_solver = ScrewsVisualization(robot_ptr); // Default constructor
+    smm_robot_viz_solver = ScrewsVisualization(robot_ptr);
 }
 
-// Constructor with NodeHandle for visualization
-robot_shared::robot_shared(RobotStructure structure, ros::NodeHandle& nh)
-    : smm_robot_kin_solver(nullptr), // Initialize with null pointers
-      smm_robot_dyn_solver(nullptr),
-      smm_robot_viz_solver(nullptr, nh)
+// Constructor with structure and nodehandle pointers
+robot_shared::robot_shared(RobotAbstractBase* robot_ptr, ros::NodeHandle& nh)
+    : robot_ptr(robot_ptr),
+      smm_robot_kin_solver(robot_ptr),
+      smm_robot_dyn_solver(robot_ptr),
+      smm_robot_viz_solver(robot_ptr, nh) 
 {
-    switch (structure) {
-        case STRUCTURE_2_PSEUDOS:
-            robot_ptr = new Structure2Pseudos();
-            break;
-        case STRUCTURE_3_PSEUDOS:
-            robot_ptr = new Structure3Pseudos();
-            break;
-        default:
-            throw std::invalid_argument("[robot_shared] Unsupported robot structure");
-    }
-
-    smm_robot_kin_solver = ScrewsKinematics(robot_ptr);
-    smm_robot_dyn_solver = ScrewsDynamics(robot_ptr);
-    smm_robot_viz_solver = ScrewsVisualization(robot_ptr, nh);
+    // Initialization code if needed
 }
 
 robot_shared::~robot_shared() {

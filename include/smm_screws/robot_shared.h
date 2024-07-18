@@ -7,8 +7,6 @@
 class robot_shared
 {
 private:
-    //Structure2Pseudos robot_def2;
-    //RobotAbstractBase *robot_ptr = &robot_def2;
     RobotAbstractBase *robot_ptr;
     ScrewsKinematics smm_robot_kin_solver;
     ScrewsDynamics smm_robot_dyn_solver;
@@ -20,10 +18,10 @@ public:
         STRUCTURE_2_PSEUDOS,
         STRUCTURE_3_PSEUDOS
     };
-
-    //robot_shared(/* args */);
-    robot_shared(RobotStructure structure = STRUCTURE_3_PSEUDOS); // keep for backward compatibility
-    robot_shared(RobotStructure structure, ros::NodeHandle& nh); //  removed default value for arg1 = STRUCTURE_3_PSEUDOS
+    
+    robot_shared();  // Default constructor for backward compatibility
+    robot_shared(RobotStructure structure); // Constructor with structure type
+    robot_shared(RobotAbstractBase* robot_ptr, ros::NodeHandle& nh);
     ~robot_shared();
 
     bool initializeSharedLib();
@@ -32,4 +30,5 @@ public:
     ScrewsVisualization& get_screws_visualization_solver();
     RobotAbstractBase* get_robot_ptr();
 };
-#endif
+
+#endif // ROBOT_SHARED_H

@@ -8,6 +8,7 @@
 
 class ScrewsVisualization: public ScrewsDynamics {
 public:
+    ScrewsVisualization();
     ScrewsVisualization(RobotAbstractBase *ptr2abstract);
     ScrewsVisualization(RobotAbstractBase *ptr2abstract, ros::NodeHandle& nh);
 

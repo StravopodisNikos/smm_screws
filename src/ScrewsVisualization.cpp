@@ -1,5 +1,11 @@
 #include "smm_screws/ScrewsVisualization.h"
 
+ScrewsVisualization::ScrewsVisualization()
+    : ScrewsDynamics(nullptr)
+{
+    // Default constructor without ROS NodeHandle
+}
+
 ScrewsVisualization::ScrewsVisualization(RobotAbstractBase *ptr2abstract)
     : ScrewsDynamics(ptr2abstract)
 {

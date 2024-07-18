@@ -130,7 +130,7 @@ int main(int argc, char **argv)
     desired_state(5) = 2.00f; // + 1.0 to the matlab value
     ptr2_idosc->set_desired_state(desired_state);
 
-    // 2.1 Start the publisher to /current_cartesian_state
+    // 2.1 Start the publisher to joints' effort controllers /command
     ros::Publisher joint1_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint1_effort_controller/command", 1);
     ros::Publisher joint2_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint2_effort_controller/command", 1);
     ros::Publisher joint3_torque_pub = nh.advertise<std_msgs::Float64>("/anthropomorphic_3dof_gazebo/joint3_effort_controller/command", 1);

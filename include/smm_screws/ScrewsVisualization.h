@@ -12,7 +12,8 @@ public:
     ScrewsVisualization(RobotAbstractBase *ptr2abstract);
     ScrewsVisualization(RobotAbstractBase *ptr2abstract, ros::NodeHandle& nh);
 
-    void publishTwists(const Eigen::Matrix<float, 6, 1>* twists, size_t dof);
+    void publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF]);
+    void publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1]);
     void publishTCPpos(const Eigen::Vector3f& tcp_pos);
     
 private:

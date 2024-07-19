@@ -461,6 +461,8 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     return;
 }
 
+
+
 void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometry3f* gs_l_i[DOF]) {
     // Returns a matrix of pointers of the robot's link COM frames
     // @ the given configuration. input is the pointer to active joints'
@@ -561,7 +563,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_
     // Executes second "=" of eq.28/p.52/[2]
     // [USAGE]: 1. The fwd kin must be extracted for the current q before function call
     //          2. All 2D matrices for kinematics are stored in array of pointers!
-    _debug_verbosity = false;
+    _debug_verbosity = true;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i] * _ptr2abstract->gsai_ptr[i]->inverse());
         *Jsp_t_2[i] = _ad * _ptr2abstract->active_twists[i];

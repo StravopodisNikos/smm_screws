@@ -3,6 +3,15 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <cmath> // Include the cmath header for mathematical functions
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <utility>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /*
  *  C++ Library(integrated in a ros_pkg) for implementation of Screw Theory tools.
@@ -48,6 +57,8 @@ public:
     Eigen::Matrix<float, 6, 1> extractLocalScrewCoordVector(Eigen::Isometry3f Ai, Eigen::Matrix<float, 6, 1> Yi); // Computes the inverse of 1st relation in eq.(95),p.241,[3]
     Eigen::Matrix<float, 6, 1> extractLocalScrewPrevCoordVector(Eigen::Isometry3f Bi, Eigen::Matrix<float, 6, 1> iXi); // Computes eq.(7)/p.44,[2] 
     Eigen::Matrix<float, 6, 3> mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array);    
+    void extract_twist_points(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen::Vector3f& start, Eigen::Vector3f& end);
+    Eigen::Vector4f extractRotationQuaternion(const Eigen::Isometry3f g);
 
 private:
     float _st;
@@ -59,6 +70,15 @@ private:
     Eigen::Matrix<float, 6, 1> _iXi_1;
     Eigen::Matrix<float, 6, 6> _ad;
     Eigen::Matrix<float, 6, 6> _iad;
+
+    // Auxiliary functions 
+    bool isequalf(double a, double b);
+    bool isrot(const Eigen::Matrix3f& R);
+    Eigen::Vector3f null(const Eigen::Matrix3f& A);
+    Eigen::Vector3f rotaxis(const Eigen::Matrix3f& R, const float theta);
+    std::pair<Eigen::Vector3f, float> rotparam(const Eigen::Matrix3f& R);
+    Eigen::Vector4f quaternion_from_screws(const std::pair<Eigen::Vector3f, float>& omega_theta);
+    
 };
 
 #endif // SCREWS_MAIN_H

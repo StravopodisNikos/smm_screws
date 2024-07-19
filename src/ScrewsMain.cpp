@@ -311,3 +311,141 @@ Eigen::Matrix<float, 6, 3> ScrewsMain::mergeColumns2Matrix63(const Eigen::Matrix
 
     return matrix;
 }
+
+Eigen::Vector4f ScrewsMain::extractRotationQuaternion(const Eigen::Isometry3f g) {
+    // [19-7-24] Extracts quaternions for providing active tfs rotation
+    //           when needed for ros built-in tools.
+    //           Before call, always update active tfs with ForwardKinematics3DOF_2()
+
+    // Extract rotation part from Eigen::Isometry3f g
+    Eigen::Matrix3f R = g.rotation();
+    
+    // Get the rotation parameters (omega and theta)
+    std::pair<Eigen::Vector3f, float> omega_theta = rotparam(R);
+    
+    // Convert to quaternion
+    Eigen::Vector4f quaternion = quaternion_from_screws(omega_theta);
+
+    return quaternion;
+}
+
+void ScrewsMain::extract_twist_points(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen::Vector3f& start, Eigen::Vector3f& end) {
+    // [19-7-24] Extracts 2 points for line defined by twist
+
+    // Split the twist into linear (v) and angular (w) parts
+    Eigen::Vector3f v;
+    Eigen::Vector3f w;
+    splitTwist(xi_R6,v,w);
+
+    // Compute the norm of the angular part (omega)
+    float w_norm = w.norm();
+    
+    // Avoid division by zero
+    if (w_norm > 1e-6) {
+        // Compute the point (p) using the formula (w cross v) / norm(w)^2
+        Eigen::Vector3f p = w.cross(v) / (w_norm * w_norm);
+
+        // Lambda value to compute the end point
+        float lambda = 0.25f; // You can change this value to scale the direction vector
+
+        // Compute the start point (p)
+        start = p;
+
+        // Compute the end point (p + lambda * w)
+        end = p + lambda * w;
+    } else {
+        // If w is zero, the twist represents pure translation
+        start = Eigen::Vector3f::Zero();
+        end = v;
+    }
+}
+
+// ==================================================================== //
+// ================ AUXILIARY CLASS METHODS FOR SCREWS ================ //
+// ==================================================================== //
+
+bool ScrewsMain::isequalf(double a, double b) {
+    double thresh = std::numeric_limits<double>::epsilon() * 100.0;
+    return std::abs(a - b) <= thresh;
+}
+
+bool ScrewsMain::isrot(const Eigen::Matrix3f& R) {
+    Eigen::Matrix3f Rt = R.transpose();
+    Eigen::Matrix3f shouldBeIdentity = Rt * R;
+    Eigen::Matrix3f I = Eigen::Matrix3f::Identity();
+    return shouldBeIdentity.isApprox(I);
+}
+
+Eigen::Vector3f ScrewsMain::null(const Eigen::Matrix3f& A) {
+    // Find the null space of a matrix
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(A, Eigen::ComputeFullV);
+    return svd.matrixV().col(2);
+}
+
+Eigen::Vector3f ScrewsMain::rotaxis(const Eigen::Matrix3f& R, const float theta) {
+    // Calculate the rotation axis
+    if (!isrot(R)) {
+        throw std::invalid_argument("[rotaxis] R must be a rotation matrix");
+    }
+
+    if (theta < 0.0f || theta > (M_PI+0.001) ) {
+        throw std::invalid_argument("[rotaxis] Theta must be between 0 and pi");
+    }
+
+    Eigen::Vector3f axis;
+    if (isequalf(theta, M_PI) || isequalf(theta, 0)) {
+        if (R.isApprox(Eigen::Matrix3f::Identity())) {
+            axis << 0, 1, 0; // y-axis is arbitrarily selected based on theory p.30
+        } else {
+            axis = null(R - Eigen::Matrix3f::Identity());
+        }
+        axis.normalize();
+    } else {
+        axis << R(2, 1) - R(1, 2), R(0, 2) - R(2, 0), R(1, 0) - R(0, 1);
+        axis /= (2.0f * std::sin(theta) );
+    }
+
+    return axis;
+}
+
+// Calculate the rotation parameters
+std::pair<Eigen::Vector3f, float> ScrewsMain::rotparam(const Eigen::Matrix3f& R) {
+    if (!isrot(R)) {
+        throw std::invalid_argument("[rotparam] T must be a rotation");
+    }
+
+    float t = (R.trace() - 1.0f) / 2.0f;
+
+    // Handle numerical errors
+    if (t < -1.0f) {
+        t = -1.0f;
+    } else if (t > 1.0f) {
+        t = 1.0f;
+    }
+
+    float theta = std::acos(t);
+    std::cout << "Rotation angle (theta): " << theta << std::endl;
+
+    Eigen::Vector3f omega = rotaxis(R, theta);
+    std::cout << "Rotation axis (omega): " << omega.transpose() << std::endl;
+    return std::make_pair(omega, theta);
+}
+
+Eigen::Vector4f ScrewsMain::quaternion_from_screws(const std::pair<Eigen::Vector3f, float>& omega_theta) {
+    // [19-7-24] Implements p.34 in [1]
+    // [w,theta] must be extracted before
+    const Eigen::Vector3f& omega = omega_theta.first;
+    float theta = omega_theta.second;
+
+    Eigen::Vector4f quaternion;
+
+    float half_theta = theta / 2.0f;
+    float sin_half_theta = std::sin(half_theta);
+
+    quaternion(0) = std::cos(half_theta);    // w component
+    quaternion(1) = omega(0) * sin_half_theta; // x component
+    quaternion(2) = omega(1) * sin_half_theta; // y component
+    quaternion(3) = omega(2) * sin_half_theta; // z component
+
+    return quaternion;
+}

@@ -17,6 +17,7 @@ ScrewsVisualization::ScrewsVisualization(RobotAbstractBase *ptr2abstract, ros::N
 {
     twist_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_twists", 10);
     tcp_pos_pub = nh.advertise<visualization_msgs::Marker>("visualization_tcp_pos", 10);
+    tcp_vel_pub = nh.advertise<visualization_msgs::Marker>("visualization_tcp_vel", 10);
 }
 
 void ScrewsVisualization::publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF]) {
@@ -71,8 +72,11 @@ void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1
     // Publishes active joint twists, extracted from active tfs
     visualization_msgs::MarkerArray marker_array;
     
-    Eigen::Vector4f active_tf_quaternion;
-    //Eigen::Quaternionf active_tf_quaternion;
+    Eigen::Matrix3f rotation_matrix;
+
+    //Eigen::Vector4f active_tf_quaternion;  // Murray way
+    Eigen::Quaternionf active_tf_quaternion; // Eigen built-in way
+
     Eigen::Vector3f active_tf_origin;
 
     for (size_t i = 0; i < DOF; ++i) { // last tf is tcp, not interested here!
@@ -89,30 +93,34 @@ void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1
 
         // ORIENTATION
         // Murray way
-        active_tf_quaternion = extractRotationQuaternion(*ptr2_active_tfs[i]);
+        //active_tf_quaternion = extractRotationQuaternion(*ptr2_active_tfs[i]);
         // Eigen built-in way
-        //Eigen::Matrix3f rotation_matrix = ptr2_active_tfs[i]->rotation();
+        if (i == 0) {
+            //active_tf_quaternion = Eigen::Quaternionf::Identity(); // Quaternion for z-axis rotation
+            active_tf_quaternion = Eigen::Quaternionf(Eigen::AngleAxisf(-M_PI / 2.0f, Eigen::Vector3f::UnitY())); // trick to visualize the joint 1 axis twist
+        } else {
+            // For other joints, extract and normalize rotation quaternion
+            //rotation_matrix = ptr2_active_tfs[i]->rotation();
+            //rotation_matrix.normalize();
+            //active_tf_quaternion = Eigen::Quaternionf(rotation_matrix);
+            active_tf_quaternion = Eigen::Quaternionf(ptr2_active_tfs[i]->rotation());
+        }
+        //rotation_matrix = ptr2_active_tfs[i]->rotation();
         //active_tf_quaternion = Eigen::Quaternionf(rotation_matrix);
 
         ROS_INFO("[publishTwists] Active Joint [%zu] Quaternion: W: %f, X: %f, Y: %f, Z: %f", i, active_tf_quaternion.w(), active_tf_quaternion.x(), active_tf_quaternion.y(), active_tf_quaternion.z());        
 
+        // Murray way
         // Initialize orientation using the extracted quaternion
-        if (i==0) {
-            marker.pose.orientation.w = active_tf_quaternion(0);
-            marker.pose.orientation.x = active_tf_quaternion(3);
-            marker.pose.orientation.y = active_tf_quaternion(2);
-            marker.pose.orientation.z = active_tf_quaternion(1);
-        } else {
-            marker.pose.orientation.w = active_tf_quaternion(0);
-            marker.pose.orientation.x = active_tf_quaternion(1);
-            marker.pose.orientation.y = active_tf_quaternion(2);
-            marker.pose.orientation.z = active_tf_quaternion(3);
-        }
-
-        //marker.pose.orientation.w = active_tf_quaternion.w();
-        //marker.pose.orientation.x = active_tf_quaternion.x();
-        //marker.pose.orientation.y = active_tf_quaternion.y();
-        //marker.pose.orientation.z = active_tf_quaternion.z();
+        //marker.pose.orientation.w = active_tf_quaternion(0);
+        //marker.pose.orientation.x = active_tf_quaternion(1);
+        //marker.pose.orientation.y = active_tf_quaternion(2);
+        //marker.pose.orientation.z = active_tf_quaternion(3);
+        // Eigen built-in way
+        marker.pose.orientation.w = active_tf_quaternion.w();
+        marker.pose.orientation.x = active_tf_quaternion.x();
+        marker.pose.orientation.y = active_tf_quaternion.y();
+        marker.pose.orientation.z = active_tf_quaternion.z();
         
         // POSITION
         active_tf_origin = ptr2_active_tfs[i]->translation(); 
@@ -165,4 +173,41 @@ void ScrewsVisualization::publishTCPpos(const Eigen::Vector3f& tcp_pos) {
     marker.color.a = 1.0;
 
     tcp_pos_pub.publish(marker);
+}
+
+void ScrewsVisualization::publishTCPvel(const Eigen::Vector3f& tcp_pos, const Eigen::Vector3f& tcp_vel) {
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "tcp_vel";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // Define the start point of the arrow (TCP position)
+    marker.pose.position.x = tcp_pos.x();
+    marker.pose.position.y = tcp_pos.y();
+    marker.pose.position.z = tcp_pos.z();
+
+    // Set the orientation of the marker
+    Eigen::Quaternionf quaternion;
+    quaternion.setFromTwoVectors(Eigen::Vector3f::UnitX(), tcp_vel.normalized());
+
+    marker.pose.orientation.x = quaternion.x();
+    marker.pose.orientation.y = quaternion.y();
+    marker.pose.orientation.z = quaternion.z();
+    marker.pose.orientation.w = quaternion.w();
+
+    // Set the scale of the arrow
+    marker.scale.x = tcp_vel.norm(); // Arrow length
+    marker.scale.y = 0.20 * tcp_vel.norm(); // Arrow width
+    marker.scale.z = 0.20 *  tcp_vel.norm(); // Arrow height
+
+    // Set the color of the arrow
+    marker.color.r = 0.0;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+    marker.color.a = 1.0;
+
+    tcp_vel_pub.publish(marker);
 }

@@ -234,6 +234,33 @@ Eigen::Vector3f ScrewsKinematics::updatePositionTCP(float *q) {
     return p_tcp;
 }
 
+Eigen::Vector3f ScrewsKinematics::updateSpatialVelocityTCP(float *q, float *dq) {
+    // [20-7-24]] Returns the spatial TCP velocity only
+    // Locals, ugly but 1st+easy step
+    Eigen::Vector3f v_s_tcp_3;
+    Eigen::Vector4f v_s_tcp;
+    Eigen::Vector4f p_s_tcp;
+    Eigen::Matrix<float, 6, 1> V_tcp;
+    Eigen::Matrix4f V_tcp_matrix;
+
+    // Calculate TCP tf
+    Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
+
+    setExponentials(q);
+    _gst = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *gst_0 ;
+
+    ToolVelocityTwist(ScrewsKinematics::JacobianSelection::SPATIAL , dq, V_tcp);
+    formTwist(V_tcp_matrix, V_tcp);
+
+    p_s_tcp = _gst.matrix().col(3);
+
+    v_s_tcp = V_tcp_matrix * p_s_tcp;
+
+    v_s_tcp_3 = v_s_tcp.head<3>();
+
+    return v_s_tcp_3;
+}
+
 Eigen::Vector3f ScrewsKinematics::updatePositionTCP(Eigen::Matrix<float, 3, 1>& q) {
     Eigen::Vector3f p_tcp;
     Eigen::Isometry3f gst_0 = *(_ptr2abstract->gsai_ptr[3]);   
@@ -441,7 +468,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematics3DOF_2] gs3_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematics3DOF_2] gs3_y: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematics3DOF_2] gs3_z: %f", _trans_vector.z()); 
-
+    
     // Calculate {T} frame
     //*gs_a_i[3] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[3]) ;
     g[3] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] * _active_expos[2] * *(_ptr2abstract->gsai_ptr[3]) ;    

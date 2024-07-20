@@ -10,12 +10,14 @@ project(smm_screws)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
+  rospy # [20-7-24] Added for slider+publisher of joint velocities
   std_msgs
   tf2
   tf2_ros
   message_generation # [18-10-23] Added for custom msg/srv files generation
   actionlib
   actionlib_msgs     # [ 3-11-23] Added for custom action files generation
+  dynamic_reconfigure # [20-7-24] Added for slider+publisher of joint velocities
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,6 +59,7 @@ add_message_files(
   JointAccel.msg
   CurrentCartesianState.msg
   ForceMeasurements.msg
+  JointVel.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -95,10 +98,9 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+ generate_dynamic_reconfigure_options(
+   cfg/JointVelocitiesConfig.cfg
+ )
 
 ###################################
 ## catkin specific configuration ##
@@ -113,13 +115,24 @@ catkin_package(
   INCLUDE_DIRS include
 #  CATKIN_DEPENDS  
 #  LIBRARIES smm_screws
-  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2 tf2_ros message_runtime  actionlib_msgs # [18-10-23] Added for custom msg generation # [3-11-23] Added action generation
+  CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs tf2 tf2_ros message_runtime  actionlib_msgs dynamic_reconfigure # [18-10-23] Added for custom msg generation 
+                                                                                                               # [3-11-23] Added action generation
+                                                                                                               # [20-7-24] Added dynamic_reconfigure,rospy
 #  DEPENDS system_lib
 )
 
 ###########
 ## Build ##
 ###########
+catkin_install_python(PROGRAMS script/joint_velocities_publisher.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
+include_directories(
+# include
+  ${catkin_INCLUDE_DIRS}
+)
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations

@@ -395,11 +395,11 @@ Eigen::Vector3f ScrewsMain::rotaxis(const Eigen::Matrix3f& R, const float theta)
     Eigen::Vector3f axis;
     if (isequalf(theta, M_PI) || isequalf(theta, 0)) {
         if (R.isApprox(Eigen::Matrix3f::Identity())) {
-            axis << 0, 1, 0; // y-axis is arbitrarily selected based on theory p.30
+            axis << 0, 0, 1; // z-axis is arbitrarily selected based on theory p.30
         } else {
             axis = null(R - Eigen::Matrix3f::Identity());
         }
-        axis.normalize();
+        //axis.normalize();
     } else {
         axis << R(2, 1) - R(1, 2), R(0, 2) - R(2, 0), R(1, 0) - R(0, 1);
         axis /= (2.0f * std::sin(theta) );

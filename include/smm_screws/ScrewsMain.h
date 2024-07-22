@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <cmath> // Include the cmath header for mathematical functions
 #include <iostream>
 #include <limits>

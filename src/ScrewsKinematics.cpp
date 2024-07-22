@@ -389,6 +389,8 @@ void ScrewsKinematics::ForwardKinematics3DOF_1() {
     //if (_debug_verbosity) { printTwist(_X); }
     g[3] =  g[2] * _Bi;  // this must be equal to _gst /in ForwardKinematicsTCP()
     _trans_vector = g[3].translation();
+    _gst = g[3];
+
     ROS_DEBUG_COND(_debug_verbosity,"gst_x_1: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"gst_y_1: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"gst_z_1: %f", _trans_vector.z()); 
@@ -481,6 +483,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     g_ptr[1] = &g[1];
     g_ptr[2] = &g[2];
     g_ptr[3] = &g[3];
+    _gst = g[3];
     std::cout << "[ForwardKinematics3DOF_2] gs_a1:\n" << g[0].matrix() << std::endl;
     std::cout << "[ForwardKinematics3DOF_2] gs_a2:\n" << g[1].matrix() << std::endl;
     std::cout << "[ForwardKinematics3DOF_2] gs_a3:\n" << g[2].matrix() << std::endl;
@@ -891,6 +894,7 @@ void ScrewsKinematics::OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t) {
         Jop_t(1, 0), Jop_t(1, 1), Jop_t(1, 2),
         Jop_t(2, 0), Jop_t(2, 1), Jop_t(2, 2)); 
     }
+    ptr2Jop = &Jop_t;
     return; 
 }
 
@@ -903,6 +907,7 @@ void ScrewsKinematics::OperationalSpaceJacobian() {
     //_debug_verbosity = false;
     setBodyPositionJacobian();
     Jop = g[DOF].rotation() * Jbd_pos;
+    ptr2Jop = &Jop;
     //if (_debug_verbosity)
     //{
     //    ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
@@ -911,6 +916,69 @@ void ScrewsKinematics::OperationalSpaceJacobian() {
     //    Jop(2, 0), Jop(2, 1), Jop(2, 2)); 
     //}
     return; 
+}
+
+Eigen::Matrix3f ScrewsKinematics::OperationalSpaceJacobian(const Eigen::Vector3f& qs) {
+    // [22-7-24] Implements MATLAB function given in:
+    //           D:\matlab_ws\Kinematic_Model_Assembly_SMM\calculateFunctions\calculateToolJacobian_3dof.m
+
+    Eigen::Matrix3f Jtool;
+
+    Jtool(0, 0) = ptr2Jsp1[0]->coeff(0) - ptr2Jsp1[0]->coeff(5) * qs(1) + ptr2Jsp1[0]->coeff(4) * qs(2);
+    Jtool(0, 1) = ptr2Jsp1[1]->coeff(0) - ptr2Jsp1[1]->coeff(5) * qs(1) + ptr2Jsp1[1]->coeff(4) * qs(2);
+    Jtool(0, 2) = ptr2Jsp1[2]->coeff(0) - ptr2Jsp1[2]->coeff(5) * qs(1) + ptr2Jsp1[2]->coeff(4) * qs(2);
+
+    Jtool(1, 0) = ptr2Jsp1[0]->coeff(1) + ptr2Jsp1[0]->coeff(5) * qs(0) - ptr2Jsp1[0]->coeff(3) * qs(2);
+    Jtool(1, 1) = ptr2Jsp1[1]->coeff(1) + ptr2Jsp1[1]->coeff(5) * qs(0) - ptr2Jsp1[1]->coeff(3) * qs(2);
+    Jtool(1, 2) = ptr2Jsp1[2]->coeff(1) + ptr2Jsp1[2]->coeff(5) * qs(0) - ptr2Jsp1[2]->coeff(3) * qs(2);
+
+    Jtool(2, 0) = ptr2Jsp1[0]->coeff(2) - ptr2Jsp1[0]->coeff(4) * qs(0) + ptr2Jsp1[0]->coeff(3) * qs(1);
+    Jtool(2, 1) = ptr2Jsp1[1]->coeff(2) - ptr2Jsp1[1]->coeff(4) * qs(0) + ptr2Jsp1[1]->coeff(3) * qs(1);
+    Jtool(2, 2) = ptr2Jsp1[2]->coeff(2) - ptr2Jsp1[2]->coeff(4) * qs(0) + ptr2Jsp1[2]->coeff(3) * qs(1);
+    ptr2Jop = &Jtool;
+    return Jtool;
+}
+
+Eigen::Matrix3f ScrewsKinematics::OperationalSpaceJacobian2() {
+    // [22-7-24] Implements TCP Jacobian calculation used in:
+    //           D:\matlab_ws\ros-gazebo-simulation\smm_ros_gazebo_quintic_optimization.m
+    //           Only applies to 3DOF robot!
+
+    // Extract the rotation part of the _gst matrix
+    Eigen::Matrix3f  gst_rot = _gst.rotation();
+    // Extract the top-left 3x3 submatrix of ptr2Jbd_t_2[3]
+    Eigen::Matrix3f Jb_mu2;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            Jb_mu2(i, j) = ptr2Jbd_t_2[3]->coeff(i, j);
+        }
+    }
+    // Perform the matrix multiplication
+    Eigen::Matrix3f J = gst_rot * Jb_mu2;
+    ptr2Jop = &J;
+    return J;
+}
+
+float ScrewsKinematics::KinematicManipulabilityIndex(const Eigen::Matrix3f& J) {
+    return J.determinant();
+}
+
+float ScrewsKinematics::KinematicManipulabilityIndex() {
+    return ptr2Jop->determinant();
+}
+
+std::pair<Eigen::Matrix3f, Eigen::Vector3f> ScrewsKinematics::KinematicManipulabilityEllipsoid(const Eigen::Matrix3f& J) {
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(J, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3f U = svd.matrixU();
+    Eigen::Vector3f singular_values = svd.singularValues();
+    return std::make_pair(U, singular_values);
+}
+
+std::pair<Eigen::Matrix3f, Eigen::Vector3f> ScrewsKinematics::KinematicManipulabilityEllipsoid() {
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(*ptr2Jop, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3f U = svd.matrixU();
+    Eigen::Vector3f singular_values = svd.singularValues();
+    return std::make_pair(U, singular_values);
 }
 
 void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {

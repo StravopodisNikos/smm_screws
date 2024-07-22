@@ -78,6 +78,8 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtBodyJacobian_Tool_2();
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
 		void OperationalSpaceJacobian();
+		Eigen::Matrix3f OperationalSpaceJacobian(const Eigen::Vector3f& qs);
+		Eigen::Matrix3f OperationalSpaceJacobian2();	
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 		void DtOperationalSpaceJacobian(); 
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
@@ -90,6 +92,12 @@ class ScrewsKinematics: public ScrewsMain {
 		void CartesianAcceleration_jacob(Eigen::Vector3f &a_qs);
 		void CartesianAcceleration_jacob(Eigen::Vector4f &a_qs);		
 		
+		// Kinematic Performance Measures
+		float KinematicManipulabilityIndex(const Eigen::Matrix3f& J);
+		float KinematicManipulabilityIndex();
+		std::pair<Eigen::Matrix3f, Eigen::Vector3f> KinematicManipulabilityEllipsoid(const Eigen::Matrix3f& J);
+		std::pair<Eigen::Matrix3f, Eigen::Vector3f> KinematicManipulabilityEllipsoid();
+
 		// Public Kinematic data members
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
 		Eigen::Isometry3f g[DOF+1]; // stores joint frames+tcp
@@ -122,6 +130,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix3f Jbd_pos;
 		Eigen::Matrix3f dJop; // Time Derivative of the Operational Space Jacobian
 		Eigen::Matrix3f Jop; // Operational Space Jacobian
+		Eigen::Matrix3f* ptr2Jop;
 		Eigen::Matrix<float, 6, 1> dVsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> dVbd_tool_twist;
 		Eigen::Vector4f Vop4;

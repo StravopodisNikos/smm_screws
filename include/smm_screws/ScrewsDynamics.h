@@ -46,6 +46,8 @@ class ScrewsDynamics: public ScrewsKinematics {
 		Eigen::Matrix<float, DOF, 1>* ptr2Jgl[DOF][DOF]; // Pointer to the 3 6x3 arrays of Link Geometric Jacobians 
 		Eigen::Matrix<float, DOF, 1> Jgl[DOF][DOF];
 
+        Eigen::Matrix3f* ptr2MM; 
+
         // Basic functions for dynamic matrices
         Eigen::Matrix3f MassMatrix();
         Eigen::Matrix3f CoriolisMatrix();
@@ -56,6 +58,10 @@ class ScrewsDynamics: public ScrewsKinematics {
         void CoriolisMatrix_loc();
         void GravityVector_loc();
         void FrictionVector_loc();
+        float DynamicManipulabilityIndex(const Eigen::Matrix3f& J, const Eigen::Matrix3f& M);
+        float DynamicManipulabilityIndex();
+        std::pair<Eigen::Matrix3f, Eigen::Vector3f> DynamicManipulabilityEllipsoid();
+        
 	private:
         static constexpr float _g_z = -9.80665f;
 

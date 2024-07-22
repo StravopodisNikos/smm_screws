@@ -20,6 +20,8 @@ ScrewsVisualization::ScrewsVisualization(RobotAbstractBase *ptr2abstract, ros::N
     tcp_vel_pub = nh.advertise<visualization_msgs::Marker>("visualization_tcp_vel", 10);
     kin_ell_pub = nh.advertise<visualization_msgs::Marker>("visualization_kin_ell", 10);
     kin_ell_axes_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_kin_ell_axes", 10);
+    dyn_ell_pub = nh.advertise<visualization_msgs::Marker>("visualization_dyn_ell", 10);
+    dyn_ell_axes_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_dyn_ell_axes", 10);    
 }
 
 void ScrewsVisualization::publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF]) {
@@ -214,7 +216,7 @@ void ScrewsVisualization::publishTCPvel(const Eigen::Vector3f& tcp_pos, const Ei
     tcp_vel_pub.publish(marker);
 }
 
-void ScrewsVisualization::publishKinematicManipulabilityEllipsoid(const Eigen::Vector3f& tcp_pos, const std::pair<Eigen::Matrix3f, Eigen::Vector3f>& ellipsoid_properties) {
+void ScrewsVisualization::publishKinematicManipulabilityEllipsoid(const Eigen::Vector3f& tcp_pos, const std::pair<Eigen::Matrix3f, Eigen::Vector3f>& ellipsoid_properties, EllipsoidColor color) {
     // Extract the matrix and vector from the pair
     Eigen::Matrix3f orientation_matrix = ellipsoid_properties.first;
     Eigen::Vector3f axes_lengths = ellipsoid_properties.second;
@@ -236,11 +238,20 @@ void ScrewsVisualization::publishKinematicManipulabilityEllipsoid(const Eigen::V
     marker.scale.x = axes_lengths(0) * 2.0f;
     marker.scale.y = axes_lengths(1) * 2.0f;
     marker.scale.z = axes_lengths(2) * 2.0f;
+    // Set the color of the ellipsoid based on the passed argument
 
-    // set for orange
-    marker.color.r = 0.871;
-    marker.color.g = 0.520;
-    marker.color.b = 0.150;
+    switch (color) {
+        case ORANGE:
+            marker.color.r = 0.871;
+            marker.color.g = 0.520;
+            marker.color.b = 0.150;
+            break;
+        case OLIVE:
+            marker.color.r = 0.149;
+            marker.color.g = 0.302;
+            marker.color.b = 0.059;
+            break;
+    }
     marker.color.a = 0.25;
 
     // Set the orientation of the ellipsoid using the rotation matrix
@@ -283,8 +294,8 @@ void ScrewsVisualization::publishKinematicManipulabilityEllipsoid(const Eigen::V
         arrow_marker.points.push_back(end);
 
         arrow_marker.scale.x = 0.01f; // arrow length
-        arrow_marker.scale.y = 0.005f; // arrow width
-        arrow_marker.scale.z = 0.005f; // arrow height
+        arrow_marker.scale.y = 0.01f; // arrow width
+        arrow_marker.scale.z = 0.01f; // arrow height
 
         // Set different colors for each axis
         if (i == 0) {
@@ -307,4 +318,108 @@ void ScrewsVisualization::publishKinematicManipulabilityEllipsoid(const Eigen::V
 
     // Publish the arrow markers
     kin_ell_axes_pub.publish(arrow_markers);
+}
+
+void ScrewsVisualization::publishDynamicManipulabilityEllipsoid(const Eigen::Vector3f& tcp_pos, const std::pair<Eigen::Matrix3f, Eigen::Vector3f>& ellipsoid_properties, EllipsoidColor color) {
+    // Extract the matrix and vector from the pair
+    Eigen::Matrix3f orientation_matrix = ellipsoid_properties.first;
+    Eigen::Vector3f axes_lengths = ellipsoid_properties.second;
+
+    // Normalize the orientation matrix to ensure it's a valid rotation matrix
+    orientation_matrix.col(0).normalize();
+    orientation_matrix.col(1).normalize();
+    orientation_matrix.col(2).normalize();
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "dynamic_ellipsoid";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // Set the scale of the marker based on the axes lengths
+    marker.scale.x = 0.1f * axes_lengths(0) * 2.0f;
+    marker.scale.y = 0.1f * axes_lengths(1) * 2.0f;
+    marker.scale.z = 0.1f * axes_lengths(2) * 2.0f;
+
+    // Set the color of the ellipsoid based on the passed argument
+    switch (color) {
+        case ORANGE:
+            marker.color.r = 0.871;
+            marker.color.g = 0.520;
+            marker.color.b = 0.150;
+            break;
+        case OLIVE:
+            marker.color.r = 0.149;
+            marker.color.g = 0.302;
+            marker.color.b = 0.059;
+            break;
+    }
+    marker.color.a = 0.25;
+
+    // Set the orientation of the ellipsoid using the rotation matrix
+    Eigen::Quaternionf quaternion(orientation_matrix);
+    quaternion.normalize();  // Ensure the quaternion is normalized
+    marker.pose.orientation.w = quaternion.w();
+    marker.pose.orientation.x = quaternion.x();
+    marker.pose.orientation.y = quaternion.y();
+    marker.pose.orientation.z = quaternion.z();
+
+    // Position the ellipsoid at the TCP {T} frame origin
+    marker.pose.position.x = tcp_pos.x();
+    marker.pose.position.y = tcp_pos.y();
+    marker.pose.position.z = tcp_pos.z();
+
+    // Publish the ellipsoid marker
+    dyn_ell_pub.publish(marker);
+
+    // Create and publish arrows for the axes
+    visualization_msgs::MarkerArray arrow_markers;
+    for (int i = 0; i < 3; ++i) {
+        visualization_msgs::Marker arrow_marker;
+        arrow_marker.header.frame_id = "world";
+        arrow_marker.header.stamp = ros::Time::now();
+        arrow_marker.ns = "dynamic_ellipsoid_axes";
+        arrow_marker.id = i + 1;
+        arrow_marker.type = visualization_msgs::Marker::ARROW;
+        arrow_marker.action = visualization_msgs::Marker::ADD;
+
+        // Define the start and end points of the arrow
+        geometry_msgs::Point start, end;
+        start.x = tcp_pos.x();
+        start.y = tcp_pos.y();
+        start.z = tcp_pos.z();
+        end.x = tcp_pos.x() + 0.1f * axes_lengths(i) * orientation_matrix(0, i);
+        end.y = tcp_pos.y() + 0.1f * axes_lengths(i) * orientation_matrix(1, i);
+        end.z = tcp_pos.z() + 0.1f * axes_lengths(i) * orientation_matrix(2, i);
+
+        arrow_marker.points.push_back(start);
+        arrow_marker.points.push_back(end);
+
+        arrow_marker.scale.x = 0.01f; // arrow length
+        arrow_marker.scale.y = 0.01f; // arrow width
+        arrow_marker.scale.z = 0.01f; // arrow height
+
+        // Set different colors for each axis
+        if (i == 0) {
+            arrow_marker.color.r = 1.0;
+            arrow_marker.color.g = 0.0;
+            arrow_marker.color.b = 0.0;
+        } else if (i == 1) {
+            arrow_marker.color.r = 0.0;
+            arrow_marker.color.g = 1.0;
+            arrow_marker.color.b = 0.0;
+        } else {
+            arrow_marker.color.r = 0.0;
+            arrow_marker.color.g = 0.0;
+            arrow_marker.color.b = 1.0;
+        }
+        arrow_marker.color.a = 1.0;
+
+        arrow_markers.markers.push_back(arrow_marker);
+    }
+
+    // Publish the arrow markers
+    dyn_ell_axes_pub.publish(arrow_markers);
 }

@@ -143,7 +143,7 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
         } 
         if (_debug_verbosity) {std::cout << std::endl;}
     }
-    
+    ptr2MM = &MM;
     return MM;
 }
 
@@ -171,7 +171,7 @@ void ScrewsDynamics::MassMatrix_loc() {
         } 
         if (_debug_verbosity) {std::cout << std::endl;}
     }
-    
+    ptr2MM = &MM;
     return;
 }
 
@@ -401,6 +401,48 @@ void ScrewsDynamics::FrictionVector_loc() {
         //if (_debug_verbosity) {std::cout << FV(i,0) << std::endl;}
     }
     return;
+}
+
+float ScrewsDynamics::DynamicManipulabilityIndex(const Eigen::Matrix3f& J, const Eigen::Matrix3f& M) {
+    
+    return ( J.determinant() / M.determinant() );
+}
+
+float ScrewsDynamics::DynamicManipulabilityIndex() {
+        if (ptr2Jop == nullptr) {
+        ROS_ERROR("[DynamicManipulabilityIndex] ptr2Jop is null!");
+        return 0.0f;  // or handle the error appropriately
+    }
+
+    if (ptr2MM == nullptr) {
+        ROS_ERROR("[DynamicManipulabilityIndex] ptr2MM is null!");
+        return 0.0f;  // or handle the error appropriately
+    }
+
+    return ( ptr2Jop->determinant() / ptr2MM->determinant() );
+}
+
+std::pair<Eigen::Matrix3f, Eigen::Vector3f> ScrewsDynamics::DynamicManipulabilityEllipsoid() {
+
+    if (ptr2Jop == nullptr) {
+        throw std::runtime_error("[DynamicManipulabilityEllipsoid] ptr2Jop is null!");
+    }
+
+    if (ptr2MM == nullptr) {
+        throw std::runtime_error("[DynamicManipulabilityEllipsoid] ptr2MM is null!");
+    }
+
+    // Form the combined matrix A = J * M^-1 * J^T
+    Eigen::Matrix3f J = *ptr2Jop;
+    Eigen::Matrix3f M_inv = ptr2MM->inverse();
+    Eigen::Matrix3f A = J * M_inv * J.transpose();
+
+    // Perform SVD on the combined matrix A
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(A.inverse(), Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3f U = svd.matrixU();
+    Eigen::Vector3f singular_values = svd.singularValues();
+
+    return std::make_pair(U, singular_values);
 }
 
 Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {

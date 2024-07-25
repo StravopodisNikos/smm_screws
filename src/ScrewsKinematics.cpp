@@ -502,10 +502,10 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometr
     // frame @ zero config
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
     _debug_verbosity = false;
-    setExponentials(q);
+    setExponentialsAnat(q);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
-    *gs_l_i[0] = _active_expos[0] * *(_ptr2abstract->gsli_test_ptr[0]) ;
+    *gs_l_i[0] = _active_expos_anat[0] * *(_ptr2abstract->gsli_test_ptr[0]) ;
     _trans_vector = gs_l_i[0]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl1_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl1_y: %f", _trans_vector.y());
@@ -514,7 +514,7 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometr
     // Calculate 2nd joint frame
     //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
     // *gs_l_i[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
-    *gs_l_i[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsli_test_ptr[1]) ;
+    *gs_l_i[1] = _active_expos_anat[0] * _active_expos_anat[1] * *(_ptr2abstract->gsli_test_ptr[1]) ;
     _trans_vector = gs_l_i[1]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl2_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl2_y: %f", _trans_vector.y());
@@ -523,7 +523,7 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometr
     // Calculate 3rd joint frame
     //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
     //*gs_l_i[2] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] *_active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)   
-    *gs_l_i[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsli_test_ptr[2]) ;
+    *gs_l_i[2] = _active_expos_anat[0] * _active_expos_anat[1] * _active_expos_anat[2] * *(_ptr2abstract->gsli_test_ptr[2]) ;
     _trans_vector = gs_l_i[2]->translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_y: %f", _trans_vector.y());
@@ -538,10 +538,10 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
     _debug_verbosity = false;
-    setExponentials(_joint_pos);
+    setExponentialsAnat(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
-    gl[0] = _active_expos[0] * *(_ptr2abstract->gsli_test_ptr[0]) ;
+    gl[0] = _active_expos_anat[0] * *(_ptr2abstract->gsli_test_ptr[0]) ;
     _trans_vector = gl[0].translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl1_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl1_y: %f", _trans_vector.y());
@@ -549,8 +549,8 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
 
     // Calculate 2nd joint frame
     //*gs_a_i[1] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * *(_ptr2abstract->gsai_ptr[1]) ;
-    //gl[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ;
-    gl[1] = _active_expos[0] * _active_expos[1] * *(_ptr2abstract->gsli_test_ptr[1]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
+    //gl[1] = _active_expos[0] * _Pi[0] * _active_expos[1] * *(_ptr2abstract->gsai_ptr[1]) ; // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
+    gl[1] = _active_expos_anat[0] * _active_expos_anat[1] * *(_ptr2abstract->gsli_test_ptr[1]) ; 
     _trans_vector = gl[1].translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl2_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl2_y: %f", _trans_vector.y());
@@ -559,7 +559,7 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
     // Calculate 3rd joint frame
     //*gs_a_i[2] = twistExp(_ptr2abstract->active_twists[0], q[0]) * twistExp(_ptr2abstract->active_twists[1], q[1]) * twistExp(_ptr2abstract->active_twists[2], q[2]) * *(_ptr2abstract->gsai_ptr[2]) ;
     //gl[2] = _active_expos[0] * _Pi[0] * _active_expos[1] * _Pi[1] *_active_expos[2] * *(_ptr2abstract->gsai_ptr[2]) ;    // [11-7-24] Discontinued because active twists will be prior transformed from pseudojoints (xi_ai_anat from MATLAB)
-    gl[2] = _active_expos[0] * _active_expos[1] * _active_expos[2] * *(_ptr2abstract->gsli_test_ptr[2]) ;    
+    gl[2] = _active_expos_anat[0] * _active_expos_anat[1] * _active_expos_anat[2] * *(_ptr2abstract->gsli_test_ptr[2]) ;    
     
     _trans_vector = gl[2].translation();
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_x: %f", _trans_vector.x());
@@ -614,8 +614,11 @@ void ScrewsKinematics::SpatialJacobian_Tool_2() {
 }
 
 void ScrewsKinematics::BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]) {
+    // [25-7-24] Implements functions: calculateBodyJacobians1_Mueller located in:
+    //           ~/matlab_ws/screw_dynamics/calculateBodyJacobians1_Mueller.m @ laptop-WIN10
     // Executes first "=" of eq.16/p.49/[2], for ALL active joints' frames && {T} frame
-    _debug_verbosity = false;
+
+    _debug_verbosity = true;
     Eigen::Matrix<float, 6, 1>* Jbd_i[DOF]; // array of pointers to access a single(!) 6x3 Body Jacobian
     // Allocate the memory for the above pointers!
 
@@ -637,6 +640,8 @@ void ScrewsKinematics::BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansF
 }
 
 void ScrewsKinematics::BodyJacobians() {
+    // [25-7-24] Implements functions: calculateBodyJacobians1_Mueller located in:
+    //           ~/matlab_ws/screw_dynamics/calculateBodyJacobians1_Mueller.m @ laptop-WIN10
     // Executes first "=" of eq.16/p.49/[2], for ALL active joints' frames && {T} frame
     _debug_verbosity = false;
     Eigen::Matrix<float, 6, 1>* Jbd_i[DOF]; // array of pointers to access a single(!) 6x3 Body Jacobian
@@ -656,6 +661,79 @@ void ScrewsKinematics::BodyJacobians() {
             *ptr2BodyJacobiansFrames[nFrames][i] = *Jbd_i[i];
         }
     }
+    return;
+}
+
+void ScrewsKinematics::BodyCOMJacobians() {
+    // [25-7-24] Implements functions: calculateLinkCoMJacobians_3DoF located in:
+    //           ~/matlab_ws/screw_dynamics/calculateLinkCoMJacobians_3DoF.m @ laptop-WIN10
+
+    _debug_verbosity = true;
+
+    // _active_expos_anat[i]
+    setExponentialsAnat(_joint_pos); // since gsli is used, the anat twists must be used!: 
+    
+    // Assuming _active_expos_anat is an array of Eigen::Isometry3f
+    if (_active_expos_anat == nullptr) {
+        std::cerr << "_active_expos_anat is not initialized!" << std::endl;
+        return;
+    }
+
+    // Ensure gsli_test_ptr is not null
+    for (int i = 0; i < DOF; ++i) {
+        if (_ptr2abstract->gsli_test_ptr[i] == nullptr) {
+            std::cerr << "gsli_test_ptr[" << i << "] is null!" << std::endl;
+            return;
+        }
+    }
+
+    // Ensure active_twists_anat is not null
+    for (int i = 0; i < DOF; ++i) {
+        if (_ptr2abstract->active_twists_anat[i].size() == 0) {
+            std::cerr << "active_twists_anat[" << i << "] is not initialized!" << std::endl;
+            return;
+        }
+    }
+
+    // Fill Jbsli by col: [Eigen::Matrix<float, 6, 1> Jbsli[DOF][DOF];]
+    for (int m = 0; m < DOF; ++m) {
+        try {
+            if (m==0) {
+                Jbsli[m][0] = ad(_active_expos_anat[0] * *(_ptr2abstract->gsli_test_ptr[0]) ).inverse() * _ptr2abstract->active_twists_anat[0];
+                Jbsli[m][1] = Eigen::Matrix<float, 6, 1>::Zero();
+                Jbsli[m][2] = Eigen::Matrix<float, 6, 1>::Zero();
+            } else if (m==1) {
+                Jbsli[m][0] = ad(_active_expos_anat[0] * _active_expos_anat[1] * *(_ptr2abstract->gsli_test_ptr[1]) ).inverse() * _ptr2abstract->active_twists_anat[0];
+                Jbsli[m][1] = ad(_active_expos_anat[1] * *(_ptr2abstract->gsli_test_ptr[1]) ).inverse() * _ptr2abstract->active_twists_anat[1];
+                Jbsli[m][2] = Eigen::Matrix<float, 6, 1>::Zero();
+            } else if (m==2) {
+                Jbsli[m][0] = ad(_active_expos_anat[0] * _active_expos_anat[1] * _active_expos_anat[2] * *(_ptr2abstract->gsli_test_ptr[2]) ).inverse() * _ptr2abstract->active_twists_anat[0];
+                Jbsli[m][1] = ad(_active_expos_anat[1] * _active_expos_anat[2] * *(_ptr2abstract->gsli_test_ptr[2]) ).inverse() * _ptr2abstract->active_twists_anat[1];
+                Jbsli[m][2] = ad(_active_expos_anat[2] * *(_ptr2abstract->gsli_test_ptr[2]) ).inverse() * _ptr2abstract->active_twists_anat[2];
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Exception in calculating Jbsli[" << m << "]: " << e.what() << std::endl;
+            return;
+        }
+    }
+
+    // Link the pointers to Jbsli: [Eigen::Matrix<float, 6, 1>* ptr_Jbsli[DOF][DOF];]
+    for (int m = 0; m < DOF; ++m) {
+        for (int n = 0; n < DOF; ++n) {
+            ptr_Jbsli[m][n] = &Jbsli[m][n];
+            //*ptr_Jbsli[m][n] = someFunctionToFillCol(); // Fill the 6x1 matrix
+        }
+    }
+    
+    for (int m = 0; m < DOF; ++m) {
+        for (int n = 0; n < DOF; ++n) {
+            Jbsli63[m].col(n) = Jbsli[m][n];      // Fill the a6x3 arrays: [Eigen::Matrix<float, 6, DOF> Jbsli63[DOF];]
+            //ptr_Jbsli63[m]->col(n) = Jbsli[m][n]; // Link the pointers to 6x3 arrays: [Eigen::Matrix<float, 6, DOF>* ptr_Jbsli63[DOF];]
+        }
+    }
+    
+    if (_debug_verbosity) {print63MatrixByColumn(Jbsli63);}
+
     return;
 }
 
@@ -1231,7 +1309,7 @@ void ScrewsKinematics::setExponentialsAnat(float *q) {
     //           Active twists for test anatomy must be calculated!
     for (size_t i = 0; i < DOF; i++)
     {
-        _active_expos[i] = twistExp(_ptr2abstract->active_twists_anat[i], *(q+i) );
+        _active_expos_anat[i] = twistExp(_ptr2abstract->active_twists_anat[i], *(q+i) );
     }
     return;
 }
@@ -1299,4 +1377,17 @@ void ScrewsKinematics::printTwist(Eigen::Matrix<float, 6, 1> Twist) {
         std::cout << Twist[i] << std::endl;
     }
     return;
+}
+
+void ScrewsKinematics::print63MatrixByColumn(const Eigen::Matrix<float, 6, DOF> J63[DOF]) {
+    for (int i = 0; i < DOF; ++i) {
+        std::cout << "J63[" << i << "]:" << std::endl;
+        for (int row = 0; row < 6; ++row) {
+            for (int col = 0; col < DOF; ++col) {
+                std::cout << J63[i](row, col) << "\t";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+    }
 }

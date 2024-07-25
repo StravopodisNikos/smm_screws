@@ -53,6 +53,9 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.SpatialJacobian_Tool_1();
     smm_robot_kin_solver.SpatialJacobian_Tool_2();
     
+    //smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
+    smm_robot_kin_solver.BodyCOMJacobians();
+
     // update q,dq in ScrewsDynamics
     smm_robot_dyn_solver.updateJointPos(q);
     smm_robot_dyn_solver.updateJointVel(dq);

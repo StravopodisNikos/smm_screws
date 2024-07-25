@@ -64,6 +64,7 @@ class ScrewsKinematics: public ScrewsMain {
 		void SpatialJacobian_Tool_2(); // sets Jsp_t_2 @ memory position: ptr2Jsp2
 		void BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]); // Returns Body Jacobians calculated @ active joint frames and the {T} frame
 		void BodyJacobians(); // Sets BodyJacobiansFrames @ memory position: ptr2BodyJacobiansFrames
+		void BodyCOMJacobians();
 		void BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]); // Returns {T} frame Body Jacobian
 		void BodyJacobian_Tool_1();
 		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]); // Returns {T} frame Body Jacobian
@@ -124,6 +125,11 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 1> dJbd_t_1[DOF];
 		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
 
+		Eigen::Matrix<float, 6, DOF> Jbsli63[DOF];
+		Eigen::Matrix<float, 6, DOF>* ptr_Jbsli63[DOF];
+		Eigen::Matrix<float, 6, 1> Jbsli[DOF][DOF];
+		Eigen::Matrix<float, 6, 1>* ptr_Jbsli[DOF][DOF];		
+
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
 		Eigen::Matrix3f dJbd_pos;
@@ -153,6 +159,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 		Eigen::Matrix4f _twist_se3;
 		Eigen::Isometry3f _active_expos[DOF];
+		Eigen::Isometry3f _active_expos_anat[DOF];
 		Eigen::Isometry3f _Pi[METALINKS];
         float _joint_pos[DOF];
         float _joint_vel[DOF];
@@ -169,6 +176,7 @@ class ScrewsKinematics: public ScrewsMain {
 		
 		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
 		void printTwist(Eigen::Matrix<float, 6, 1> Twist);		
+		void print63MatrixByColumn(const Eigen::Matrix<float, 6, DOF> J63[DOF]);
 };		
 
 #endif // SCREWS_KINEMATICS_H

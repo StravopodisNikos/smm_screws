@@ -291,7 +291,7 @@ void ScrewsDynamics::LinkGeometricJacobians() {
     return; 
 }
 
-Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVectorAnalytical() {
+Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
     // [11-7-24] Implements MATLAB function in laptop-WIN10: 
     // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalytical.m
 
@@ -320,6 +320,20 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVectorAnalytical() {
     GV(2) = gv3_1 + gv3_2 + gv3_3;      
 
     if (_debug_verbosity) {std::cout << "[GravityVectorAnalytical] G: " << "\n";}
+    for (size_t i = 0; i < DOF; i++) {
+        if (_debug_verbosity) {std::cout << GV(i) << "\n";} }
+
+    return GV;
+}
+
+Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
+    // [11-7-24] Implements MATLAB function in laptop-WIN10: 
+    // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalyticalBody.m   
+    _debug_verbosity = true;
+    updateActiveTfs();
+    updateCOMTfs();
+    
+    if (_debug_verbosity) {std::cout << "[GravityVectorAnalyticalBody] G: " << "\n";}
     for (size_t i = 0; i < DOF; i++) {
         if (_debug_verbosity) {std::cout << GV(i) << "\n";} }
 

@@ -55,6 +55,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix3f CoriolisMatrix();
         Eigen::Matrix<float, DOF, 1> GravityVector(); // [25-7-24] DEPRECATED - NO USE
         Eigen::Matrix<float, DOF, 1> GravityVectorAnalytical();
+        Eigen::Matrix<float, DOF, 1> GravityVectorAnalyticalBody();
         Eigen::Matrix<float, DOF, 1> FrictionVector();
         void MassMatrix_loc();
         void CoriolisMatrix_loc();

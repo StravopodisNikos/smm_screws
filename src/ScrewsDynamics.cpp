@@ -22,8 +22,13 @@ ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(
     // Preallocate memory for active exponential matrices used in internally calculations
     for (size_t i = 0; i < DOF; i++)
     {
+        exp_ai[i] = Eigen::Isometry3f::Identity();
+        ptr2active_expos[i] = &exp_ai[i];
+    }    
+    for (size_t i = 0; i < DOF+1; i++)
+    {
         gai[i] = Eigen::Isometry3f::Identity();
-        ptr2active_tfs[i] = &gai[i]; // Now the gai's can be used from ScrewsDynamics methods
+        ptr2active_tfs[i] = &gai[i];
     }    
     // Preallocate memory for passive exponential matrices used in internally calculations
     for (size_t i = 0; i < METALINKS; i++)
@@ -56,41 +61,7 @@ void ScrewsDynamics::updateJointVel(float *dq_new) {
 }
 
 void ScrewsDynamics::intializeLinkMassMatrices() {
-    // Constructs the Links' Mass matrices @ Links Body (COM) Frame
-    
-    //for (size_t i = 0; i < DOF; i++)
-    //{
-    //    _Mib[i].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[i]) * Eigen::Matrix3f::Identity();
-    //    _Mib[i].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
-    //    _Mib[i].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-    //    _Mib[i].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[i]) * Eigen::Matrix3f::Identity();
-    //}
-   
-    // Added extreme to test code.
-    /*
-        _Mib[0].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[0]) * Eigen::Matrix3f::Identity();
-        _Mib[0](0,1) = 0.05; _Mib[0](0,2) = 0.009; _Mib[0](1,0) = _Mib[0](0,1);
-        _Mib[0](1,2) = 0.04; _Mib[0](2,0) = _Mib[0](0,2); _Mib[0](2,1) = _Mib[0](1,2);  
-        _Mib[0].block<3, 3>(0, 3) = Eigen::`Matrix3f::Zero();
-        _Mib[0].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-        _Mib[0].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[0]) * Eigen::Matrix3f::Identity();    
-        //print66Matrix(_Mib[0]);
-        _Mib[1].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[1]) * Eigen::Matrix3f::Identity();
-        _Mib[1](0,1) = 0.02; _Mib[1](0,2) = 0.023; _Mib[1](1,0) = _Mib[1](0,1);
-        _Mib[1](1,2) = 0.01; _Mib[1](2,0) = _Mib[1](0,2); _Mib[1](2,1) = _Mib[1](1,2);  
-        _Mib[1].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
-        _Mib[1].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-        _Mib[1].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[1]) * Eigen::Matrix3f::Identity();    
-        //print66Matrix(_Mib[1]);
-        _Mib[2].block<3, 3>(0, 0) = *(_ptr2abstract->link_mass[2]) * Eigen::Matrix3f::Identity();
-        _Mib[2](0,1) = 0.034; _Mib[2](0,2) = 0.01; _Mib[2](1,0) = _Mib[2](0,1);
-        _Mib[2](1,2) = 0.04; _Mib[2](2,0) = _Mib[2](0,2); _Mib[2](2,1) = _Mib[2](1,2);  
-        _Mib[2].block<3, 3>(0, 3) = Eigen::Matrix3f::Zero();
-        _Mib[2].block<3, 3>(3, 0) = Eigen::Matrix3f::Zero();  
-        _Mib[2].block<3, 3>(3, 3) = *(_ptr2abstract->link_inertia[2]) * Eigen::Matrix3f::Identity();    
-        //print66Matrix(_Mib[2]);                  
-    */
-    
+    // Loads the Links' Mass matrices @ {S} Frame
     _Mis[0] = *(_ptr2abstract->Mi_s_ptr[0]);
     _Mis[1] = *(_ptr2abstract->Mi_s_ptr[1]);
     _Mis[2] = *(_ptr2abstract->Mi_s_ptr[2]);
@@ -105,7 +76,7 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     //std::cout << "Joint Posistion1:" << _joint_pos[0] << std::endl;
     //std::cout << "Joint Posistion1:" << _joint_pos[1] << std::endl;
     //std::cout << "Joint Posistion1:" << _joint_pos[2] << std::endl;
-    ScrewsDynamics::extractActiveTfs();
+    ScrewsDynamics::updateActiveExpos();
     /*
     printIsometryMatrix(gai[0]);
     printIsometryMatrix(gai[1]);
@@ -126,8 +97,8 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
             for (size_t l = max; l < DOF; l++)
             {
                 //std::cout << l << std::endl;
-                _alpha[0] = setAlphamatrix(l, i); // print66Matrix(_alpha[0]); // -> ok  // Ali
-                _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
+                _alpha[0] = setAlphamatrix(l, i); //print66Matrix(_alpha[0]); // -> ok  // Ali
+                _alpha[1] = setAlphamatrix(l, j); //print66Matrix(_alpha[1]); // -> ok  // Alj
                 //print66Matrix(_Mib[l]); // -> ok
 
                 // [12-7-24] On 13-2-24 a huge BUG was found in MATLAB code file: compute_mij_429_3DoF_2_sym.m
@@ -137,7 +108,8 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
                 //_Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
                 _Ml_temp = _Mis[l];
                 //print66Matrix(_Ml_temp); // -> not ok
-                MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
+                //MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
+                MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists_anat[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists_anat[j];     
             }
             if (_debug_verbosity) {std::cout << MM(i, j) << "\t";}
         } 
@@ -150,7 +122,7 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
 void ScrewsDynamics::MassMatrix_loc() {
     // Calculates the Mass Matrix, used locally in class member functions
     _debug_verbosity = false;
-    ScrewsDynamics::extractActiveTfs();
+    ScrewsDynamics::updateActiveExpos();
 
     size_t max;
     MM.setZero();
@@ -165,7 +137,8 @@ void ScrewsDynamics::MassMatrix_loc() {
                 _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
                 //_Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
                 _Ml_temp = _Mis[l];
-                MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
+                //MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists[j];   
+                MM(i, j) = MM(i, j) + (_ptr2abstract->active_twists_anat[i]).transpose() * _alpha[0].transpose() * _Ml_temp * _alpha[1] * _ptr2abstract->active_twists_anat[j];               
             }
             if (_debug_verbosity) {std::cout << MM(i, j) << "\t";}
         } 
@@ -250,14 +223,15 @@ void ScrewsDynamics::LinkGeometricJacobians() {
     // Need to call in main cpp file: ForwardKinematics3DOF_2();
     updateActiveTfs();
 
+
     // 2. Build Tl
     // [NEED UPGRADE] current joint tfs will be retrieved from /robot_screw_states
     // Need to call in main cpp file:  ForwardKinematicsComFrames3DOF_2();
     updateCOMTfs();
 
-    std::cout << "[LinkGeometricJacobians] gs_a1:\n" << gai[0].matrix() << std::endl;
-    std::cout << "[LinkGeometricJacobians] gs_a2:\n" << gai[1].matrix() << std::endl;
-    std::cout << "[LinkGeometricJacobians] gs_a3:\n" << gai[2].matrix() << std::endl;
+    //std::cout << "[LinkGeometricJacobians] gs_a1:\n" << gai[0].matrix() << std::endl;
+    //std::cout << "[LinkGeometricJacobians] gs_a2:\n" << gai[1].matrix() << std::endl;
+    //std::cout << "[LinkGeometricJacobians] gs_a3:\n" << gai[2].matrix() << std::endl;
 
     // 3. Extract the z-rot-axis vectors
     // ln.16-18 in MATLAB file. 1st axis is z, 2nd+3rd axes are x!
@@ -266,24 +240,24 @@ void ScrewsDynamics::LinkGeometricJacobians() {
     Eigen::Vector3f z_03 = gai[2].matrix().block<3, 1>(0, 0);
 
     // 4. Extract the points
-    Eigen::Vector3f p_01 = gai[0].matrix().block<3, 1>(0, 3); std::cout << "Vector p_01:\n" << p_01 << std::endl;
+    Eigen::Vector3f p_01 = gai[0].matrix().block<3, 1>(0, 3); //std::cout << "Vector p_01:\n" << p_01 << std::endl;
     Eigen::Vector3f p_02 = gai[1].matrix().block<3, 1>(0, 3);
     Eigen::Vector3f p_03 = gai[2].matrix().block<3, 1>(0, 3);
-    Eigen::Vector3f pl_01 = gsli[0].matrix().block<3, 1>(0, 3); std::cout << "Vector pl_01:\n" << pl_01 << std::endl;
+    Eigen::Vector3f pl_01 = gsli[0].matrix().block<3, 1>(0, 3); //std::cout << "Vector pl_01:\n" << pl_01 << std::endl;
     Eigen::Vector3f pl_02 = gsli[1].matrix().block<3, 1>(0, 3);
     Eigen::Vector3f pl_03 = gsli[2].matrix().block<3, 1>(0, 3);
 
     // 5. Build the columns
     Eigen::Vector3f O31 = Eigen::Vector3f::Zero();
 
-    Eigen::Vector3f Jp1_11 = z_01.cross( (pl_01 - p_01) ); std::cout << "Vector Jp1_11:\n" << Jp1_11 << std::endl;
+    Eigen::Vector3f Jp1_11 = z_01.cross( (pl_01 - p_01) ); //std::cout << "Vector Jp1_11:\n" << Jp1_11 << std::endl;
     
-    Eigen::Vector3f Jp1_12 = z_01.cross( (pl_02 - p_01) ); std::cout << "Vector Jp1_12:\n" << Jp1_12 << std::endl;
-    Eigen::Vector3f Jp2_12 = z_02.cross( (pl_02 - p_02) ); std::cout << "Vector Jp2_12:\n" << Jp2_12 << std::endl;
+    Eigen::Vector3f Jp1_12 = z_01.cross( (pl_02 - p_01) ); //std::cout << "Vector Jp1_12:\n" << Jp1_12 << std::endl;
+    Eigen::Vector3f Jp2_12 = z_02.cross( (pl_02 - p_02) ); //std::cout << "Vector Jp2_12:\n" << Jp2_12 << std::endl;
 
-    Eigen::Vector3f Jp1_13 = z_01.cross( (pl_03 - p_01) ); std::cout << "Vector Jp1_13:\n" << Jp1_13 << std::endl;
-    Eigen::Vector3f Jp2_13 = z_02.cross( (pl_03 - p_02) ); std::cout << "Vector Jp2_13:\n" << Jp2_13 << std::endl;
-    Eigen::Vector3f Jp3_13 = z_03.cross( (pl_03 - p_03) ); std::cout << "Vector Jp3_13:\n" << Jp3_13 << std::endl;
+    Eigen::Vector3f Jp1_13 = z_01.cross( (pl_03 - p_01) ); //std::cout << "Vector Jp1_13:\n" << Jp1_13 << std::endl;
+    Eigen::Vector3f Jp2_13 = z_02.cross( (pl_03 - p_02) ); //std::cout << "Vector Jp2_13:\n" << Jp2_13 << std::endl;
+    Eigen::Vector3f Jp3_13 = z_03.cross( (pl_03 - p_03) ); //std::cout << "Vector Jp3_13:\n" << Jp3_13 << std::endl;
 
     // 6. Fill the Jacobians
     // 1st Link Geometric Jacobian
@@ -353,6 +327,8 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVectorAnalytical() {
 }
 
 void ScrewsDynamics::GravityVector_loc() {
+    // [25-7-24] Function DEPRECATED - NO USE
+
     _debug_verbosity = false;
     GV.setZero();
     _PotEnergy = computePotentialEnergy();
@@ -456,7 +432,7 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
         }
     } else if ( i == 1) {
         if ( j == 0) {
-            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
+            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_expos[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
             _alpha_temp.setIdentity();
@@ -465,10 +441,10 @@ Eigen::Matrix<float, 6, 6> ScrewsDynamics::setAlphamatrix(size_t i, size_t j) {
         }        
     } else if ( i == 2) {
         if ( j == 0) {
-            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[j+1] * *ptr2passive_tfs[j+1] * *ptr2active_tfs[i]);
+            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_expos[j+1] * *ptr2passive_tfs[j+1] * *ptr2active_expos[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if (j == 1) {
-            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_tfs[i]);
+            _ad_temp = ad(*ptr2passive_tfs[j] * *ptr2active_expos[i]);
             _alpha_temp = _ad_temp.inverse();
         } else if ( j == 2) {
             _alpha_temp.setIdentity();
@@ -491,18 +467,20 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
         _alphaParDer[0] = setAlphamatrix(k, i); // Aki
         _alphaParDer[1] = setAlphamatrix(l, k); // Alk
         _alphaParDer[2] = setAlphamatrix(l, j); // Alj
-        _LieBracketParDer[0] = lb(_alphaParDer[0]*(_ptr2abstract->active_twists[i]), _ptr2abstract->active_twists[k] );
+        //_LieBracketParDer[0] = lb(_alphaParDer[0]*(_ptr2abstract->active_twists[i]), _ptr2abstract->active_twists[k] );
+        _LieBracketParDer[0] = lb(_alphaParDer[0]*(_ptr2abstract->active_twists_anat[i]), _ptr2abstract->active_twists_anat[k] );
 
         _alphaParDer[3] = setAlphamatrix(l, i);   // Ali
         _alphaParDer[4] = setAlphamatrix(k, j);   // Akj  
-        _LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists[j]), _ptr2abstract->active_twists[k] );
+        //_LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists[j]), _ptr2abstract->active_twists[k] );
+        _LieBracketParDer[1] = lb(_alphaParDer[4]*(_ptr2abstract->active_twists_anat[j]), _ptr2abstract->active_twists_anat[k] );
 
         //_Ml_temp = ad(((_ptr2abstract->gl[l])).inverse()).transpose() * _Mib[l] * ad(((_ptr2abstract->gl[l])).inverse()); 
         _Ml_temp = _Mis[l];
         
         _parDer_MassIJ_ThetaK = _parDer_MassIJ_ThetaK + \
-        ( (_LieBracketParDer[0].transpose() * _alphaParDer[1].transpose() * _Ml_temp * _alphaParDer[2] * (_ptr2abstract->active_twists[j]) ) + \
-        ( (_ptr2abstract->active_twists[i]).transpose() * _alphaParDer[3].transpose() * _Ml_temp * _alphaParDer[1] * _LieBracketParDer[1]  ) );
+        ( (_LieBracketParDer[0].transpose() * _alphaParDer[1].transpose() * _Ml_temp * _alphaParDer[2] * (_ptr2abstract->active_twists_anat[j]) ) + \
+        ( (_ptr2abstract->active_twists_anat[i]).transpose() * _alphaParDer[3].transpose() * _Ml_temp * _alphaParDer[1] * _LieBracketParDer[1]  ) );
     }
     return _parDer_MassIJ_ThetaK;
 }
@@ -519,33 +497,33 @@ float ScrewsDynamics::computePotentialEnergy() {
 
 void ScrewsDynamics::updateCOMTfs() {
     // gpj are not updated, only initialized for each anatomy
-    ScrewsDynamics::extractActiveTfs(); // updates gai[i]
-    gsli[0] = *ptr2active_tfs[0] * (_ptr2abstract->gl_test_0[0]) ; 
-    //gsli[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl_test_0[1]) ;
-    //gsli[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl_test_0[2]) ; 
-    gsli[1] = *ptr2active_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->gl_test_0[1]) ;
-    gsli[2] = *ptr2active_tfs[0] * *ptr2active_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->gl_test_0[2]) ;
+    ScrewsDynamics::updateActiveExpos(); // updates gai[i]
+    gsli[0] = *ptr2active_expos[0] * (_ptr2abstract->gl_test_0[0]) ; 
+    gsli[1] = *ptr2active_expos[0] * *ptr2active_expos[1] * (_ptr2abstract->gl_test_0[1]) ;
+    gsli[2] = *ptr2active_expos[0] * *ptr2active_expos[1] * *ptr2active_expos[2] * (_ptr2abstract->gl_test_0[2]) ;
     return;
 }
 
 void ScrewsDynamics::updateActiveTfs() {
-    ScrewsDynamics::extractActiveTfs(); // updates gai[i]
-    //gai[0] = *ptr2active_tfs[0] * (_ptr2abstract->g[0]) ; 
-    //gai[1] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * (_ptr2abstract->g[1]) ;
-    //gai[2] = *ptr2active_tfs[0] * *ptr2passive_tfs[0] * *ptr2active_tfs[1] * *ptr2passive_tfs[1] * *ptr2active_tfs[2] * (_ptr2abstract->g[2]) ; 
-    gai[0] = *ptr2active_tfs[0] * (_ptr2abstract->g_test_0[0]) ; 
-    gai[1] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] * (_ptr2abstract->g_test_0[1]) ;
-    gai[2] = *ptr2active_tfs[0]  * *ptr2active_tfs[1] *  *ptr2active_tfs[2] * (_ptr2abstract->g_test_0[2]) ; 
+    ScrewsDynamics::updateActiveExpos(); // updates gai[i]
+ 
+    gai[0] = *ptr2active_expos[0] * (_ptr2abstract->g_test_0[0]) ; 
+    gai[1] = *ptr2active_expos[0]  * *ptr2active_expos[1] * (_ptr2abstract->g_test_0[1]) ;
+    gai[2] = *ptr2active_expos[0]  * *ptr2active_expos[1] *  *ptr2active_expos[2] * (_ptr2abstract->g_test_0[2]) ; 
+
+    ptr2active_tfs[0] = &gai[0];
+    ptr2active_tfs[1] = &gai[1];
+    ptr2active_tfs[2] = &gai[2];
     return;
 }
 
-void ScrewsDynamics::extractActiveTfs() {
+void ScrewsDynamics::updateActiveExpos() {
     // - joint pos update must be called. 
     // - ptr2active_tfs must point to preallocated memory 
     for (size_t i = 0; i < DOF; i++)
     {
-        //print61Matrix(_ptr2abstract->active_twists[i]);
-        *ptr2active_tfs[i] = twistExp(_ptr2abstract->active_twists_anat[i], _joint_pos[i]) ;
+        exp_ai[i] = twistExp(_ptr2abstract->active_twists_anat[i], _joint_pos[i]) ;
+        ptr2active_expos[i] = &exp_ai[i];
     }
     return;
 }

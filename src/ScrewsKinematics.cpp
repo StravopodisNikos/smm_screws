@@ -273,7 +273,7 @@ Eigen::Vector3f ScrewsKinematics::updatePositionTCP(Eigen::Matrix<float, 3, 1>& 
 }
 
 void ScrewsKinematics::ForwardKinematicsTCP() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     Eigen::Isometry3f *gst_0 = _ptr2abstract->gsai_ptr[3];   
     //ROS_INFO("_joint_pos_x: %f", _joint_pos[0]);
     //ROS_INFO("_joint_pos_y: %f", _joint_pos[1]);
@@ -445,7 +445,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
@@ -484,10 +484,13 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     g_ptr[2] = &g[2];
     g_ptr[3] = &g[3];
     _gst = g[3];
-    std::cout << "[ForwardKinematics3DOF_2] gs_a1:\n" << g[0].matrix() << std::endl;
-    std::cout << "[ForwardKinematics3DOF_2] gs_a2:\n" << g[1].matrix() << std::endl;
-    std::cout << "[ForwardKinematics3DOF_2] gs_a3:\n" << g[2].matrix() << std::endl;
-    std::cout << "[ForwardKinematics3DOF_2] gs_t:\n"  << g[3].matrix() << std::endl;
+
+    if (_debug_verbosity) {
+        std::cout << "[ForwardKinematics3DOF_2] gs_a1:\n" << g[0].matrix() << std::endl;
+        std::cout << "[ForwardKinematics3DOF_2] gs_a2:\n" << g[1].matrix() << std::endl;
+        std::cout << "[ForwardKinematics3DOF_2] gs_a3:\n" << g[2].matrix() << std::endl;
+        std::cout << "[ForwardKinematics3DOF_2] gs_t:\n"  << g[3].matrix() << std::endl;
+    }
     return;
 }
 
@@ -534,7 +537,7 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  

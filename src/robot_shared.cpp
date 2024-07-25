@@ -53,7 +53,7 @@ bool robot_shared::initializeSharedLib() {
     smm_robot_kin_solver.initializePseudoTfs();
     smm_robot_kin_solver.initializeAnatomyActiveTwists();
     smm_robot_dyn_solver.intializeLinkMassMatrices();
-    smm_robot_kin_solver.extractPassiveTfs(smm_robot_dyn_solver.ptr2passive_tfs);
+    //smm_robot_kin_solver.extractPassiveTfs(smm_robot_dyn_solver.ptr2passive_tfs); // [25-7-24] Removed. ScrewsDynamics must not get passive expos, because works with anat twists! HUGE BUG
     smm_robot_kin_solver.initializeRelativeTfs();
     smm_robot_kin_solver.initializeLocalScrewCoordVectors();
     return true;

@@ -41,7 +41,11 @@ public:
         // Active Joints twists
         for (int i = 0; i < 6; i++) { active_twists[0](i, 0) = robot_definition::__active_twist_0[i]; }   
         for (int i = 0; i < 6; i++) { active_twists[1](i, 0) = robot_definition::__active_twist_1[i]; }  
-        for (int i = 0; i < 6; i++) { active_twists[2](i, 0) = robot_definition::__active_twist_2[i]; }  
+        for (int i = 0; i < 6; i++) { active_twists[2](i, 0) = robot_definition::__active_twist_2[i]; } 
+        // Active Joints Twists @ test anatomy && @ zero configuration
+        for (int i = 0; i < 6; i++) { active_twists_anat[0](i, 0) = robot_definition::__active_twist_anat_0[i]; }   
+        for (int i = 0; i < 6; i++) { active_twists_anat[1](i, 0) = robot_definition::__active_twist_anat_1[i]; }  
+        for (int i = 0; i < 6; i++) { active_twists_anat[2](i, 0) = robot_definition::__active_twist_anat_2[i]; }   
         // Active Joints exponentials @ zero configuration
         // Joints TFs exponentials @ ref anatomy && @ zero configuration 
         for (int i = 0; i < DOF+1; i++) { g_ref_0[i].setIdentity();} // preallocate memory

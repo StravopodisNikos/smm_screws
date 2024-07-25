@@ -14,11 +14,12 @@
 // Define and initialize your constants
 namespace robot_definition {
     // Members for the abstract class
-    /*
+    
     // xi_ai_anat
-    float __active_twist_0[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-    float __active_twist_1[6] = {0.0f, -0.2483f, -0.0782f, -1.0f, 0.0f, 0.0f};
-    float __active_twist_2[6] = {0.0f, -0.2960f, -0.4749f, -1.0f, 0.0f, 0.0f};
+    float __active_twist_anat_0[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    float __active_twist_anat_1[6] = {0.0f, -0.2483f, -0.0782f, -1.0f, 0.0f, 0.0f};
+    float __active_twist_anat_2[6] = {0.0f, -0.2960f, -0.4749f, -1.0f, 0.0f, 0.0f};
+    /*
     // g_ai_anat
     float gsa10[4][4]= {
     {-1.0f , 0.0f , 0.0f , 0.0f },

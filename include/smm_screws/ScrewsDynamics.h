@@ -37,8 +37,10 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix3f CM; // Coriolis Matrix
         Eigen::Matrix<float, 3, 1> GV; // Gravity Vector
         Eigen::Matrix<float, 3, 1> FV; // Friction Vector
-        Eigen::Isometry3f * ptr2active_tfs[DOF];
-        Eigen::Isometry3f gai[DOF]; // Active joints frames
+        Eigen::Isometry3f * ptr2active_tfs[DOF+1];
+        Eigen::Isometry3f * ptr2active_expos[DOF];
+        Eigen::Isometry3f gai[DOF+1]; // Active joints frames
+        Eigen::Isometry3f exp_ai[DOF]; // Active joints frames
         Eigen::Isometry3f * ptr2passive_tfs[DOF];
         Eigen::Isometry3f gpj[METALINKS]; // Passive joints frames
         Eigen::Isometry3f * ptr2links_com_tfs[DOF];
@@ -51,17 +53,17 @@ class ScrewsDynamics: public ScrewsKinematics {
         // Basic functions for dynamic matrices
         Eigen::Matrix3f MassMatrix();
         Eigen::Matrix3f CoriolisMatrix();
-        Eigen::Matrix<float, DOF, 1> GravityVector();
+        Eigen::Matrix<float, DOF, 1> GravityVector(); // [25-7-24] DEPRECATED - NO USE
         Eigen::Matrix<float, DOF, 1> GravityVectorAnalytical();
         Eigen::Matrix<float, DOF, 1> FrictionVector();
         void MassMatrix_loc();
         void CoriolisMatrix_loc();
-        void GravityVector_loc();
+        void GravityVector_loc(); // [25-7-24] DEPRECATED - NO USE
         void FrictionVector_loc();
         float DynamicManipulabilityIndex(const Eigen::Matrix3f& J, const Eigen::Matrix3f& M);
         float DynamicManipulabilityIndex();
         std::pair<Eigen::Matrix3f, Eigen::Vector3f> DynamicManipulabilityEllipsoid();
-        
+
 	private:
         static constexpr float _g_z = -9.80665f;
 
@@ -102,7 +104,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         void updateCOMTfs();
         void updateActiveTfs();
         float computePotentialEnergy();
-        void extractActiveTfs();
+        void updateActiveExpos();
 
         // Simple auxiliary functions (for debugging)
 		void print66Matrix(Eigen::Matrix<float, 6, 6> matrix);

@@ -445,6 +445,8 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
+    // "_2" -> Only this updated the pointer, to access value from inherited classes
+    
     _debug_verbosity = false;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
@@ -537,6 +539,7 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
     // 1. updateJointState
     // NOTES:
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
+    // "_2" -> Only this updated the pointer, to access value from inherited classes
     _debug_verbosity = false;
     setExponentialsAnat(_joint_pos);
     // Calculate 1st joint frame
@@ -565,6 +568,10 @@ void ScrewsKinematics::ForwardKinematicsComFrames3DOF_2() {
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_x: %f", _trans_vector.x());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_y: %f", _trans_vector.y());
     ROS_DEBUG_COND(_debug_verbosity,"[ForwardKinematicsComFrames3DOF_2] gsl3_z: %f", _trans_vector.z()); 
+
+    ptr2_gl[0] = &g[0];
+    ptr2_gl[1] = &g[1];
+    ptr2_gl[2] = &g[2];
 
     return;
 }

@@ -297,7 +297,7 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
 
     _debug_verbosity = true;
     GV.setZero();
-    Eigen::Vector3f g_earth(0.0f, 0.0f, 9.80665f);
+    Eigen::Vector3f g_earth(0.0f, 0.0f, 9.80665f); // "-" removed and changed SIGNS in GV calculation
     
     LinkGeometricJacobians();
 
@@ -332,7 +332,22 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
     _debug_verbosity = true;
     updateActiveTfs();
     updateCOMTfs();
-    
+    GV.setZero();
+    Eigen::Vector3f g_earth(0.0f, 0.0f, 9.80665f); // "-" removed and changed SIGNS in GV calculation
+
+    // Needs updated gl[] from ScrewsKinematics
+    // Needs updates Jbsli from ScrewsKinematics
+
+    GV(0) = (  ( (*ptr_Jbsli[0][0]).head<3>().transpose() * ( ptr2_gl[0]->rotation() *  ( *(_ptr2abstract->link_mass[0]) * g_earth ) ) ) ).value() ;
+
+    GV(1) = ( ( (*ptr_Jbsli[0][1]).head<3>().transpose() * ( ptr2_gl[0]->rotation() *  ( *(_ptr2abstract->link_mass[0]) * g_earth ) ) ) \
+            + ( (*ptr_Jbsli[1][1]).head<3>().transpose() * ( ptr2_gl[1]->rotation() *  ( *(_ptr2abstract->link_mass[1]) * g_earth ) ) )\
+            + ( (*ptr_Jbsli[2][1]).head<3>().transpose() * ( ptr2_gl[2]->rotation() *  ( *(_ptr2abstract->link_mass[2]) * g_earth ) ) ) ).value() ;
+
+    GV(2) = ( ( (*ptr_Jbsli[0][2]).head<3>().transpose() * ( ptr2_gl[0]->rotation() *  ( *(_ptr2abstract->link_mass[0]) * g_earth ) ) ) \
+            + ( (*ptr_Jbsli[1][2]).head<3>().transpose() * ( ptr2_gl[1]->rotation() *  ( *(_ptr2abstract->link_mass[1]) * g_earth ) ) ) \
+            + ( (*ptr_Jbsli[2][2]).head<3>().transpose() * ( ptr2_gl[2]->rotation() *  ( *(_ptr2abstract->link_mass[2]) * g_earth ) ) ) ).value() ;
+
     if (_debug_verbosity) {std::cout << "[GravityVectorAnalyticalBody] G: " << "\n";}
     for (size_t i = 0; i < DOF; i++) {
         if (_debug_verbosity) {std::cout << GV(i) << "\n";} }

@@ -104,6 +104,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Isometry3f g[DOF+1]; // stores joint frames+tcp
 		Eigen::Isometry3f* g_ptr[DOF+1]; // stores joint frames+tcp
 		Eigen::Isometry3f gl[DOF];  // stores links' COM frames
+		Eigen::Isometry3f* ptr2_gl[DOF];  // stores links' COM frames
 		Eigen::Isometry3f Bi[DOF+1]; 
 		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
 		Eigen::Matrix<float, 6, DOF> Jbd63;

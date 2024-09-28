@@ -178,12 +178,12 @@ add_executable(clientOperationalSpaceJacobian src/clientOperationalSpaceJacobian
 add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
 add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
 add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
-add_executable(idosc_centralized src/idosc_centralized.cpp)
-add_executable(impedance_centralized src/impedance_centralized.cpp)
-add_executable(hybrid3_centralized src/hybrid3_centralized.cpp)
-add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
+#add_executable(idosc_centralized src/idosc_centralized.cpp)
+#add_executable(impedance_centralized src/impedance_centralized.cpp)
+#add_executable(hybrid3_centralized src/hybrid3_centralized.cpp)
+#add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
 #add_executable(idosc_action_server src/idosc_action_server.cpp)
-add_executable(idosc_action_client src/idosc_action_client.cpp)
+#add_executable(idosc_action_client src/idosc_action_client.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -194,7 +194,8 @@ add_executable(idosc_action_client src/idosc_action_client.cpp)
 ## same as for the library above
 #  add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 #add_dependencies(idosc_action_server  ${smm_screws_EXPORTED_TARGETS} )
-add_dependencies(idosc_action_client  ${smm_screws_EXPORTED_TARGETS} )
+#add_dependencies(idosc_action_client  ${smm_screws_EXPORTED_TARGETS} )
+
 ## Specify libraries to link a library or executable target against
 ## ONLY FOR LIBRARIES THAT HAVE A .cpp FILE!
 target_link_libraries(example
@@ -232,29 +233,31 @@ target_link_libraries(publishCurrentCartesianState
 ${catkin_LIBRARIES}
 robot_shared 
 ) 
-target_link_libraries(idosc_centralized
-${catkin_LIBRARIES}
-OperationalSpaceControllers 
-) 
-target_link_libraries(impedance_centralized
-${catkin_LIBRARIES}
-OperationalSpaceControllers 
-) 
-target_link_libraries(example_idosc_centralized
-${catkin_LIBRARIES}
-OperationalSpaceControllers 
-) 
-target_link_libraries(hybrid3_centralized
-${catkin_LIBRARIES}
-OperationalSpaceControllers 
-) 
-#target_link_libraries(idosc_action_server
+#target_link_libraries(idosc_centralized # [29-7-24] Removed because "idosc_centralized" was paused for now
 #${catkin_LIBRARIES}
 #OperationalSpaceControllers 
 #) 
-target_link_libraries(idosc_action_client
-${catkin_LIBRARIES}
-) 
+#target_link_libraries(impedance_centralized # [29-7-24] Removed because "impedance_centralized" was paused for now
+#${catkin_LIBRARIES}
+#OperationalSpaceControllers 
+#) 
+#target_link_libraries(example_idosc_centralized # [29-7-24] Removed because "example_idosc_centralized" was paused for now
+#${catkin_LIBRARIES}
+#OperationalSpaceControllers 
+#) 
+#target_link_libraries(hybrid3_centralized # [29-7-24] Removed because "hybrid3_centralized" was paused for now
+#${catkin_LIBRARIES}
+#OperationalSpaceControllers 
+#) 
+#target_link_libraries(idosc_action_server # [29-7-24] Removed because "idosc_action_server" was paused for now
+#${catkin_LIBRARIES}
+#OperationalSpaceControllers 
+#) 
+
+#target_link_libraries(idosc_action_client # [29-7-24] Removed because "idosc_action_client" was paused for now
+#${catkin_LIBRARIES}
+#) 
+
 # [4-10-23] Added Link between libraries, due to cpp inheritance
 target_link_libraries(ScrewsKinematics
   ${catkin_LIBRARIES}

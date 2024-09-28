@@ -3,8 +3,9 @@
 
 #include "smm_screws/ScrewsDynamics.h"
 #include "smm_screws/ScrewsVisualization.h"
-
-class robot_shared
+#include <hardware_interface/robot_hw.h> // [31-7-24] fighting idosc
+//class robot_shared
+class robot_shared : public hardware_interface::RobotHW
 {
 private:
     RobotAbstractBase *robot_ptr;
@@ -18,7 +19,7 @@ public:
         STRUCTURE_2_PSEUDOS,
         STRUCTURE_3_PSEUDOS
     };
-    
+
     robot_shared();  // Default constructor for backward compatibility
     robot_shared(RobotStructure structure); // Constructor with structure type
     robot_shared(RobotAbstractBase* robot_ptr, ros::NodeHandle& nh);

@@ -41,8 +41,8 @@ int main(int argc, char **argv)
     //ScrewsDynamics& smm_robot_dyn_solver = my_shared_lib.get_screws_dynamics_solver();    
     
     // Test code:
-    float q[3]  = {-0.4675 , 1.4464 , -1.5092};
-    float dq[3] = {0.2516  , 0.0147 , -0.0227};
+    float q[3] = {0.4181, 0.6901, 0.3649};
+    float dq[3] = {0.0083 , 0.0881, -0.1086};
     smm_robot_kin_solver.updateJointState(q, dq);
 
     // Working on ScrewsKinematics shake-up
@@ -53,6 +53,11 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.SpatialJacobian_Tool_1();
     smm_robot_kin_solver.SpatialJacobian_Tool_2();
     
+    // Operational Space Jacobians
+    smm_robot_kin_solver.BodyJacobian_Tool_1();
+    smm_robot_kin_solver.OperationalSpaceJacobian();
+    smm_robot_kin_solver.DtOperationalSpaceJacobian();
+
     //smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
     smm_robot_kin_solver.BodyCOMJacobians();
 

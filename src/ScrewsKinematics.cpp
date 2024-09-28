@@ -447,7 +447,7 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
     // "_2" -> Implements eq.94/p.241/[3], "this is also the classic Murray Book equation"
     // "_2" -> Only this updated the pointer, to access value from inherited classes
     
-    _debug_verbosity = false;
+    _debug_verbosity = true;
     setExponentials(_joint_pos);
     // Calculate 1st joint frame
     //*gs_a_i[0] = twistExp(_ptr2abstract->active_twists[0], q[0]) * *(_ptr2abstract->gsai_ptr[0]) ;  
@@ -492,7 +492,10 @@ void ScrewsKinematics::ForwardKinematics3DOF_2() {
         std::cout << "[ForwardKinematics3DOF_2] gs_a2:\n" << g[1].matrix() << std::endl;
         std::cout << "[ForwardKinematics3DOF_2] gs_a3:\n" << g[2].matrix() << std::endl;
         std::cout << "[ForwardKinematics3DOF_2] gs_t:\n"  << g[3].matrix() << std::endl;
+        std::cout << "[ForwardKinematics3DOF_2] Pi_0:\n"  << _Pi[0].matrix() << std::endl;
+        std::cout << "[ForwardKinematics3DOF_2] Pi_1:\n"  << _Pi[1].matrix() << std::endl;
     }
+
     return;
 }
 
@@ -591,7 +594,7 @@ void ScrewsKinematics::SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_
 }
 
 void ScrewsKinematics::SpatialJacobian_Tool_1() {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     for (size_t i = 0; i < DOF; i++){
         ad(_ad, g[i]);
         *ptr2Jsp1[i] = _ad * iXi[i];
@@ -799,7 +802,7 @@ void ScrewsKinematics::BodyJacobian_Tool_2() {
 void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]
     // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // Form vector from joint velocities for proper multiplication
     Eigen::Vector3f dq_vector;
@@ -829,7 +832,7 @@ void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq
 void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]
     // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // Form vector from joint velocities for proper multiplication
     Eigen::Vector3f dq_vector;
@@ -992,17 +995,17 @@ void ScrewsKinematics::OperationalSpaceJacobian() {
     // nsidered. Forward Kinematics and Body Jacobian /{T} must be previously extracted for
     // the current configuration.
     // -> sets:Eigen::Matrix3f Jop
-    //_debug_verbosity = false;
+    _debug_verbosity = true;
     setBodyPositionJacobian();
     Jop = g[DOF].rotation() * Jbd_pos;
     ptr2Jop = &Jop;
-    //if (_debug_verbosity)
-    //{
-    //    ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
-    //    Jop(0, 0), Jop(0, 1), Jop(0, 2),
-    //    Jop(1, 0), Jop(1, 1), Jop(1, 2),
-    //    Jop(2, 0), Jop(2, 1), Jop(2, 2)); 
-    //}
+    if (_debug_verbosity)
+    {
+        ROS_INFO("Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+        Jop(0, 0), Jop(0, 1), Jop(0, 2),
+        Jop(1, 0), Jop(1, 1), Jop(1, 2),
+        Jop(2, 0), Jop(2, 1), Jop(2, 2)); 
+    }
     return; 
 }
 
@@ -1079,6 +1082,7 @@ void ScrewsKinematics::DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t) {
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
     dJop_t = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
+    ptr2dJop = &dJop_t;
     //if (_debug_verbosity)
     //{
     //    ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
@@ -1094,18 +1098,19 @@ void ScrewsKinematics::DtOperationalSpaceJacobian() {
     // Needs the spatial velocity twist, the FK tf of {T} frame and
     // Body Jacobian and its first time derivative
     // -> sets:Eigen::Matrix3f dJop
-    //_debug_verbosity = false; 
+    _debug_verbosity = true; 
     setBodyPositionJacobian(); // -> Jbd_pos
     setDtBodyPositionJacobian(); // -> dJbd_pos
     setDtRotationMatrix(); // -> dRst
     dJop = (dRst *  Jbd_pos) + ( g[DOF].rotation() * dJbd_pos );
-    //if (_debug_verbosity)
-    //{
-    //    ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
-    //    dJop(0, 0), dJop(0, 1), dJop(0, 2),
-    //    dJop(1, 0), dJop(1, 1), dJop(1, 2),
-    //    dJop(2, 0), dJop(2, 1), dJop(2, 2)); 
-    //}
+    ptr2dJop = &dJop;
+    if (_debug_verbosity)
+    {
+        ROS_INFO("Time Derivative of Operational Space Jacobian: \n%f %f %f \n%f %f %f \n%f %f %f", 
+        dJop(0, 0), dJop(0, 1), dJop(0, 2),
+        dJop(1, 0), dJop(1, 1), dJop(1, 2),
+        dJop(2, 0), dJop(2, 1), dJop(2, 2)); 
+    }
     return; 
 }
 

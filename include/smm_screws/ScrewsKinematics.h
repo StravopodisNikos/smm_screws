@@ -138,6 +138,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix3f dJop; // Time Derivative of the Operational Space Jacobian
 		Eigen::Matrix3f Jop; // Operational Space Jacobian
 		Eigen::Matrix3f* ptr2Jop;
+		Eigen::Matrix3f* ptr2dJop;
 		Eigen::Matrix<float, 6, 1> dVsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> dVbd_tool_twist;
 		Eigen::Vector4f Vop4;

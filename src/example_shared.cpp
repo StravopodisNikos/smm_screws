@@ -12,14 +12,15 @@ int main(int argc, char **argv)
     ScrewsDynamics& smm_robot_dyn_solver = my_shared_lib.get_screws_dynamics_solver();    
     
     // Test code:
-    float q[3] = {0, 0, -1.5436};
-    float dq[3] = {0 , -0.500, 0.7854};
+    float q[3] = {0.4181, 0.6901, 0.3649};
+    float dq[3] = {0.0083 , 0.0881, -0.1086};
 
     // Calculate Forward Kinematics
     smm_robot_kin_solver.updateJointState(q, dq);
     smm_robot_kin_solver.ForwardKinematics3DOF_2();
     smm_robot_kin_solver.BodyJacobian_Tool_1();
     smm_robot_kin_solver.OperationalSpaceJacobian();
+    smm_robot_kin_solver.DtOperationalSpaceJacobian();
 
     // Calculate Mass Matrix
     smm_robot_dyn_solver.updateJointPos(q);

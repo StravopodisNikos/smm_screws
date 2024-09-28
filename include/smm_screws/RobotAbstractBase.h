@@ -131,7 +131,7 @@ class Structure2Pseudos : public RobotAbstractBase {
 public:
     Structure2Pseudos () {
         initializeActiveElements();
-        for (int i = 0; i < METALINKS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
+        for (int i = 0; i < NUM_OF_PSEUDOJOINTS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
         for (int i = 0; i < 6; i++) { passive_twists[0](i, 0) = passive_definition::__passive_twist_0[i]; }   
         for (int i = 0; i < 6; i++) { passive_twists[1](i, 0) = passive_definition::__passive_twist_1[i]; }   
         META1_PSEUDOS = passive_definition::__META1_PSEUDOS;
@@ -154,9 +154,10 @@ class Structure3Pseudos : public RobotAbstractBase {
 public:
     Structure3Pseudos () {
         initializeActiveElements();
-        for (int i = 0; i < METALINKS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
+        for (int i = 0; i < NUM_OF_PSEUDOJOINTS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
         for (int i = 0; i < 6; i++) { passive_twists[0](i, 0) = passive_definition::__passive_twist_0[i]; }   
         for (int i = 0; i < 6; i++) { passive_twists[1](i, 0) = passive_definition::__passive_twist_1[i]; }   
+        for (int i = 0; i < 6; i++) { passive_twists[2](i, 0) = passive_definition::__passive_twist_2[i]; }           
         META1_PSEUDOS = passive_definition::__META1_PSEUDOS;
         META2_PSEUDOS = passive_definition::__META2_PSEUDOS;
     }

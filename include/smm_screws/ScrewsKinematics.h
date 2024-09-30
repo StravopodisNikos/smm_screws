@@ -79,10 +79,14 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtBodyJacobian_Tool_2();
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
 		void OperationalSpaceJacobian();
+		Eigen::Matrix3f* getOperationalJacobian();
 		Eigen::Matrix3f OperationalSpaceJacobian(const Eigen::Vector3f& qs);
+		void inverseOperationalSpaceJacobian();
+		Eigen::Matrix3f* getInverseOperationalJacobian();
 		Eigen::Matrix3f OperationalSpaceJacobian2();	
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 		void DtOperationalSpaceJacobian(); 
+		Eigen::Matrix3f* getDerivativeOperationalJacobian();
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
 		void DtToolVelocityTwist(typ_jacobian jacob_selection);
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
@@ -137,8 +141,10 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix3f Jbd_pos;
 		Eigen::Matrix3f dJop; // Time Derivative of the Operational Space Jacobian
 		Eigen::Matrix3f Jop; // Operational Space Jacobian
+		Eigen::Matrix3f iJop;
 		Eigen::Matrix3f* ptr2Jop;
 		Eigen::Matrix3f* ptr2dJop;
+		Eigen::Matrix3f* ptr2iJop;
 		Eigen::Matrix<float, 6, 1> dVsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> dVbd_tool_twist;
 		Eigen::Vector4f Vop4;

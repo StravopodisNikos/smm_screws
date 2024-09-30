@@ -55,35 +55,47 @@ int main(int argc, char **argv)
     
     // Operational Space Jacobians
     smm_robot_kin_solver.BodyJacobian_Tool_1();
+    //smm_robot_kin_solver.BodyJacobian_Tool_1(smm_robot_kin_solver.ptr2Jbd_t_1);
+    //smm_robot_kin_solver.BodyJacobian_Tool_2();
+    //smm_robot_kin_solver.BodyJacobian_Tool_2(smm_robot_kin_solver.ptr2Jbd_t_2);
+    //smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
+    //smm_robot_kin_solver.BodyJacobians();
+
     smm_robot_kin_solver.OperationalSpaceJacobian();
+    smm_robot_kin_solver.inverseOperationalSpaceJacobian();
+
+    smm_robot_kin_solver.DtBodyJacobian_Tool_1();
+    smm_robot_kin_solver.ToolVelocityTwist(ScrewsKinematics::typ_jacobian::SPATIAL);
     smm_robot_kin_solver.DtOperationalSpaceJacobian();
 
     //smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
-    smm_robot_kin_solver.BodyCOMJacobians();
+    //smm_robot_kin_solver.BodyCOMJacobians();
 
-    // update q,dq in ScrewsDynamics
-    smm_robot_dyn_solver.updateJointPos(q);
-    smm_robot_dyn_solver.updateJointVel(dq);
+    /*
+     *  [28-9-24] It works, but commented out the Dynamics, in order to debug Jacobians only   
+        // update q,dq in ScrewsDynamics
+        smm_robot_dyn_solver.updateJointPos(q);
+        smm_robot_dyn_solver.updateJointVel(dq);
 
-    // Calculate Mass Matrix
-    smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
+        // Calculate Mass Matrix
+        smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
 
-    // Calculate Coriolis Matrix
-    smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix();
+        // Calculate Coriolis Matrix
+        smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix();
 
-    // Calculate Gravity Vector
-    smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalytical();
-    // Passing pointers between classes to avoid: "Segmentation fault (core dumped)"
-    for (int i = 0; i < DOF; ++i) {
-        smm_robot_dyn_solver.ptr2_gl[i] = &smm_robot_kin_solver.gl[i];
-        for (int j = 0; j < DOF; ++j) {
-            smm_robot_dyn_solver.ptr_Jbsli[i][j] = &smm_robot_kin_solver.Jbsli[i][j];
+        // Calculate Gravity Vector
+        smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalytical();
+        // Passing pointers between classes to avoid: "Segmentation fault (core dumped)"
+        for (int i = 0; i < DOF; ++i) {
+            smm_robot_dyn_solver.ptr2_gl[i] = &smm_robot_kin_solver.gl[i];
+            for (int j = 0; j < DOF; ++j) {
+                smm_robot_dyn_solver.ptr_Jbsli[i][j] = &smm_robot_kin_solver.Jbsli[i][j];
+            }
         }
-    }
-    smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalyticalBody();
+        smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalyticalBody();
 
-    // Calculate the Friction Vector
-    smm_robot_dyn_solver.FV = smm_robot_dyn_solver.FrictionVector();
-    
+        // Calculate the Friction Vector
+        smm_robot_dyn_solver.FV = smm_robot_dyn_solver.FrictionVector();
+    */   
     return 0;
 }

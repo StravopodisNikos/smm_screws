@@ -71,7 +71,7 @@ void ScrewsDynamics::intializeLinkMassMatrices() {
 
 Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     // Calculates the Mass Matrix 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     //std::cout << "Joint Posistion1:" << _joint_pos[0] << std::endl;
     //std::cout << "Joint Posistion1:" << _joint_pos[1] << std::endl;
@@ -150,7 +150,7 @@ void ScrewsDynamics::MassMatrix_loc() {
 
 Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix() {
     // Calculates the Coriolis Matrix 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     CM.setZero();
     if (_debug_verbosity) {std::cout << "[CoriolisMatrix] C: " << "\n";}
     for (size_t i = 0; i < DOF; i++)
@@ -295,7 +295,7 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
     // [11-7-24] Implements MATLAB function in laptop-WIN10: 
     // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalytical.m
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     GV.setZero();
     Eigen::Vector3f g_earth(0.0f, 0.0f, 9.80665f); // "-" removed and changed SIGNS in GV calculation
     
@@ -329,7 +329,7 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
 Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
     // [11-7-24] Implements MATLAB function in laptop-WIN10: 
     // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalyticalBody.m   
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     updateActiveTfs();
     updateCOMTfs();
     GV.setZero();

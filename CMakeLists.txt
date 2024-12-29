@@ -140,10 +140,16 @@ include_directories(
   include
   ~/cpp_ws/libraries/eigen-3.4.0
   ~/cpp_ws/libraries/odeint-v2-master
+  ~/cpp_ws/libraries/fuzzylite/include
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
+add_library(fuzzylite_lib SHARED IMPORTED)
+set_target_properties(fuzzylite_lib PROPERTIES
+    IMPORTED_LOCATION ~/cpp_ws/libraries/fuzzylite/build/libfuzzylite.so
+)
+
  add_library(ScrewsMain
    src/ScrewsMain.cpp
  )
@@ -233,6 +239,7 @@ target_link_libraries(publishCurrentCartesianState
 ${catkin_LIBRARIES}
 robot_shared 
 ) 
+
 #target_link_libraries(idosc_centralized # [29-7-24] Removed because "idosc_centralized" was paused for now
 #${catkin_LIBRARIES}
 #OperationalSpaceControllers 
@@ -253,7 +260,6 @@ robot_shared
 #${catkin_LIBRARIES}
 #OperationalSpaceControllers 
 #) 
-
 #target_link_libraries(idosc_action_client # [29-7-24] Removed because "idosc_action_client" was paused for now
 #${catkin_LIBRARIES}
 #) 

@@ -36,7 +36,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix3f MM; // Marc Marquez (!), or Mass Matrix
         Eigen::Matrix3f CM; // Coriolis Matrix
         Eigen::Matrix<float, 3, 1> GV; // Gravity Vector
-        Eigen::Matrix<float, 3, 1> FV; // Friction Vector
+        Eigen::Matrix<float, 3, 1> FV; // Friction Vector      
         Eigen::Isometry3f * ptr2active_tfs[DOF+1];
         Eigen::Isometry3f * ptr2active_expos[DOF];
         Eigen::Isometry3f gai[DOF+1]; // Active joints frames

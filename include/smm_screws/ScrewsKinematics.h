@@ -4,6 +4,8 @@
 #include <memory>
 #include <iostream>
 #include <cstdlib>
+#include <stdexcept> // for exception error handling
+#include <memory>    // for unique_ptr
 #include "smm_screws/ScrewsMain.h"
 #include "smm_screws/RobotAbstractBase.h"
 #include "ros/ros.h"
@@ -78,15 +80,18 @@ class ScrewsKinematics: public ScrewsMain {
 		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[DOF]) ;
 		void DtBodyJacobian_Tool_2();
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
+		Eigen::Matrix3f OperationalSpaceJacobian(const Eigen::Vector3f& qs);
 		void OperationalSpaceJacobian();
 		Eigen::Matrix3f* getOperationalJacobian();
-		Eigen::Matrix3f OperationalSpaceJacobian(const Eigen::Vector3f& qs);
+		std::unique_ptr<Eigen::Matrix3f> OperationalSpaceJacobian_ptr(); 
 		void inverseOperationalSpaceJacobian();
 		Eigen::Matrix3f* getInverseOperationalJacobian();
+		std::unique_ptr<Eigen::Matrix3f> inverseOperationalSpaceJacobian_ptr();
 		Eigen::Matrix3f OperationalSpaceJacobian2();	
 		void DtOperationalSpaceJacobian(Eigen::Matrix3f &dJop_t);
 		void DtOperationalSpaceJacobian(); 
 		Eigen::Matrix3f* getDerivativeOperationalJacobian();
+		std::unique_ptr<Eigen::Matrix3f> DtOperationalSpaceJacobian_ptr();
 		void DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist );
 		void DtToolVelocityTwist(typ_jacobian jacob_selection);
 		void CartesianVelocity_twist(Eigen::Vector4f &v_qs); // Returns spatial velocity {T} using the Spatial Velocity twist
@@ -102,6 +107,8 @@ class ScrewsKinematics: public ScrewsMain {
 		float KinematicManipulabilityIndex();
 		std::pair<Eigen::Matrix3f, Eigen::Vector3f> KinematicManipulabilityEllipsoid(const Eigen::Matrix3f& J);
 		std::pair<Eigen::Matrix3f, Eigen::Vector3f> KinematicManipulabilityEllipsoid();
+		float JacobianConditionNumber(const Eigen::Matrix3f& J);
+		std::unique_ptr<Eigen::Matrix3f> DLSInverseJacobian(const Eigen::Matrix3f& J, float base_lambda_dls = 0.005f);
 
 		// Public Kinematic data members
 		Eigen::Matrix<float, 6, 1> iXi[DOF+1];

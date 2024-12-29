@@ -43,6 +43,9 @@ int main(int argc, char **argv)
     // Test code:
     float q[3] = {0.4181, 0.6901, 0.3649};
     float dq[3] = {0.0083 , 0.0881, -0.1086};
+
+    /*
+    // Joint Space Kinematics
     smm_robot_kin_solver.updateJointState(q, dq);
 
     // Working on ScrewsKinematics shake-up
@@ -67,12 +70,15 @@ int main(int argc, char **argv)
     smm_robot_kin_solver.DtBodyJacobian_Tool_1();
     smm_robot_kin_solver.ToolVelocityTwist(ScrewsKinematics::typ_jacobian::SPATIAL);
     smm_robot_kin_solver.DtOperationalSpaceJacobian();
-
+    */
+   
+    // Joint Space Dynamics
     //smm_robot_kin_solver.BodyJacobians(smm_robot_kin_solver.ptr2BodyJacobiansFrames);
     //smm_robot_kin_solver.BodyCOMJacobians();
 
     /*
      *  [28-9-24] It works, but commented out the Dynamics, in order to debug Jacobians only   
+    */    
         // update q,dq in ScrewsDynamics
         smm_robot_dyn_solver.updateJointPos(q);
         smm_robot_dyn_solver.updateJointVel(dq);
@@ -92,10 +98,11 @@ int main(int argc, char **argv)
                 smm_robot_dyn_solver.ptr_Jbsli[i][j] = &smm_robot_kin_solver.Jbsli[i][j];
             }
         }
-        smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalyticalBody();
+        smm_robot_kin_solver.BodyCOMJacobians();
+        smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalyticalBody(); // needs BodyCOMJacobians
 
         // Calculate the Friction Vector
         smm_robot_dyn_solver.FV = smm_robot_dyn_solver.FrictionVector();
-    */   
+       
     return 0;
 }

@@ -167,14 +167,14 @@ void ScrewsVisualization::publishTCPpos(const Eigen::Vector3f& tcp_pos) {
     marker.pose.orientation.z = 0.0;
     marker.pose.orientation.w = 1.0;
 
-    marker.scale.x = 0.05;
-    marker.scale.y = 0.05;
-    marker.scale.z = 0.05;
+    marker.scale.x = 0.005;
+    marker.scale.y = 0.005;
+    marker.scale.z = 0.005;
 
     marker.color.r = 0.0;
     marker.color.g = 1.0;
     marker.color.b = 0.0;
-    marker.color.a = 1.0;
+    marker.color.a = 0.5;
 
     tcp_pos_pub.publish(marker);
 }
@@ -211,7 +211,7 @@ void ScrewsVisualization::publishTCPvel(const Eigen::Vector3f& tcp_pos, const Ei
     marker.color.r = 0.988;
     marker.color.g = 0.0;
     marker.color.b = 0.816;
-    marker.color.a = 1.0;
+    marker.color.a = 0.5;
 
     tcp_vel_pub.publish(marker);
 }

@@ -59,12 +59,14 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix<float, DOF, 1> FrictionVector();
         void MassMatrix_loc();
         void CoriolisMatrix_loc();
+        Eigen::Vector3f computeBetaCoriolis(const Eigen::Matrix3f Gamma[3], const Eigen::Vector3f& dq);        
         void GravityVector_loc(); // [25-7-24] DEPRECATED - NO USE
         void FrictionVector_loc();
         float DynamicManipulabilityIndex(const Eigen::Matrix3f& J, const Eigen::Matrix3f& M);
         float DynamicManipulabilityIndex();
         std::pair<Eigen::Matrix3f, Eigen::Vector3f> DynamicManipulabilityEllipsoid();
 
+        Eigen::Matrix3f ChristoffelSymbols[3];
 	private:
         static constexpr float _g_z = -9.80665f;
 
@@ -92,7 +94,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         Eigen::Matrix<float, 1, 1> _parDer_MassIJ_ThetaK;
         Eigen::Matrix<float, 6, 6> _alpha_transpose;
         Eigen::Matrix3f parDerMass[3];
-        Eigen::Matrix3f ChristoffelSymbols[3];
+        //Eigen::Matrix3f ChristoffelSymbols[3];
         Eigen::Matrix<float, 6, 1> _LieBracketParDer[2];
         Eigen::Matrix<float, 1, 6> _xi_traspose;
         float _PotEnergy_prev;;

@@ -196,6 +196,30 @@ void ScrewsDynamics::CoriolisMatrix_loc() {
     return;
 }
 
+Eigen::Vector3f ScrewsDynamics::computeBetaCoriolis(const Eigen::Matrix3f Gamma[3], const Eigen::Vector3f& dq) {
+    // This is the Matrix given in eq.4.13 in Khatib textbook
+
+    // Extract the 3 slices of the Gamma array
+    Eigen::Matrix3f b1 = Gamma[0];
+    Eigen::Matrix3f b2 = Gamma[1];
+    Eigen::Matrix3f b3 = Gamma[2];
+
+    // Initialize the B matrix
+    Eigen::Matrix<float, 3, 6> B;
+    B.row(0) << b1(0, 0), 2 * b1(0, 1), 2 * b1(0, 2), b1(1, 1), 2 * b1(1, 2), b1(2, 2);
+    B.row(1) << b2(0, 0), 2 * b2(0, 1), 2 * b2(0, 2), b2(1, 1), 2 * b2(1, 2), b2(2, 2);
+    B.row(2) << b3(0, 0), 2 * b3(0, 1), 2 * b3(0, 2), b3(1, 1), 2 * b3(1, 2), b3(2, 2);
+
+    // Compute the qq vector
+    Eigen::Matrix<float, 6, 1> qq;
+    qq << std::pow(dq(0), 2), dq(0) * dq(1), dq(0) * dq(2), std::pow(dq(1), 2), dq(1) * dq(2), std::pow(dq(2), 2);
+
+    // Compute b_christ
+    Eigen::Vector3f b_christ = B * qq;
+
+    return b_christ;
+}
+
 Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
     _debug_verbosity = false;
     GV.setZero();

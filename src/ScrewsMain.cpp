@@ -24,6 +24,36 @@ void ScrewsMain::formTwist(Eigen::Matrix4f & xi_se3, Eigen::Matrix<float, 6, 1> 
     xi_se3.block<1, 4>(3, 0) =  Eigen::Vector4f::Zero();
 }
 
+/*
+Eigen::Matrix<float, 6, 1> ScrewsMain::createTwist(const Eigen::Vector3f& omega, const Eigen::Vector3f& q) {
+    // Returns 6x1 twist vector: [v; omega]
+    // Used to extract active joints' twists of loaded 
+    // structure/anatomy in kinematic synthesis 
+
+    Eigen::Vector3f omega_normalized = omega;
+    Eigen::Vector3f v;
+
+    if (omega.norm() < 1e-8)
+    {
+        // Pure translation
+        v = q.normalized();
+        omega_normalized = Eigen::Vector3f::Zero();
+    }
+    else
+    {
+        // Revolute motion
+        omega_normalized.normalize();
+        v = -omega_normalized.cross(q);
+    }
+
+    Eigen::Matrix<float, 6, 1> twist;
+    twist.head<3>() = v;
+    twist.tail<3>() = omega_normalized;
+
+    return twist;
+}
+*/
+
 void ScrewsMain::splitTwist(const Eigen::Matrix<float, 6, 1> xi_R6, Eigen::Vector3f & v, Eigen::Vector3f & w) {
     v = xi_R6.block<3, 1>(0, 0);
     w = xi_R6.block<3, 1>(3, 0);

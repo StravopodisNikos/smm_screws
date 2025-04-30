@@ -114,7 +114,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  CATKIN_DEPENDS  
-#  LIBRARIES smm_screws
+  LIBRARIES smm_screws
   CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs tf2 tf2_ros message_runtime  actionlib_msgs dynamic_reconfigure # [18-10-23] Added for custom msg generation 
                                                                                                                # [3-11-23] Added action generation
                                                                                                                # [20-7-24] Added dynamic_reconfigure,rospy
@@ -149,6 +149,8 @@ add_library(fuzzylite_lib SHARED IMPORTED)
 set_target_properties(fuzzylite_lib PROPERTIES
     IMPORTED_LOCATION ~/cpp_ws/libraries/fuzzylite/build/libfuzzylite.so
 )
+
+add_library(smm_screws INTERFACE)
 
  add_library(ScrewsMain
    src/ScrewsMain.cpp
@@ -281,6 +283,14 @@ target_link_libraries(robot_shared
 target_link_libraries(OperationalSpaceControllers
   ${catkin_LIBRARIES}
   robot_shared
+)
+target_link_libraries(smm_screws INTERFACE
+  ScrewsKinematics
+  ScrewsDynamics
+  ScrewsMain
+  ScrewsVisualization
+  robot_shared
+  OperationalSpaceControllers
 )
 #############
 ## Install ##

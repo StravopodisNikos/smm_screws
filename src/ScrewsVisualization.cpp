@@ -112,7 +112,7 @@ void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1
         //rotation_matrix = ptr2_active_tfs[i]->rotation();
         //active_tf_quaternion = Eigen::Quaternionf(rotation_matrix);
 
-        ROS_INFO("[publishTwists] Active Joint [%zu] Quaternion: W: %f, X: %f, Y: %f, Z: %f", i, active_tf_quaternion.w(), active_tf_quaternion.x(), active_tf_quaternion.y(), active_tf_quaternion.z());        
+        //ROS_INFO("[publishTwists] Active Joint [%zu] Quaternion: W: %f, X: %f, Y: %f, Z: %f", i, active_tf_quaternion.w(), active_tf_quaternion.x(), active_tf_quaternion.y(), active_tf_quaternion.z());        
 
         // Murray way
         // Initialize orientation using the extracted quaternion

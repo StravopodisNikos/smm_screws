@@ -1,5 +1,9 @@
 //#include <smm_screws/ScrewsDynamics.h>
 #include <smm_screws/robot_shared.h>
+#include <iostream>
+
+Eigen::Vector3f bc = Eigen::Vector3f::Zero();
+Eigen::Vector3f dq_vec = Eigen::Vector3f::Zero();
 
 int main(int argc, char **argv)
 {
@@ -43,7 +47,7 @@ int main(int argc, char **argv)
     // Test code:
     float q[3] = {0.4181, 0.6901, 0.3649};
     float dq[3] = {0.0083 , 0.0881, -0.1086};
-
+    
     /*
     // Joint Space Kinematics
     smm_robot_kin_solver.updateJointState(q, dq);
@@ -87,7 +91,13 @@ int main(int argc, char **argv)
         smm_robot_dyn_solver.MM = smm_robot_dyn_solver.MassMatrix();
 
         // Calculate Coriolis Matrix
-        smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix();
+        smm_robot_dyn_solver.CM = smm_robot_dyn_solver.CoriolisMatrix(); // updates ChristoffelSymbols
+
+        dq_vec << dq[0], dq[1], dq[2]; 
+        bc = smm_robot_dyn_solver.computeBetaCoriolis(smm_robot_dyn_solver.ChristoffelSymbols, dq_vec); 
+
+        // Print the Eigen vector
+        std::cout << "bc: " << bc.transpose() << std::endl;
 
         // Calculate Gravity Vector
         smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalytical();

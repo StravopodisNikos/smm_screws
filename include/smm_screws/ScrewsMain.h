@@ -35,6 +35,7 @@ public:
     void formTwist(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen::Vector3f v, Eigen::Vector3f w);
     void formTwist(Eigen::Matrix4f & xi_se3, Eigen::Vector3f v, Eigen::Matrix3f wHat);
     void formTwist(Eigen::Matrix4f & xi_se3, Eigen::Matrix<float, 6, 1> xi_R6);
+    //Eigen::Matrix<float, 6, 1> createTwist(const Eigen::Vector3f& omega, const Eigen::Vector3f& q);
     void splitTwist(const Eigen::Matrix<float, 6, 1> xi_R6, Eigen::Vector3f & v, Eigen::Vector3f & w);
     void splitTwist(const Eigen::Matrix4f xi_se3, Eigen::Vector3f & v, Eigen::Vector3f & w);
     void splitTwist(const Eigen::Matrix4f xi_se3, Eigen::Vector3f & v, Eigen::Matrix3f & wHat);
@@ -60,6 +61,33 @@ public:
     Eigen::Matrix<float, 6, 3> mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array);    
     void extract_twist_points(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen::Vector3f& start, Eigen::Vector3f& end);
     Eigen::Vector4f extractRotationQuaternion(const Eigen::Isometry3f g);
+
+    // Template functions    
+    template<typename Scalar>
+    Eigen::Matrix<Scalar, 6, 1> createTwist(const Eigen::Matrix<Scalar, 3, 1>& omega,
+                                            const Eigen::Matrix<Scalar, 3, 1>& q) const
+    {
+        Eigen::Matrix<Scalar, 3, 1> omega_normalized = omega;
+        Eigen::Matrix<Scalar, 3, 1> v;
+
+        if (omega.norm() < static_cast<Scalar>(1e-8))
+        {
+            // Pure translation
+            v = q.normalized();
+            omega_normalized = Eigen::Matrix<Scalar, 3, 1>::Zero();
+        }
+        else
+        {
+            omega_normalized.normalize();
+            v = -omega_normalized.cross(q);
+        }
+
+        Eigen::Matrix<Scalar, 6, 1> twist;
+        twist.template head<3>() = v;
+        twist.template tail<3>() = omega_normalized;
+        
+        return twist;
+    }
 
 private:
     float _st;

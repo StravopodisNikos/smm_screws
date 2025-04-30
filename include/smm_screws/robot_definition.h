@@ -42,7 +42,7 @@ namespace robot_definition {
     // [I.3] MATLAB variable: [gst0]
     float gst0[4][4]= {
     {-1.0f , 0.0f , 0.0f , 0.025f },
-    {0.0f , 0.0f , -1.0f , -0.3685f },
+    {0.0f , 0.0f , -1.0f , -0.3650f },
     {0.0f , -1.0f , -0.0f , 0.6429f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
     }; 
@@ -74,8 +74,8 @@ namespace robot_definition {
     // [II.3] MATLAB variable: [gst_anat]
     float gst_test_0[4][4]= {
     {-1.0f , 0.0f , 0.0f , 0.025f },
-    {0.0f , 0.9010f , -0.4339f , -0.3914f },
-    {0.0f , -0.4339f , -0.9010f , 0.2752f },
+    {0.0f , 0.9010f , -0.4339f , -0.3899f },
+    {0.0f , -0.4339f , -0.9010f , 0.2784f },
     {0.0f , 0.0f , 0.0f , 1.0f } 
     };
     // [II.4] MATLAB variable: [gsli0_test]

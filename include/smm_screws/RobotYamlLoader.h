@@ -1,0 +1,37 @@
+#ifndef ROBOT_YAML_LOADER_H
+#define ROBOT_YAML_LOADER_H
+
+#include <Eigen/Dense>
+#include <yaml-cpp/yaml.h>
+#include <ros/package.h>
+#include <string>
+#include <vector>
+#include "smm_screws/robot_parameters.h"
+
+class RobotYamlLoader {
+public:
+    //static constexpr int DOF = 3;
+    //static constexpr int METALINKS = 2;
+
+    int NUM_OF_PSEUDOJOINTS = 0;
+    int META1_PSEUDOS = 0;
+    int META2_PSEUDOS = 0;
+
+    Eigen::Matrix<float, 6, 1> active_twist_anat[robot_params::DOF];
+    Eigen::Isometry3f gst_test_0;
+    Eigen::Isometry3f gsa_test[robot_params::DOF];
+    Eigen::Matrix<float, 6, 1> passive_twist[robot_params::DOF];
+    Eigen::Isometry3f gsl_test[robot_params::DOF];
+    Eigen::Matrix<float, 6, 6> M_s[robot_params::DOF];
+
+    bool loadAll();
+
+private:
+    std::string basePath = ros::package::getPath("smm_synthesis") + "/config/yaml/";
+
+    Eigen::Matrix4f loadMatrix4f(const YAML::Node& node);
+    Eigen::Matrix<float, 6, 1> loadTwist6f(const YAML::Node& node);
+    Eigen::Matrix<float, 6, 6> loadMatrix6x6f(const YAML::Node& node);
+};
+
+#endif  // ROBOT_YAML_LOADER_H

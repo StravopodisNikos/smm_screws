@@ -85,17 +85,17 @@ int main(int argc, char **argv)
     //nh.setParam("/z_s_TCP", _pos_tcp_vector.z() );
 
     // Initializing kinematic matrices for jacobian calculation
-    Eigen::Isometry3f* rel_tfs[DOF+1]; 
+    Eigen::Isometry3f* rel_tfs[robot_params::DOF+1]; 
     //Eigen::Isometry3f B[DOF+1];
-    for (size_t i = 0; i < DOF+1; i++)
+    for (size_t i = 0; i < robot_params::DOF+1; i++)
     {
         rel_tfs[i] = &smm_robot_kin_solver.Bi[i];
     }
     smm_robot_kin_solver.initializeRelativeTfs(rel_tfs);
     
-    Eigen::Matrix<float, 6, 1>* local_screws[DOF+1]; 
+    Eigen::Matrix<float, 6, 1>* local_screws[robot_params::DOF+1]; 
     //Eigen::Matrix<float, 6, 1>  iXi[DOF+1]; 
-    for (size_t i = 0; i < DOF+1; i++)
+    for (size_t i = 0; i < robot_params::DOF+1; i++)
     {
         local_screws[i] = &smm_robot_kin_solver.iXi[i];
     }

@@ -17,7 +17,8 @@ public:
     // Enumeration for supported robot structures
     enum RobotStructure {
         STRUCTURE_2_PSEUDOS,
-        STRUCTURE_3_PSEUDOS
+        STRUCTURE_3_PSEUDOS,
+        STRUCTURE_4_PSEUDOS
     };
 
     robot_shared();  // Default constructor for backward compatibility

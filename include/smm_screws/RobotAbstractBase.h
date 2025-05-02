@@ -3,199 +3,153 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Core>
-#include "smm_screws/robot_definition.h"
-#include "smm_screws/passive_definition.h"
+#include <smm_screws/RobotYamlLoader.h>
+#include "smm_screws/robot_parameters.h"
 
-#define ARRAY_33_SIZE 9
+#define ARRAY_33_SIZE       9
 
-// This is the base class that contains the funtamental geometry properties 
-// of any serial metamorphic structure. Currently 3dof structures are suppo-
-// rted with 2 metamorphic links.
 class RobotAbstractBase {
 public:
-    // DATA COMMON FOR ALL:
-    // 1. the active joints twists
-    // 2. the joint frames (joints+tcp)
-    // 3. the links COM frames
-    // 4.
-    // 5.
-    // 6.
-    Eigen::Matrix<float, 6, 1> active_twists[DOF];      // these are the twists in reference anatomy!
-    Eigen::Matrix<float, 6, 1> active_twists_anat[DOF]; // these are the twists in implemented anatomy(based on passive_definition & urdf robot)!
-    Eigen::Matrix<float, 6, 1>* ptr2_active_twists_anat[DOF];
-    Eigen::Isometry3f* gsai_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ zero configuration
-    Eigen::Isometry3f* gsai_test_ptr[DOF+1]; // matrix of pointers to the arrays of the joint tfs + gst @ test anatomy && @ zero configuration
-    Eigen::Isometry3f* gsli_test_ptr[DOF];   // matrix of pointers to the arrays of the ljnks com tfs
-    Eigen::Isometry3f g_ref_0[DOF+1];
-    Eigen::Isometry3f g_test_0[DOF+1];
-    Eigen::Isometry3f gl_test_0[DOF];
-    float* link_mass[DOF];
-    float* link_inertia[DOF];
-    Eigen::Matrix<float, 6, 6> Mi_s[DOF];
-    Eigen::Matrix<float, 6, 6>* Mi_s_ptr[DOF];
-    float* fc_coeffs[DOF]; // Active Joints friction coeffs
-    float* fv_coeffs[DOF];
+    //static constexpr int DOF = 3;
 
-    // REAL PUBLIC FUNCTION
-    void initializeActiveElements() {
-        // Active Joints twists
-        for (int i = 0; i < 6; i++) { active_twists[0](i, 0) = robot_definition::__active_twist_0[i]; }   
-        for (int i = 0; i < 6; i++) { active_twists[1](i, 0) = robot_definition::__active_twist_1[i]; }  
-        for (int i = 0; i < 6; i++) { active_twists[2](i, 0) = robot_definition::__active_twist_2[i]; } 
-        // Active Joints Twists @ test anatomy && @ zero configuration
-        for (int i = 0; i < 6; i++) { active_twists_anat[0](i, 0) = robot_definition::__active_twist_anat_0[i]; }   
-        for (int i = 0; i < 6; i++) { active_twists_anat[1](i, 0) = robot_definition::__active_twist_anat_1[i]; }  
-        for (int i = 0; i < 6; i++) { active_twists_anat[2](i, 0) = robot_definition::__active_twist_anat_2[i]; }   
-        // Active Joints exponentials @ zero configuration
-        // Joints TFs exponentials @ ref anatomy && @ zero configuration 
-        for (int i = 0; i < DOF+1; i++) { g_ref_0[i].setIdentity();} // preallocate memory
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[0](i, j) = robot_definition::gsa10[i][j]; } }
-        gsai_ptr[0] = &g_ref_0[0];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[1](i, j) = robot_definition::gsa20[i][j]; } }
-        gsai_ptr[1] = &g_ref_0[1];   
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[2](i, j) = robot_definition::gsa30[i][j]; } }
-        gsai_ptr[2] = &g_ref_0[2];  
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_ref_0[3](i, j) = robot_definition::gst0[i][j]; } }
-        gsai_ptr[3] = &g_ref_0[3];
-        // Joints TFs exponentials @ test anatomy && @ zero configuration 
-        for (int i = 0; i < DOF+1; i++) { g_test_0[i].setIdentity();} // preallocate memory 
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[0](i, j) = robot_definition::gsa1_test_0[i][j]; } }
-        gsai_test_ptr[0] = &g_test_0[0];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[1](i, j) = robot_definition::gsa2_test_0[i][j]; } }
-        gsai_test_ptr[1] = &g_test_0[1];   
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[2](i, j) = robot_definition::gsa3_test_0[i][j]; } }
-        gsai_test_ptr[2] = &g_test_0[2];  
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { g_test_0[3](i, j) = robot_definition::gst_test_0[i][j]; } }
-        gsai_test_ptr[3] = &g_test_0[3];        
-        // Links COM exponentials @ test anatomy && @ zero configuration 
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[0](i, j) = robot_definition::gsl1_test_0[i][j]; } }
-        gsli_test_ptr[0] = &gl_test_0[0];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[1](i, j) = robot_definition::gsl2_test_0[i][j]; } }
-        gsli_test_ptr[1] = &gl_test_0[1];
-        for (int i = 0; i < 4; i++) { for (int j = 0; j < 4; j++) { gl_test_0[2](i, j) = robot_definition::gsl3_test_0[i][j]; } }
-        gsli_test_ptr[2] = &gl_test_0[2];
-        // Links masses
-        for (int i = 0; i < DOF; i++) { link_mass[i] = &robot_definition::__masses[i]; }
-        // Link inertias
-        for (int i = 0; i < DOF; i++) { link_inertia[i] = &robot_definition::__inertias[i]; }
-        // Link Inertia Matrices / {S}
-        for (int i = 0; i < 6; ++i) {
-            for (int j = 0; j < 6; ++j) {
-                Mi_s[0](i, j) = robot_definition::M_s_1[i][j];
-                Mi_s[1](i, j) = robot_definition::M_s_2[i][j];
-                Mi_s[2](i, j) = robot_definition::M_s_3[i][j];
-            }
+    Eigen::Matrix<float, 6, 1> active_twists[robot_params::DOF];      
+    Eigen::Matrix<float, 6, 1> active_twists_anat[robot_params::DOF]; 
+    Eigen::Matrix<float, 6, 1>* ptr2_active_twists_anat[robot_params::DOF];
+
+    Eigen::Isometry3f* gsai_ptr[robot_params::DOF+1];        
+    Eigen::Isometry3f* gsai_test_ptr[robot_params::DOF+1];   
+    Eigen::Isometry3f* gsli_test_ptr[robot_params::DOF];     
+
+    Eigen::Isometry3f g_ref_0[robot_params::DOF+1];
+    Eigen::Isometry3f g_test_0[robot_params::DOF+1];
+    Eigen::Isometry3f gl_test_0[robot_params::DOF];
+
+    float* link_mass[robot_params::DOF];
+    float* link_inertia[robot_params::DOF];
+    Eigen::Matrix<float, 6, 6> Mi_s[robot_params::DOF];
+    Eigen::Matrix<float, 6, 6>* Mi_s_ptr[robot_params::DOF];
+
+    float* fc_coeffs[robot_params::DOF]; 
+    float* fv_coeffs[robot_params::DOF]; 
+
+    RobotYamlLoader yaml_loader;
+
+    bool initializeFromYaml() {
+        if (!yaml_loader.loadAll()) {
+            std::cerr << "Failed to load robot data from YAML." << std::endl;
+            return false;
         }
-        Mi_s_ptr[0] = &Mi_s[0];
-        Mi_s_ptr[1] = &Mi_s[1];
-        Mi_s_ptr[2] = &Mi_s[2];
-        // Joints Friction coeffs
-        for (int i = 0; i < DOF; i++) { fc_coeffs[i] = &robot_definition::__fc_coeffs[i]; }
-        for (int i = 0; i < DOF; i++) { fv_coeffs[i] = &robot_definition::__fv_coeffs[i]; }
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+            active_twists_anat[i] = yaml_loader.active_twist_anat[i];
+            ptr2_active_twists_anat[i] = &active_twists_anat[i];
+        }
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+            g_test_0[i] = yaml_loader.gsa_test[i];
+            gsai_test_ptr[i] = &g_test_0[i];
+        }
+        g_test_0[robot_params::DOF] = yaml_loader.gst_test_0;
+        gsai_test_ptr[robot_params::DOF] = &g_test_0[robot_params::DOF];
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+            gl_test_0[i] = yaml_loader.gsl_test[i];
+            gsli_test_ptr[i] = &gl_test_0[i];
+        }
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+            Mi_s[i] = yaml_loader.M_s[i];
+            Mi_s_ptr[i] = &Mi_s[i];
+        }
+
+        // Dummy assignments for abstract base
+        static float dummy_mass[robot_params::DOF] = {1.0f, 1.0f, 1.0f};
+        static float dummy_inertia[robot_params::DOF] = {1.0f, 1.0f, 1.0f};
+        static float dummy_fc[robot_params::DOF] = {1.0f, 1.0f, 1.0f};
+        static float dummy_fv[robot_params::DOF] = {50.0f, 50.0f, 50.0f};
+        for (int i = 0; i < robot_params::DOF; i++) {
+            link_mass[i] = &dummy_mass[i];
+            link_inertia[i] = &dummy_inertia[i];
+            fc_coeffs[i] = &dummy_fc[i];
+            fv_coeffs[i] = &dummy_fv[i];
+        }
+
+        return true;
     }
 
-    // VIRTUAL FUNCTIONS
     virtual ~RobotAbstractBase() {}
-    virtual  uint8_t get_STRUCTURE_ID()  = 0;
-    virtual  uint8_t get_PSEUDOS_METALINK1()  = 0;
-    virtual  uint8_t get_PSEUDOS_METALINK2()  = 0;
-    virtual  float get_PSEUDO_ANGLES(int index)  = 0;
-    virtual  Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index)  = 0;
+    virtual uint8_t get_STRUCTURE_ID() = 0;
+    virtual uint8_t get_PSEUDOS_METALINK1() = 0;
+    virtual uint8_t get_PSEUDOS_METALINK2() = 0;
+    virtual float get_PSEUDO_ANGLES(int index) = 0;
+    virtual Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) = 0;
 };
 
-// This is a "dummy" class, but important if you want to use the ros_pkg for 
-// fixed-structure serial manipulators. Every virtual function of the abstract
-// class must be implemented (for compile issues), but "0" values are returned.
+// ========================= FIXED STRUCTURE =========================
 class FixedStructure : public RobotAbstractBase {
 public:
-    FixedStructure () { initializeActiveElements(); }
+    FixedStructure() {
+        initializeFromYaml();  // uses only reference data in this case
+    }
 
-    static constexpr int SMM_PSEUDOS = 0;
-    uint8_t META1_PSEUDOS = 0;
-    uint8_t META2_PSEUDOS = 0;
-    float pseudo_angles = 0;
-    Eigen::Matrix<float, 6, 1> passive_twists;
-
-    uint8_t get_STRUCTURE_ID() { return SMM_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK1() { return META1_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK2() { return META2_PSEUDOS; }
-    float get_PSEUDO_ANGLES(int index) {return pseudo_angles;}
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists;}
+    uint8_t get_STRUCTURE_ID() override { return 0; }
+    uint8_t get_PSEUDOS_METALINK1() override { return 0; }
+    uint8_t get_PSEUDOS_METALINK2() override { return 0; }
+    float get_PSEUDO_ANGLES(int index) override { return 0.0f; }
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+        return Eigen::Matrix<float, 6, 1>::Zero();
+    }
 };
-        
-// This the Class that handles the structures with 2 pseudojoints. In this case
-// it is obvious that each metamorphic link has 1 pseudojoint. Despite that, the
-// variables META1_PSEUDOS,META2_PSEUDOS are not defined "static constexpr" for
-// following the same logic with the next structures with more pseudojoints.
+
+// ====================== STRUCTURE WITH 2 PSEUDOS ======================
 class Structure2Pseudos : public RobotAbstractBase {
 public:
-    Structure2Pseudos () {
-        initializeActiveElements();
-        for (int i = 0; i < NUM_OF_PSEUDOJOINTS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
-        for (int i = 0; i < 6; i++) { passive_twists[0](i, 0) = passive_definition::__passive_twist_0[i]; }   
-        for (int i = 0; i < 6; i++) { passive_twists[1](i, 0) = passive_definition::__passive_twist_1[i]; }   
-        META1_PSEUDOS = passive_definition::__META1_PSEUDOS;
-        META2_PSEUDOS = passive_definition::__META2_PSEUDOS;
+    Structure2Pseudos() {
+        initializeFromYaml();
     }
-    static constexpr int SMM_PSEUDOS = 2; // static, no change after compile
-    uint8_t META1_PSEUDOS; // must change in node (in the class object construction)
-    uint8_t META2_PSEUDOS; // " ... "
-    float pseudo_angles[SMM_PSEUDOS];
-    Eigen::Matrix<float, 6, 1> passive_twists[SMM_PSEUDOS];
 
-    uint8_t get_STRUCTURE_ID()  { return SMM_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK1()  { return META1_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK2()  { return META2_PSEUDOS; }
-    float get_PSEUDO_ANGLES(int index)  { return pseudo_angles[index]; }
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists[index]; }
+    uint8_t get_STRUCTURE_ID() override { return 2; }
+    uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
+
+    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+        return yaml_loader.passive_twist[index];
+    }
 };
 
+// ====================== STRUCTURE WITH 3 PSEUDOS ======================
 class Structure3Pseudos : public RobotAbstractBase {
 public:
-    Structure3Pseudos () {
-        initializeActiveElements();
-        for (int i = 0; i < NUM_OF_PSEUDOJOINTS; i++) { pseudo_angles[i] = passive_definition::__pseudo_angles[i]; }
-        for (int i = 0; i < 6; i++) { passive_twists[0](i, 0) = passive_definition::__passive_twist_0[i]; }   
-        for (int i = 0; i < 6; i++) { passive_twists[1](i, 0) = passive_definition::__passive_twist_1[i]; }   
-        for (int i = 0; i < 6; i++) { passive_twists[2](i, 0) = passive_definition::__passive_twist_2[i]; }           
-        META1_PSEUDOS = passive_definition::__META1_PSEUDOS;
-        META2_PSEUDOS = passive_definition::__META2_PSEUDOS;
+    Structure3Pseudos() {
+        initializeFromYaml();
     }
-    static constexpr int SMM_PSEUDOS = 3; // static, no change after compile
-    uint8_t META1_PSEUDOS; // must change in node (in the class object construction)
-    uint8_t META2_PSEUDOS; // " ... "
-    float pseudo_angles[SMM_PSEUDOS];
-    Eigen::Matrix<float, 6, 1> passive_twists[SMM_PSEUDOS];
 
-    uint8_t get_STRUCTURE_ID()  { return SMM_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK1()  { return META1_PSEUDOS; }
-    uint8_t get_PSEUDOS_METALINK2()  { return META2_PSEUDOS; }
-    float get_PSEUDO_ANGLES(int index)  { return pseudo_angles[index]; }
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) { return passive_twists[index]; }
+    uint8_t get_STRUCTURE_ID() override { return 3; }
+    uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
+
+    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+        return yaml_loader.passive_twist[index];
+    }
 };
-// to be expanded soon...
-/*
+
+// ====================== STRUCTURE WITH 4 PSEUDOS ======================
 class Structure4Pseudos : public RobotAbstractBase {
 public:
-    static constexpr int SMM_PSEUDOS = 4;
-    float  pseudo_angles[SMM_PSEUDOS];
-    Eigen::Matrix<float, 6, 1> passive_twists[SMM_PSEUDOS];
-
-    uint8_t get_STRUCTURE_ID() const override { return SMM_PSEUDOS; }
-    // Implement the virtual function to return the passive_twists for Structure2Pseudos
-    const Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) const override {
-        // Ensure index is within bounds (0 <= index < SMM_PSEUDOS)
-        if (index >= 0 && index < SMM_PSEUDOS) {
-            return passive_twists[index];
-        } else {
-            // Return some default value or handle the error as per your requirement
-            // Here, we return the first passive_twists by default
-            return passive_twists[0];
-        }
+    Structure4Pseudos() {
+        initializeFromYaml();
     }
-    const float getPSEUDO_ANGLE(int index) const override {
-        return pseudo_angles[index];
+
+    uint8_t get_STRUCTURE_ID() override { return 4; }
+    uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
+    uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
+
+    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+        return yaml_loader.passive_twist[index];
     }
 };
-*/
-#endif 
+
+#endif  // ROBOT_ABSTRACT_BASE_H

@@ -15,8 +15,8 @@ ScrewsKinematics smm_robot_kin_solver;
 
 std::vector<double> jointPositions;
 std::vector<double> jointVelocities;
-float q_received[DOF];
-float dq_received[DOF];
+float q_received[robot_params::DOF];
+float dq_received[robot_params::DOF];
 
 void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, ros::Publisher& cartesian_state_pub)
 {
@@ -29,7 +29,7 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     jointPositions = joint_state->position;
     jointVelocities = joint_state->velocity;
     // 1. Get the joint position,velocity data from /joint states
-    for (size_t i = 0; i < DOF; ++i) {
+    for (size_t i = 0; i < robot_params::DOF; ++i) {
         q_received[i] = static_cast<float>(jointPositions[i]);
         dq_received[i] = static_cast<float>(jointVelocities[i]);
     }

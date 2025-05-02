@@ -17,8 +17,8 @@ public:
         OLIVE   // Dynamic
     };
 
-    void publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF]);
-    void publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1]);
+    void publishTwists(Eigen::Matrix<float, 6, 1>* twists[robot_params::DOF]);
+    void publishTwists(Eigen::Isometry3f* ptr2_active_tfs[robot_params::DOF+1]);
     void publishTCPpos(const Eigen::Vector3f& tcp_pos);
     void publishTCPvel(const Eigen::Vector3f& tcp_pos, const Eigen::Vector3f& tcp_vel);
     void publishKinematicManipulabilityEllipsoid(const Eigen::Vector3f& tcp_pos, const std::pair<Eigen::Matrix3f, Eigen::Vector3f>& ellipsoid_properties, EllipsoidColor color);

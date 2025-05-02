@@ -102,9 +102,9 @@ int main(int argc, char **argv)
         // Calculate Gravity Vector
         smm_robot_dyn_solver.GV = smm_robot_dyn_solver.GravityVectorAnalytical();
         // Passing pointers between classes to avoid: "Segmentation fault (core dumped)"
-        for (int i = 0; i < DOF; ++i) {
+        for (int i = 0; i < robot_params::DOF; ++i) {
             smm_robot_dyn_solver.ptr2_gl[i] = &smm_robot_kin_solver.gl[i];
-            for (int j = 0; j < DOF; ++j) {
+            for (int j = 0; j < robot_params::DOF; ++j) {
                 smm_robot_dyn_solver.ptr_Jbsli[i][j] = &smm_robot_kin_solver.Jbsli[i][j];
             }
         }

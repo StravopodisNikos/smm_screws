@@ -37,47 +37,47 @@ class ScrewsKinematics: public ScrewsMain {
 		void updateJointState(float *q_new, float *dq_new, float *ddq_new);
 		void updateJointState(float *q_new, float *dq_new);
 		// Initialize kinematic data @ zero configuration
-		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[METALINKS]);
-		void initializeRelativeTfs(Eigen::Isometry3f* Bi[DOF+1]);
+		void extractPassiveTfs(Eigen::Isometry3f* passive_expos[robot_params::METALINKS]);
+		void initializeRelativeTfs(Eigen::Isometry3f* Bi[robot_params::DOF+1]);
 		void initializeRelativeTfs();
-		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[DOF+1]);
+		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[robot_params::DOF+1]);
 		void initializeLocalScrewCoordVectors();
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
 		void initializeAnatomyActiveTwists();
 		// Extract kinematic data @ current configuration 
 		//void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
-		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);
-		void extractActiveTfsAnat(float *q, Eigen::Isometry3f* active_expos[DOF]);
+		void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[robot_params::DOF]);
+		void extractActiveTfsAnat(float *q, Eigen::Isometry3f* active_expos[robot_params::DOF]);
 		//Eigen::Isometry3f* extractActiveTfs(float *q);
 		void ForwardKinematicsTCP(float *q); // Calculates the tf of the {T} frame, updates _gst private member
 		Eigen::Vector3f updatePositionTCP(float *q);
 		Eigen::Vector3f updatePositionTCP(Eigen::Matrix<float, 3, 1>& q); 
 		Eigen::Vector3f updateSpatialVelocityTCP(float *q, float *dq);
 		void ForwardKinematicsTCP();
-		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
+		void ForwardKinematics3DOF_1(float *q, Eigen::Isometry3f* gs_a_i[robot_params::DOF+1]);
 		void ForwardKinematics3DOF_1();
-		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[DOF+1]);
+		void ForwardKinematics3DOF_2(float *q, Eigen::Isometry3f* gs_a_i[robot_params::DOF+1]);
 		void ForwardKinematics3DOF_2();
-		void ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometry3f* gs_l_i[DOF]);
+		void ForwardKinematicsComFrames3DOF_2(float *q, Eigen::Isometry3f* gs_l_i[robot_params::DOF]);
 		void ForwardKinematicsComFrames3DOF_2();
-		void SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF]); // Returns {T} frame Spatial Jacobian
+		void SpatialJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jsp_t_1[robot_params::DOF]); // Returns {T} frame Spatial Jacobian
 		void SpatialJacobian_Tool_1(); // sets Jsp_t_1 @ memory position: ptr2Jsp1
-		void SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_2[DOF]); // Returns {T} frame Spatial Jacobian
+		void SpatialJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jsp_t_2[robot_params::DOF]); // Returns {T} frame Spatial Jacobian
 		void SpatialJacobian_Tool_2(); // sets Jsp_t_2 @ memory position: ptr2Jsp2
-		void BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1]); // Returns Body Jacobians calculated @ active joint frames and the {T} frame
+		void BodyJacobians(Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[robot_params::DOF+1]); // Returns Body Jacobians calculated @ active joint frames and the {T} frame
 		void BodyJacobians(); // Sets BodyJacobiansFrames @ memory position: ptr2BodyJacobiansFrames
 		void BodyCOMJacobians();
-		void BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[DOF]); // Returns {T} frame Body Jacobian
+		void BodyJacobian_Tool_1(Eigen::Matrix<float, 6, 1> *Jbd_t_1[robot_params::DOF]); // Returns {T} frame Body Jacobian
 		void BodyJacobian_Tool_1();
-		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[DOF]); // Returns {T} frame Body Jacobian
+		void BodyJacobian_Tool_2(Eigen::Matrix<float, 6, 1> *Jbd_t_2[robot_params::DOF]); // Returns {T} frame Body Jacobian
 		void BodyJacobian_Tool_2();
 		void ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ); // Calculates {T} frame Velocity twists
 		void ToolVelocityTwist(typ_jacobian jacob_selection); 
-		void DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[DOF] ); // Time derivative of spatial jacobian
+		void DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[robot_params::DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[robot_params::DOF] ); // Time derivative of spatial jacobian
 		void DtSpatialJacobian_Tool_1();
-		void DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_1[DOF]) ;		
+		void DtBodyJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[robot_params::DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_1[robot_params::DOF]) ;		
 		void DtBodyJacobian_Tool_1();
-		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[DOF]) ;
+		void DtBodyJacobian_Tool_2( float *dq, Eigen::Matrix<float, 6, 1>** BodyJacobiansFrames[robot_params::DOF+1], Eigen::Matrix<float, 6, 1> *dJbd_t_2[robot_params::DOF]) ;
 		void DtBodyJacobian_Tool_2();
 		void OperationalSpaceJacobian(Eigen::Matrix3f &Jop_t);
 		Eigen::Matrix3f OperationalSpaceJacobian(const Eigen::Vector3f& qs);
@@ -111,36 +111,36 @@ class ScrewsKinematics: public ScrewsMain {
 		std::unique_ptr<Eigen::Matrix3f> DLSInverseJacobian(const Eigen::Matrix3f& J, float base_lambda_dls = 0.005f);
 
 		// Public Kinematic data members
-		Eigen::Matrix<float, 6, 1> iXi[DOF+1];
-		Eigen::Isometry3f g[DOF+1]; // stores joint frames+tcp
-		Eigen::Isometry3f* g_ptr[DOF+1]; // stores joint frames+tcp
-		Eigen::Isometry3f gl[DOF];  // stores links' COM frames
-		Eigen::Isometry3f* ptr2_gl[DOF];  // stores links' COM frames
-		Eigen::Isometry3f Bi[DOF+1]; 
-		Eigen::Matrix<float, 6, DOF> Jsp63; // the concatenated form of the Spatial Jacobian
-		Eigen::Matrix<float, 6, DOF> Jbd63;
-		Eigen::Matrix<float, 6, DOF> dJbd63;
-		Eigen::Matrix<float, 6, 1>* ptr2Jsp1[DOF]; // Declares an array of 3 pointers. Each pointer in this array can point to a different Eigen::Matrix<float, 6, 1> object
-		Eigen::Matrix<float, 6, 1>* ptr2Jsp2[DOF];
-		Eigen::Matrix<float, 6, 1> Jsp_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> Jsp_t_2[DOF];
-		Eigen::Matrix<float, 6, 1>** ptr2BodyJacobiansFrames[DOF+1];
-		Eigen::Matrix<float, 6, 1> BodyJacobiansFrames[DOF+1][DOF];
-		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_1[DOF];
-		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_2[DOF];
-		Eigen::Matrix<float, 6, 1> Jbd_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> Jbd_t_2[DOF];
-		Eigen::Matrix<float, 6, 1> *ptr2dJsp_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> dJsp_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_2[DOF];
-		Eigen::Matrix<float, 6, 1> dJbd_t_1[DOF];
-		Eigen::Matrix<float, 6, 1> dJbd_t_2[DOF];
+		Eigen::Matrix<float, 6, 1> iXi[robot_params::DOF+1];
+		Eigen::Isometry3f g[robot_params::DOF+1]; // stores joint frames+tcp
+		Eigen::Isometry3f* g_ptr[robot_params::DOF+1]; // stores joint frames+tcp
+		Eigen::Isometry3f gl[robot_params::DOF];  // stores links' COM frames
+		Eigen::Isometry3f* ptr2_gl[robot_params::DOF];  // stores links' COM frames
+		Eigen::Isometry3f Bi[robot_params::DOF+1]; 
+		Eigen::Matrix<float, 6, robot_params::DOF> Jsp63; // the concatenated form of the Spatial Jacobian
+		Eigen::Matrix<float, 6, robot_params::DOF> Jbd63;
+		Eigen::Matrix<float, 6, robot_params::DOF> dJbd63;
+		Eigen::Matrix<float, 6, 1>* ptr2Jsp1[robot_params::DOF]; // Declares an array of 3 pointers. Each pointer in this array can point to a different Eigen::Matrix<float, 6, 1> object
+		Eigen::Matrix<float, 6, 1>* ptr2Jsp2[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> Jsp_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> Jsp_t_2[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1>** ptr2BodyJacobiansFrames[robot_params::DOF+1];
+		Eigen::Matrix<float, 6, 1> BodyJacobiansFrames[robot_params::DOF+1][robot_params::DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1>* ptr2Jbd_t_2[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> Jbd_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> Jbd_t_2[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJsp_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> dJsp_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> *ptr2dJbd_t_2[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> dJbd_t_1[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> dJbd_t_2[robot_params::DOF];
 
-		Eigen::Matrix<float, 6, DOF> Jbsli63[DOF];
-		Eigen::Matrix<float, 6, DOF>* ptr_Jbsli63[DOF];
-		Eigen::Matrix<float, 6, 1> Jbsli[DOF][DOF];
-		Eigen::Matrix<float, 6, 1>* ptr_Jbsli[DOF][DOF];		
+		Eigen::Matrix<float, 6, robot_params::DOF> Jbsli63[robot_params::DOF];
+		Eigen::Matrix<float, 6, robot_params::DOF>* ptr_Jbsli63[robot_params::DOF];
+		Eigen::Matrix<float, 6, 1> Jbsli[robot_params::DOF][robot_params::DOF];
+		Eigen::Matrix<float, 6, 1>* ptr_Jbsli[robot_params::DOF][robot_params::DOF];		
 
 		Eigen::Matrix<float, 6, 1> Vsp_tool_twist;
 		Eigen::Matrix<float, 6, 1> Vbd_tool_twist;
@@ -173,12 +173,12 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 		Eigen::Matrix4f _twist_se3;
-		Eigen::Isometry3f _active_expos[DOF];
-		Eigen::Isometry3f _active_expos_anat[DOF];
-		Eigen::Isometry3f _Pi[METALINKS];
-        float _joint_pos[DOF];
-        float _joint_vel[DOF];
-		float _joint_accel[DOF];
+		Eigen::Isometry3f _active_expos[robot_params::DOF];
+		Eigen::Isometry3f _active_expos_anat[robot_params::DOF];
+		Eigen::Isometry3f _Pi[robot_params::METALINKS];
+        float _joint_pos[robot_params::DOF];
+        float _joint_vel[robot_params::DOF];
+		float _joint_accel[robot_params::DOF];
 
 		// Set functions for elememts used in calculations
 		void setExponentials(float *q);		
@@ -191,7 +191,7 @@ class ScrewsKinematics: public ScrewsMain {
 		
 		void print6nMatrix(Eigen::Matrix<float, 6, 1>* matrices[], const int n);
 		void printTwist(Eigen::Matrix<float, 6, 1> Twist);		
-		void print63MatrixByColumn(const Eigen::Matrix<float, 6, DOF> J63[DOF]);
+		void print63MatrixByColumn(const Eigen::Matrix<float, 6, robot_params::DOF> J63[robot_params::DOF]);
 };		
 
 #endif // SCREWS_KINEMATICS_H

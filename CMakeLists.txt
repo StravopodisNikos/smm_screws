@@ -18,8 +18,10 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs     # [ 3-11-23] Added for custom action files generation
   dynamic_reconfigure # [20-7-24] Added for slider+publisher of joint velocities
+  yaml-cpp
+  roslib
 )
-
+find_package(roslib REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -114,7 +116,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  CATKIN_DEPENDS  
-  LIBRARIES smm_screws
+  LIBRARIES smm_screws robot_yaml_loader
   CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs tf2 tf2_ros message_runtime  actionlib_msgs dynamic_reconfigure # [18-10-23] Added for custom msg generation 
                                                                                                                # [3-11-23] Added action generation
                                                                                                                # [20-7-24] Added dynamic_reconfigure,rospy
@@ -152,23 +154,26 @@ set_target_properties(fuzzylite_lib PROPERTIES
 
 add_library(smm_screws INTERFACE)
 
- add_library(ScrewsMain
-   src/ScrewsMain.cpp
- )
- add_library(ScrewsKinematics
-   src/ScrewsKinematics.cpp
- )
- add_library(ScrewsDynamics
- src/ScrewsDynamics.cpp
+add_library(ScrewsMain
+  src/ScrewsMain.cpp
+)
+add_library(ScrewsKinematics
+  src/ScrewsKinematics.cpp
+)
+add_library(ScrewsDynamics
+  src/ScrewsDynamics.cpp
 )
 add_library(ScrewsVisualization
-src/ScrewsVisualization.cpp
+  src/ScrewsVisualization.cpp
 )
 add_library(robot_shared
-src/robot_shared.cpp
+  src/robot_shared.cpp
 )
-add_library(OperationalSpaceControllers
-src/OperationalSpaceControllers.cpp
+#add_library(OperationalSpaceControllers
+#  src/OperationalSpaceControllers.cpp
+#)
+add_library(robot_yaml_loader
+  src/RobotYamlLoader.cpp
 )
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -241,6 +246,11 @@ target_link_libraries(publishCurrentCartesianState
 ${catkin_LIBRARIES}
 robot_shared 
 ) 
+# added to update robot definition
+target_link_libraries(robot_yaml_loader
+${catkin_LIBRARIES}
+yaml-cpp  
+) 
 
 #target_link_libraries(idosc_centralized # [29-7-24] Removed because "idosc_centralized" was paused for now
 #${catkin_LIBRARIES}
@@ -280,17 +290,17 @@ target_link_libraries(robot_shared
   ScrewsDynamics
   ScrewsVisualization # [15-7-24] added to enable visual debugging tool
 )
-target_link_libraries(OperationalSpaceControllers
-  ${catkin_LIBRARIES}
-  robot_shared
-)
+#target_link_libraries(OperationalSpaceControllers
+#  ${catkin_LIBRARIES}
+#  robot_shared
+#)
 target_link_libraries(smm_screws INTERFACE
   ScrewsKinematics
   ScrewsDynamics
   ScrewsMain
   ScrewsVisualization
   robot_shared
-  OperationalSpaceControllers
+  #OperationalSpaceControllers
 )
 #############
 ## Install ##

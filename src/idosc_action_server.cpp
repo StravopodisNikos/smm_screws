@@ -16,8 +16,8 @@ ScrewsDynamics *ptr2_smm_robot_dyn_solver;
 OperationalSpaceControllers::InverseDynamicsController *ptr2_idosc;
 std::vector<double> jointPositions;
 std::vector<double> jointVelocities;
-float q_received[DOF];
-float dq_received[DOF];
+float q_received[robot_params::DOF];
+float dq_received[robot_params::DOF];
 Eigen::Matrix<float, IDOSC_STATE_DIM, 1> desired_state;
 Eigen::Matrix<float, IDOSC_STATE_DIM, 1> current_state;
 Eigen::Matrix<float, IDOSC_STATE_DIM, 1> error_state;
@@ -188,7 +188,7 @@ public:
         // Get the joint position,velocity data from /joint states
         jointPositions = joint_state->position;
         jointVelocities = joint_state->velocity;
-        for (size_t i = 0; i < DOF; ++i) {
+        for (size_t i = 0; i < robot_params::DOF; ++i) {
             q_received[i] = static_cast<float>(jointPositions[i]);
             dq_received[i] = static_cast<float>(jointVelocities[i]);
         }  

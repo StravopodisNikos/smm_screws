@@ -27,9 +27,9 @@ OperationalSpaceControllers::HybridController3 *ptr2_hybrid3;
 std::vector<double> jointPositions;
 std::vector<double> jointVelocities;
 std::vector<double> ForceMeasurements;
-float q_received[DOF];
-float dq_received[DOF];
-float force_received[DOF];
+float q_received[robot_params::DOF];
+float dq_received[robot_params::DOF];
+float force_received[robot_params::DOF];
 Eigen::Matrix<float, HYBRID_STATE_DIM, 1> desired_state;
 Eigen::Matrix<float, HYBRID_STATE_DIM, 1> current_state;
 Eigen::Vector3f torques;
@@ -55,7 +55,7 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     jointPositions = joint_state->position;
     jointVelocities = joint_state->velocity;
     // 1. Get the joint position,velocity data from /joint states
-    for (size_t i = 0; i < DOF; ++i) {
+    for (size_t i = 0; i < robot_params::DOF; ++i) {
         q_received[i] = static_cast<float>(jointPositions[i]);
         dq_received[i] = static_cast<float>(jointVelocities[i]);
     }
@@ -86,7 +86,7 @@ void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& joint_state, r
     ptr2_hybrid3->update_torques(torques); // Needs Be, Ne
     
     // Print extracted torque command
-    for (int i = 0; i < DOF; i++)
+    for (int i = 0; i < robot_params::DOF; i++)
     {
         ROS_INFO("[hybrid3_centralized] Torque cmd joint [ %d ]: %f", i+1, torques(i));
     }

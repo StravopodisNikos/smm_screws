@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     ptr2_idosc->update_torques(torques);
 
     // Print extracted torque command
-    for (int i = 0; i < DOF; i++)
+    for (int i = 0; i < 3; i++)
     {
         ROS_INFO("[EXAMPLE-IDOSC] Torque cmd joint [ %d ]: %f", i+1, torques(i));
     }

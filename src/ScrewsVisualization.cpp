@@ -24,14 +24,14 @@ ScrewsVisualization::ScrewsVisualization(RobotAbstractBase *ptr2abstract, ros::N
     dyn_ell_axes_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_dyn_ell_axes", 10);    
 }
 
-void ScrewsVisualization::publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF]) {
+void ScrewsVisualization::publishTwists(Eigen::Matrix<float, 6, 1>* twists[robot_params::DOF]) {
     // Publishes active joint twists, extracted from the Spatial Jacobian columns
     visualization_msgs::MarkerArray marker_array;
     
     Eigen::Vector3f start_point_extracted;
     Eigen::Vector3f end_point_extracted;
 
-    for (size_t i = 0; i < DOF; ++i) {
+    for (size_t i = 0; i < robot_params::DOF; ++i) {
         visualization_msgs::Marker marker;
         marker.header.frame_id = "world";
         marker.header.stamp = ros::Time::now();
@@ -72,7 +72,7 @@ void ScrewsVisualization::publishTwists(Eigen::Matrix<float, 6, 1>* twists[DOF])
     twist_pub.publish(marker_array);
 }
 
-void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1]) {
+void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[robot_params::DOF+1]) {
     // Publishes active joint twists, extracted from active tfs
     visualization_msgs::MarkerArray marker_array;
     
@@ -83,7 +83,7 @@ void ScrewsVisualization::publishTwists(Eigen::Isometry3f* ptr2_active_tfs[DOF+1
 
     Eigen::Vector3f active_tf_origin;
 
-    for (size_t i = 0; i < DOF; ++i) { // last tf is tcp, not interested here!
+    for (size_t i = 0; i < robot_params::DOF; ++i) { // last tf is tcp, not interested here!
         visualization_msgs::Marker marker;
         marker.header.frame_id = "world";
         marker.header.stamp = ros::Time::now();

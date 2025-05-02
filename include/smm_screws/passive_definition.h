@@ -22,6 +22,7 @@ namespace passive_definition {
     float __passive_twist_0[6] = {-0.0f, 0.1660f, -0.025f, 1.0f, 0.0f, 0.0f};
     float __passive_twist_1[6] = {0.4685f, 0.0f, -0.025f, 0.0f, -1.0f, 0.0f};
     float __passive_twist_2[6] = {-0.0000f, 0.6379f, 0.0530f, 1.0f, 0.0f, 0.0f};
+    float __passive_twist_3[6] = {0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f};
     //const float __passive_twist_3[6] = ..
     // Set number of pseudos / link
     int __META1_PSEUDOS = 1; // available: 1,2 (each metamorphic link must have 1 pseudojoint, and max 2 )

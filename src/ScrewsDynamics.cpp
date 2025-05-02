@@ -20,24 +20,24 @@ ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(
     _Ml_temp.setZero();
 
     // Preallocate memory for active exponential matrices used in internally calculations
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         exp_ai[i] = Eigen::Isometry3f::Identity();
         ptr2active_expos[i] = &exp_ai[i];
     }    
-    for (size_t i = 0; i < DOF+1; i++)
+    for (size_t i = 0; i < robot_params::DOF+1; i++)
     {
         gai[i] = Eigen::Isometry3f::Identity();
         ptr2active_tfs[i] = &gai[i];
     }    
     // Preallocate memory for passive exponential matrices used in internally calculations
-    for (size_t i = 0; i < METALINKS; i++)
+    for (size_t i = 0; i < robot_params::METALINKS; i++)
     {
         gpj[i] = Eigen::Isometry3f::Identity();
         ptr2passive_tfs[i] = &gpj[i]; // Now the gpj's can be used from ScrewsDynamics methods
     }
     // Initialize Joint positions to zero (will be erased)
-    for (size_t i = 0; i < DOF; i++) {
+    for (size_t i = 0; i < robot_params::DOF; i++) {
         _joint_pos[i] = 0;
         _joint_vel[i] = 0;
     }
@@ -46,7 +46,7 @@ ScrewsDynamics::ScrewsDynamics(RobotAbstractBase *ptr2abstract):  _ptr2abstract(
 
 void ScrewsDynamics::updateJointPos(float *q_new) {
     // Updates current position and stores Delta Position for numeric diff.
-    for (size_t i = 0; i < DOF; i++) {
+    for (size_t i = 0; i < robot_params::DOF; i++) {
         _joint_pos_prev[i] = _joint_pos[i]; // Save current position to previous
         _joint_pos[i] = q_new[i];           // Update current pos
         _delta_joint_pos[i] = _joint_pos[i] - _joint_pos_prev[i];
@@ -56,7 +56,7 @@ void ScrewsDynamics::updateJointPos(float *q_new) {
 }
 
 void ScrewsDynamics::updateJointVel(float *dq_new) {
-    for (size_t i = 0; i < DOF; i++) {_joint_vel[i] = dq_new[i];}
+    for (size_t i = 0; i < robot_params::DOF; i++) {_joint_vel[i] = dq_new[i];}
     return;
 }
 
@@ -89,19 +89,19 @@ Eigen::Matrix3f ScrewsDynamics::MassMatrix() {
     size_t max;
     MM.setZero();
     if (_debug_verbosity) {std::cout << "[MassMatrix] M: " << "\n";}
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
-        for (size_t j = 0; j < DOF; j++)
+        for (size_t j = 0; j < robot_params::DOF; j++)
         {
             max = (i > j) ? i : j; // assigns the max to l
-            for (size_t l = max; l < DOF; l++)
+            for (size_t l = max; l < robot_params::DOF; l++)
             {
                 //std::cout << l << std::endl;
                 _alpha[0] = setAlphamatrix(l, i); //print66Matrix(_alpha[0]); // -> ok  // Ali
                 _alpha[1] = setAlphamatrix(l, j); //print66Matrix(_alpha[1]); // -> ok  // Alj
                 //print66Matrix(_Mib[l]); // -> ok
 
-                // [12-7-24] On 13-2-24 a huge BUG was found in MATLAB code file: compute_mij_429_3DoF_2_sym.m
+                // [12-7-24] On 13-2-24 a huge BUG was found in MATLAB code file: compute_mij_429_3robot_params::DOF_2_sym.m
                 // Link Inertia Matrix is already expressed in {S} frame during assembly, so it is not needed to
                 // re-execute the adjoint tf! The inertias of each link must be provided in robot_definition.h
                 // based on data obtained by M_s_link_as_anat 3D array!
@@ -126,12 +126,12 @@ void ScrewsDynamics::MassMatrix_loc() {
 
     size_t max;
     MM.setZero();
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
-        for (size_t j = 0; j < DOF; j++)
+        for (size_t j = 0; j < robot_params::DOF; j++)
         {
             max = (i > j) ? i : j; // assigns the max to l
-            for (size_t l = max; l < DOF; l++)
+            for (size_t l = max; l < robot_params::DOF; l++)
             {
                 _alpha[0] = setAlphamatrix(l, i); // print66Matrix(_alpha[0]); // -> ok  // Ali
                 _alpha[1] = setAlphamatrix(l, j); // print66Matrix(_alpha[1]); // -> ok  // Alj
@@ -153,11 +153,11 @@ Eigen::Matrix3f ScrewsDynamics::CoriolisMatrix() {
     _debug_verbosity = false;
     CM.setZero();
     if (_debug_verbosity) {std::cout << "[CoriolisMatrix] C: " << "\n";}
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
-        for (size_t j = 0; j < DOF; j++)
+        for (size_t j = 0; j < robot_params::DOF; j++)
         {
-            for (size_t k = 0; k < DOF; k++)
+            for (size_t k = 0; k < robot_params::DOF; k++)
             {   
                 parDerMass[0](i, j) = computeParDerMassElement(i, j, k)(0,0); // delat_Mij_theta_k
                 parDerMass[1](i, j) = computeParDerMassElement(i, k, j)(0,0); // delat_Mik_theta_j
@@ -177,11 +177,11 @@ void ScrewsDynamics::CoriolisMatrix_loc() {
     // Calculates the Coriolis Matrix, used locally in class member functions 
     _debug_verbosity = false;
     CM.setZero();
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
-        for (size_t j = 0; j < DOF; j++)
+        for (size_t j = 0; j < robot_params::DOF; j++)
         {
-            for (size_t k = 0; k < DOF; k++)
+            for (size_t k = 0; k < robot_params::DOF; k++)
             {   
                 parDerMass[0](i, j) = computeParDerMassElement(i, j, k)(0,0); // delat_Mij_theta_k
                 parDerMass[1](i, j) = computeParDerMassElement(i, k, j)(0,0); // delat_Mik_theta_j
@@ -196,7 +196,7 @@ void ScrewsDynamics::CoriolisMatrix_loc() {
     return;
 }
 
-Eigen::Vector3f ScrewsDynamics::computeBetaCoriolis(const Eigen::Matrix3f Gamma[3], const Eigen::Vector3f& dq) {
+Eigen::Vector3f ScrewsDynamics::computeBetaCoriolis(const Eigen::Matrix3f Gamma[robot_params::DOF], const Eigen::Vector3f& dq) {
     // This is the Matrix given in eq.4.13 in Khatib textbook
 
     // Extract the 3 slices of the Gamma array
@@ -228,7 +228,7 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::GravityVector() {
     float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
     _PotEnergy_prev = _PotEnergy;
 
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         if ( std::abs( _delta_joint_pos[i]) > 0.0001f ) { 
             GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
@@ -244,13 +244,13 @@ void ScrewsDynamics::LinkGeometricJacobians() {
 
     // 1. Build the T
     // [NEED UPGRADE] current joint tfs will be retrieved from /robot_screw_states
-    // Need to call in main cpp file: ForwardKinematics3DOF_2();
+    // Need to call in main cpp file: ForwardKinematics3robot_params::DOF_2();
     updateActiveTfs();
 
 
     // 2. Build Tl
     // [NEED UPGRADE] current joint tfs will be retrieved from /robot_screw_states
-    // Need to call in main cpp file:  ForwardKinematicsComFrames3DOF_2();
+    // Need to call in main cpp file:  ForwardKinematicsComFrames3robot_params::DOF_2();
     updateCOMTfs();
 
     //std::cout << "[LinkGeometricJacobians] gs_a1:\n" << gai[0].matrix() << std::endl;
@@ -315,7 +315,7 @@ void ScrewsDynamics::LinkGeometricJacobians() {
     return; 
 }
 
-Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
+Eigen::Matrix<float, robot_params::DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
     // [11-7-24] Implements MATLAB function in laptop-WIN10: 
     // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalytical.m
 
@@ -344,13 +344,13 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalytical() {
     GV(2) = gv3_1 + gv3_2 + gv3_3;      
 
     if (_debug_verbosity) {std::cout << "[GravityVectorAnalytical] G: " << "\n";}
-    for (size_t i = 0; i < DOF; i++) {
+    for (size_t i = 0; i < robot_params::DOF; i++) {
         if (_debug_verbosity) {std::cout << GV(i) << "\n";} }
 
     return GV;
 }
 
-Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
+Eigen::Matrix<float, robot_params::DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
     // [11-7-24] Implements MATLAB function in laptop-WIN10: 
     // ~/matlab_ws/screw_dynamics/calculateGravityVectorAnalyticalBody.m   
     _debug_verbosity = false;
@@ -373,7 +373,7 @@ Eigen::Matrix<float, DOF, 1> ScrewsDynamics::GravityVectorAnalyticalBody() {
             + ( (*ptr_Jbsli[2][2]).head<3>().transpose() * ( ptr2_gl[2]->rotation() *  ( *(_ptr2abstract->link_mass[2]) * g_earth ) ) ) ).value() ;
 
     if (_debug_verbosity) {std::cout << "[GravityVectorAnalyticalBody] G: " << "\n";}
-    for (size_t i = 0; i < DOF; i++) {
+    for (size_t i = 0; i < robot_params::DOF; i++) {
         if (_debug_verbosity) {std::cout << GV(i) << "\n";} }
 
     return GV;
@@ -388,7 +388,7 @@ void ScrewsDynamics::GravityVector_loc() {
     float DeltaPotEnergy = _PotEnergy - _PotEnergy_prev;
     _PotEnergy_prev = _PotEnergy;
 
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         if ( std::abs( _delta_joint_pos[i]) > 0.0001 ) { 
             GV(i,0) = DeltaPotEnergy / _delta_joint_pos[i]; 
@@ -404,7 +404,7 @@ Eigen::Matrix<float, 3, 1> ScrewsDynamics::FrictionVector() {
     FV.setZero();
     Eigen::Matrix<float, 3, 1> fc;
     Eigen::Matrix<float, 3, 1> fv;
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         if ( std::signbit(_joint_vel[i]) ) { fc(i,0) = - *(_ptr2abstract->fc_coeffs[i]); }
         else { fc(i,0) = *(_ptr2abstract->fc_coeffs[i]); }
@@ -421,7 +421,7 @@ void ScrewsDynamics::FrictionVector_loc() {
     FV.setZero();
     Eigen::Matrix<float, 3, 1> fc;
     Eigen::Matrix<float, 3, 1> fv;
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         if ( std::signbit(_joint_vel[i]) ) { fc(i,0) = - *(_ptr2abstract->fc_coeffs[i]); }
         else { fc(i,0) = *(_ptr2abstract->fc_coeffs[i]); }
@@ -515,7 +515,7 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
     size_t max_ij;
     _parDer_MassIJ_ThetaK(0,0) = 0;
     max_ij = (i > j) ? i : j; // assigns the max to l
-    for (size_t l = max_ij; l < DOF; l++)
+    for (size_t l = max_ij; l < robot_params::DOF; l++)
     {
         _alphaParDer[0] = setAlphamatrix(k, i); // Aki
         _alphaParDer[1] = setAlphamatrix(l, k); // Alk
@@ -541,7 +541,7 @@ Eigen::Matrix<float, 1, 1> ScrewsDynamics::computeParDerMassElement(size_t i, si
 float ScrewsDynamics::computePotentialEnergy() {
     float pot_energy = 0;
     updateCOMTfs(); // updates gsli;
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         pot_energy = pot_energy - ( *(_ptr2abstract->link_mass[i]) * _g_z * gsli[i].translation()(2) );
     }
@@ -573,7 +573,7 @@ void ScrewsDynamics::updateActiveTfs() {
 void ScrewsDynamics::updateActiveExpos() {
     // - joint pos update must be called. 
     // - ptr2active_tfs must point to preallocated memory 
-    for (size_t i = 0; i < DOF; i++)
+    for (size_t i = 0; i < robot_params::DOF; i++)
     {
         exp_ai[i] = twistExp(_ptr2abstract->active_twists_anat[i], _joint_pos[i]) ;
         ptr2active_expos[i] = &exp_ai[i];

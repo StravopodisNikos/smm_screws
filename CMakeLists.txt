@@ -289,6 +289,7 @@ target_link_libraries(robot_shared
   ${catkin_LIBRARIES}
   ScrewsDynamics
   ScrewsVisualization # [15-7-24] added to enable visual debugging tool
+  robot_yaml_loader # [2-5-25] added to link yaml loader with the abstract/shared libs
 )
 #target_link_libraries(OperationalSpaceControllers
 #  ${catkin_LIBRARIES}

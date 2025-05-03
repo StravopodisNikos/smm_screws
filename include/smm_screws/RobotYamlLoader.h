@@ -17,12 +17,12 @@ public:
     int META1_PSEUDOS = 0;
     int META2_PSEUDOS = 0;
 
-    Eigen::Matrix<float, 6, 1> active_twist_anat[robot_params::DOF];
+    Eigen::Matrix<float, 6, 1> active_twist_0[robot_params::DOF];
     Eigen::Isometry3f gst_test_0;
-    Eigen::Isometry3f gsa_test[robot_params::DOF];
-    Eigen::Matrix<float, 6, 1> passive_twist[robot_params::DOF];
-    Eigen::Isometry3f gsl_test[robot_params::DOF];
-    Eigen::Matrix<float, 6, 6> M_s[robot_params::DOF];
+    Eigen::Isometry3f gsa_test_0[robot_params::DOF];
+    Eigen::Matrix<float, 6, 1> passive_twist_0[robot_params::DOF];
+    Eigen::Isometry3f gsl_test_0[robot_params::DOF];
+    Eigen::Matrix<float, 6, 6> M_s_com_0[robot_params::DOF];
 
     bool loadAll();
 

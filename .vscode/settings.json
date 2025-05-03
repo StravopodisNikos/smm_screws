@@ -78,7 +78,20 @@
         "bit": "cpp",
         "csignal": "cpp",
         "forward_list": "cpp",
-        "robotabstractbasedeprecated": "cpp"
+        "robotabstractbasedeprecated": "cpp",
+        "csetjmp": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "cuchar": "cpp",
+        "filesystem": "cpp",
+        "regex": "cpp",
+        "rope": "cpp",
+        "slist": "cpp",
+        "future": "cpp",
+        "scoped_allocator": "cpp",
+        "valarray": "cpp",
+        "charconv": "cpp",
+        "netfwd": "cpp"
     },
     "cmake.configureOnOpen": false,
     "C_Cpp.errorSquiggles": "disabled"

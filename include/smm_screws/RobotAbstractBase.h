@@ -6,8 +6,6 @@
 #include <smm_screws/RobotYamlLoader.h>
 #include "smm_screws/robot_parameters.h"
 
-#define ARRAY_33_SIZE       9
-
 class RobotAbstractBase {
 public:
     //static constexpr int DOF = 3;
@@ -41,24 +39,24 @@ public:
         }
 
         for (int i = 0; i < robot_params::DOF; ++i) {
-            active_twists_anat[i] = yaml_loader.active_twist_anat[i];
+            active_twists_anat[i] = yaml_loader.active_twist_0[i];
             ptr2_active_twists_anat[i] = &active_twists_anat[i];
         }
 
         for (int i = 0; i < robot_params::DOF; ++i) {
-            g_test_0[i] = yaml_loader.gsa_test[i];
+            g_test_0[i] = yaml_loader.gsa_test_0[i];
             gsai_test_ptr[i] = &g_test_0[i];
         }
         g_test_0[robot_params::DOF] = yaml_loader.gst_test_0;
         gsai_test_ptr[robot_params::DOF] = &g_test_0[robot_params::DOF];
 
         for (int i = 0; i < robot_params::DOF; ++i) {
-            gl_test_0[i] = yaml_loader.gsl_test[i];
+            gl_test_0[i] = yaml_loader.gsl_test_0[i];
             gsli_test_ptr[i] = &gl_test_0[i];
         }
 
         for (int i = 0; i < robot_params::DOF; ++i) {
-            Mi_s[i] = yaml_loader.M_s[i];
+            Mi_s[i] = yaml_loader.M_s_com_0[i];
             Mi_s_ptr[i] = &Mi_s[i];
         }
 
@@ -114,7 +112,7 @@ public:
 
     float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
-        return yaml_loader.passive_twist[index];
+        return yaml_loader.passive_twist_0[index];
     }
 };
 
@@ -131,7 +129,7 @@ public:
 
     float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
-        return yaml_loader.passive_twist[index];
+        return yaml_loader.passive_twist_0[index];
     }
 };
 
@@ -148,7 +146,7 @@ public:
 
     float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
     Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
-        return yaml_loader.passive_twist[index];
+        return yaml_loader.passive_twist_0[index];
     }
 };
 

@@ -4,15 +4,13 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 #include <ros/package.h>
+#include <ros/console.h>
 #include <string>
 #include <vector>
 #include "smm_screws/robot_parameters.h"
 
 class RobotYamlLoader {
 public:
-    //static constexpr int DOF = 3;
-    //static constexpr int METALINKS = 2;
-
     int NUM_OF_PSEUDOJOINTS = 0;
     int META1_PSEUDOS = 0;
     int META2_PSEUDOS = 0;

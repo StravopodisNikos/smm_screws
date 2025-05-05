@@ -34,30 +34,67 @@ public:
 
     bool initializeFromYaml() {
         if (!yaml_loader.loadAll()) {
-            std::cerr << "Failed to load robot data from YAML." << std::endl;
+            std::cerr << "[initializeFromYaml] Failed to load robot data from YAML." << std::endl;
             return false;
         }
 
+        size_t xi_ai_size = sizeof(yaml_loader.active_twist_0) / sizeof(yaml_loader.active_twist_0[0]);
+        if (xi_ai_size < robot_params::DOF) {
+           std::cerr << "[initializeFromYaml] ERROR: active_twist_0 array too small!" << std::endl;
+           return false;
+        }   
         for (int i = 0; i < robot_params::DOF; ++i) {
             active_twists_anat[i] = yaml_loader.active_twist_0[i];
             ptr2_active_twists_anat[i] = &active_twists_anat[i];
+            std::cout << "[initializeFromYaml] active_twists_anat[" << i << "] =\n" << active_twists_anat[i].transpose() << std::endl;
+
+            // Legacy initialization for backward compatibility
+            active_twists[i] = Eigen::Matrix<float, 6, 1>::Zero();
+            std::cerr << "[initializeFromYaml] WARNING: active_twists[" << i << "] is deprecated and initialized to zero.\n";
         }
 
+        size_t gsa_size = sizeof(yaml_loader.gsa_test_0) / sizeof(yaml_loader.gsa_test_0[0]);
+        if (gsa_size < robot_params::DOF) {
+            std::cerr << "[initializeFromYaml] ERROR: gsa_test_0 array too small!" << std::endl;
+            return false;
+        }    
         for (int i = 0; i < robot_params::DOF; ++i) {
             g_test_0[i] = yaml_loader.gsa_test_0[i];
             gsai_test_ptr[i] = &g_test_0[i];
+            std::cout << "[initializeFromYaml] gsa_test_0[" << i << "] =\n" << g_test_0[i].matrix() << std::endl;
         }
         g_test_0[robot_params::DOF] = yaml_loader.gst_test_0;
         gsai_test_ptr[robot_params::DOF] = &g_test_0[robot_params::DOF];
+        std::cout << "[initializeFromYaml] gst_test_0 =\n" << g_test_0[robot_params::DOF].matrix() << std::endl;
+        
+        // [BACKWARD COMPATIBILITY] Initialized reference anatomy active joint tfs with identity
+        for (int i = 0; i < robot_params::DOF+1; ++i) {
+            g_ref_0[i] = Eigen::Isometry3f::Identity();  // Safe default (zeros + identity)
+            gsai_ptr[i] = &g_ref_0[i];
+            std::cerr << "[initializeFromYaml] WARNING: g_ref_0[" << i << "] is deprecated and initialized to identity.\n";
+            std::cout << "[initializeFromYaml] g_ref_0[" << i << "] =\n" << g_ref_0[i].matrix() << std::endl;
+        }
 
+        size_t gsl_size = sizeof(yaml_loader.gsl_test_0) / sizeof(yaml_loader.gsl_test_0[0]);
+        if (gsl_size < robot_params::DOF) {
+            std::cerr << "[initializeFromYaml] ERROR: gsl_test_0 array too small!" << std::endl;
+            return false;
+        }        
         for (int i = 0; i < robot_params::DOF; ++i) {
             gl_test_0[i] = yaml_loader.gsl_test_0[i];
             gsli_test_ptr[i] = &gl_test_0[i];
+            std::cout << "[initializeFromYaml] gsl_test_0[" << i << "] =\n" << gl_test_0[i].matrix() << std::endl;
         }
 
+        size_t Msi_size = sizeof(yaml_loader.M_s_com_0) / sizeof(yaml_loader.M_s_com_0[0]);
+        if (Msi_size < robot_params::DOF) {
+            std::cerr << "[initializeFromYaml] ERROR: M_s_com_0 array too small!" << std::endl;
+            return false;
+        }  
         for (int i = 0; i < robot_params::DOF; ++i) {
             Mi_s[i] = yaml_loader.M_s_com_0[i];
             Mi_s_ptr[i] = &Mi_s[i];
+            std::cout << "[initializeFromYaml] M_s[" << i << "] =\n" << Mi_s[i] << std::endl;
         }
 
         // Dummy assignments for abstract base

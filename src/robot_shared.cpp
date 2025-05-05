@@ -25,8 +25,11 @@ robot_shared::robot_shared(RobotStructure structure)
         case STRUCTURE_3_PSEUDOS:
             robot_ptr = new Structure3Pseudos();
             break;
+        case STRUCTURE_4_PSEUDOS:
+            robot_ptr = new Structure4Pseudos();
+            break;            
         default:
-            robot_ptr = new Structure3Pseudos();
+            robot_ptr = new FixedStructure();
             break;
     }
 

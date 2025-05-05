@@ -37,6 +37,8 @@ ScrewsKinematics::ScrewsKinematics(RobotAbstractBase *ptr2abstract):  _ptr2abstr
 }
 
 void ScrewsKinematics::initializeRelativeTfs() {
+    ROS_WARN_STREAM("[initializeRelativeTfs] DEPRECATED FOR AUTO-YAML-LOADING. This method is obsolete with YAML-based initialization.");
+
     // Initializes the matrices Bi ~ Ci_i1(0)
     _debug_verbosity = false;
 
@@ -51,6 +53,8 @@ void ScrewsKinematics::initializeRelativeTfs() {
 }
 
 void ScrewsKinematics::initializeRelativeTfs(Eigen::Isometry3f* B_i[robot_params::DOF+1]) {
+    ROS_WARN_STREAM("[initializeRelativeTfs] DEPRECATED FOR AUTO-YAML-LOADING. This method is obsolete with YAML-based initialization.");
+
     // Initializes the matrices Bi ~ Ci_i1(0)
     _debug_verbosity = false;
 

@@ -43,6 +43,8 @@ class ScrewsKinematics: public ScrewsMain {
 		void initializeLocalScrewCoordVectors(Eigen::Matrix<float, 6, 1> *iXi[robot_params::DOF+1]);
 		void initializeLocalScrewCoordVectors();
 		void initializePseudoTfs(); // Calculates the exponentials of the metamorphic links, updates _Pi[] private member
+		void initializeReferenceAnatomyActiveTwists(); // added for backward compatibility after auto yaml kinematics extraction
+		void initializeReferenceAnatomyActiveTfs(); // added for backward compatibility after auto yaml kinematics extraction
 		void initializeAnatomyActiveTwists();
 		// Extract kinematic data @ current configuration 
 		//void extractActiveTfs(float *q, Eigen::Isometry3f* active_expos[DOF]);

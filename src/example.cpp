@@ -49,8 +49,19 @@ int main(int argc, char **argv)
     robot_def2.passive_twists[0] << -0.00 , 0.1660, -0.025, 1.0, 0.0 , 0.0;
     robot_def2.passive_twists[1] << -0.4685 , 0.00, -0.025, 0.0, -1.0 , 0.0;
 */
-    robot_shared my_shared_lib;
-    if (my_shared_lib.initializeSharedLib()) {ROS_INFO("[example] Initialized Shared Library.");}
+    // Initialize the robot structure
+    RobotAbstractBase* robot_ptr = new Structure3Pseudos();
+
+    // Debug statement
+    ROS_INFO("[smm_screws/example] Initializing shared library");
+
+    // Create an instance of your shared library with NodeHandle
+    robot_shared my_shared_lib(robot_ptr, nh);
+    if (!my_shared_lib.initializeSharedLib()) {
+        ROS_ERROR("[smm_screws/example] Failed to initialize shared library.");
+        return -1;
+    }
+  
     ScrewsKinematics& smm_robot_kin_solver = my_shared_lib.get_screws_kinematics_solver();
     ScrewsDynamics& smm_robot_dyn_solver = my_shared_lib.get_screws_dynamics_solver();  
 

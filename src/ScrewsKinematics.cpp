@@ -92,6 +92,7 @@ void ScrewsKinematics::initializeLocalScrewCoordVectors() {
     return;
 }
 
+/*
 void ScrewsKinematics::initializePseudoTfs() {
 // Executed during object creation, initializes the fixed transformations induces by anatomy metamorphosis
 // [5-10-23] Current version, ONLY supports 3robot_params::DOF robot, with 2 metamorphic links.
@@ -111,8 +112,8 @@ void ScrewsKinematics::initializePseudoTfs() {
                 _last_expo = Eigen::Isometry3f::Identity();
                 for (size_t j = 0; j < _meta1_pseudojoints; j++)
                 {
-                    //printTwist(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt));
-                    _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt), _ptr2abstract->get_PSEUDO_ANGLES(_last_twist_cnt));
+                    //printTwist(_ptr2abstract->get_PASSIVE_TWIST(_last_twist_cnt));
+                    _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWIST(_last_twist_cnt), _ptr2abstract->get_PSEUDO_ANGLE(_last_twist_cnt));
                     _last_expo = _Pi[i];
                     _last_twist_cnt++;
                 }
@@ -121,14 +122,102 @@ void ScrewsKinematics::initializePseudoTfs() {
                 _last_expo = Eigen::Isometry3f::Identity();
                 for (size_t j = 0; j < _meta2_pseudojoints; j++)
                 {
-                    //printTwist(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt));
-                    _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWISTS(_last_twist_cnt),_ptr2abstract->get_PSEUDO_ANGLES(_last_twist_cnt));
+                    //printTwist(_ptr2abstract->get_PASSIVE_TWIST(_last_twist_cnt));
+                    _Pi[i] = _last_expo * twistExp(_ptr2abstract->get_PASSIVE_TWIST(_last_twist_cnt),_ptr2abstract->get_PSEUDO_ANGLE(_last_twist_cnt));
                     _last_expo = _Pi[i];
                     _last_twist_cnt++;
                 }            
             }  
         }
     }
+    return;
+}
+*/
+void ScrewsKinematics::initializePseudoTfs() {
+    ROS_WARN_STREAM("[initializePseudoTfs] DEPRECATED ANATOMY TFS API - FOR BACKWARD COMPATIBILITY.");
+
+    if (_total_pseudojoints == 0) {
+        for (size_t i = 0; i < robot_params::METALINKS; i++) {
+            _Pi[i] = Eigen::Isometry3f::Identity();
+            std::cout << "[initializePseudoTfs] _Pi[" << i << "] = Identity\n";
+        }
+    } else {
+        for (size_t i = 0; i < robot_params::METALINKS; i++) {
+            _last_expo = Eigen::Isometry3f::Identity();
+
+            size_t num_pseudos = (i == 0) ? _meta1_pseudojoints : _meta2_pseudojoints;
+
+            for (size_t j = 0; j < num_pseudos; j++) {
+                int index = _last_twist_cnt;
+                Eigen::Matrix<float, 6, 1> xi = _ptr2abstract->get_PASSIVE_TWIST(index);
+                float theta = _ptr2abstract->get_PSEUDO_ANGLE(index);
+
+                std::cout << "\n[initializePseudoTfs] Pseudo #" << index << "\n";
+                std::cout << "Twist (xi): " << xi.transpose() << "\n";
+                std::cout << "Angle (theta): " << theta << "\n";
+
+                Eigen::Isometry3f exp_xi_theta = twistExp(xi, theta);
+                std::cout << "twistExp(xi, theta):\n" << exp_xi_theta.matrix() << "\n";
+
+                _Pi[i] = _last_expo * exp_xi_theta;
+                std::cout << "_Pi[" << i << "] after compounding:\n" << _Pi[i].matrix() << "\n";
+
+                _last_expo = _Pi[i];
+                _last_twist_cnt++;
+            }
+        }
+    }
+
+    std::cout << "\n[initializePseudoTfs] Final _Pi matrices:\n";
+    for (size_t i = 0; i < robot_params::METALINKS; i++) {
+        std::cout << "_Pi[" << i << "]:\n" << _Pi[i].matrix() << "\n";
+    }
+}
+
+void ScrewsKinematics::initializeReferenceAnatomyActiveTwists() {
+    // [6-5-25] In RobotAbstractBase.h the reference anatomy twists were initialized to 0:
+    // ln.53: active_twists[i] = Eigen::Matrix<float, 6, 1>::Zero();
+    // Here they are extracted from the current anatomy twists and the pseudo tfs
+
+    _ptr2abstract->active_twists[0] = _ptr2abstract->active_twists_anat[0];
+    
+    ad(_ad, _Pi[0]);
+    _ptr2abstract->active_twists[1] = _ad.inverse() * _ptr2abstract->active_twists_anat[1];
+
+    ad(_ad, _Pi[0] * _Pi[1]);
+    _ptr2abstract->active_twists[2] = _ad.inverse() * _ptr2abstract->active_twists_anat[2];
+
+    _ptr2abstract->ptr2_active_twists[0] = &_ptr2abstract->active_twists[0];
+    _ptr2abstract->ptr2_active_twists[1] = &_ptr2abstract->active_twists[1];
+    _ptr2abstract->ptr2_active_twists[2] = &_ptr2abstract->active_twists[2];
+
+    std::cout << "[initializeReferenceAnatomyActiveTwists] Reference twists initialized:\n";
+    for (int i = 0; i < robot_params::DOF; ++i)
+        std::cout << "active_twists[" << i << "] = " << _ptr2abstract->active_twists[i].transpose() << std::endl;
+
+    return;
+}
+
+void ScrewsKinematics::initializeReferenceAnatomyActiveTfs() {
+    // [6-5-25] In RobotAbstractBase.h the reference anatomy tfs were initialized to I:
+    // ln.74: g_ref_0[i] = Eigen::Isometry3f::Identity();
+    // Here they are extracted from the current anatomy tfs and the pseudo tfs
+
+    _ptr2abstract->g_ref_0[0] = _ptr2abstract->g_test_0[0];
+    
+    _ptr2abstract->g_ref_0[1] = _Pi[0].inverse() * _ptr2abstract->g_test_0[1];
+    _ptr2abstract->g_ref_0[2] = (_Pi[0] * _Pi[1]).inverse() * _ptr2abstract->g_test_0[2];
+    _ptr2abstract->g_ref_0[3] = (_Pi[0] * _Pi[1]).inverse() * _ptr2abstract->g_test_0[3];
+
+    _ptr2abstract->gsai_ptr[0] = &_ptr2abstract->g_ref_0[0];
+    _ptr2abstract->gsai_ptr[1] = &_ptr2abstract->g_ref_0[1];
+    _ptr2abstract->gsai_ptr[2] = &_ptr2abstract->g_ref_0[2];
+    _ptr2abstract->gsai_ptr[3] = &_ptr2abstract->g_ref_0[3];
+
+    std::cout << "[initializeReferenceAnatomyActiveTfs] Reference transformations initialized:\n";
+    for (int i = 0; i < robot_params::DOF + 1; ++i)
+        std::cout << "g_ref_0[" << i << "] =\n" << _ptr2abstract->g_ref_0[i].matrix() << std::endl;
+
     return;
 }
 
@@ -138,6 +227,8 @@ void ScrewsKinematics::initializeAnatomyActiveTwists() {
     //           These active twists should be used in dynamics and when used in kinematics
     //           NO pseudo expos must be used in the calculations!
     //           xa_ai_anat from MATLAB is extracted
+    // [6-5-25]  DEPRECATED - SINCE ANATOMY TWISTS ARE EXTRACTED FROM ROBOT YAML
+
     _debug_verbosity = false;
 
     _ptr2abstract->active_twists_anat[0] = _ptr2abstract->active_twists[0];

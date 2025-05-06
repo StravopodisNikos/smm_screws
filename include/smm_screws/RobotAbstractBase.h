@@ -10,7 +10,8 @@ class RobotAbstractBase {
 public:
     //static constexpr int DOF = 3;
 
-    Eigen::Matrix<float, 6, 1> active_twists[robot_params::DOF];      
+    Eigen::Matrix<float, 6, 1> active_twists[robot_params::DOF];
+    Eigen::Matrix<float, 6, 1>* ptr2_active_twists[robot_params::DOF];
     Eigen::Matrix<float, 6, 1> active_twists_anat[robot_params::DOF]; 
     Eigen::Matrix<float, 6, 1>* ptr2_active_twists_anat[robot_params::DOF];
 
@@ -50,6 +51,7 @@ public:
 
             // Legacy initialization for backward compatibility
             active_twists[i] = Eigen::Matrix<float, 6, 1>::Zero();
+            ptr2_active_twists[i] = &active_twists[i];
             std::cerr << "[initializeFromYaml] WARNING: active_twists[" << i << "] is deprecated and initialized to zero.\n";
         }
 
@@ -116,8 +118,8 @@ public:
     virtual uint8_t get_STRUCTURE_ID() = 0;
     virtual uint8_t get_PSEUDOS_METALINK1() = 0;
     virtual uint8_t get_PSEUDOS_METALINK2() = 0;
-    virtual float get_PSEUDO_ANGLES(int index) = 0;
-    virtual Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) = 0;
+    virtual float get_PSEUDO_ANGLE(int index) = 0;
+    virtual Eigen::Matrix<float, 6, 1> get_PASSIVE_TWIST(int index) = 0;
 };
 
 // ========================= FIXED STRUCTURE =========================
@@ -130,8 +132,8 @@ public:
     uint8_t get_STRUCTURE_ID() override { return 0; }
     uint8_t get_PSEUDOS_METALINK1() override { return 0; }
     uint8_t get_PSEUDOS_METALINK2() override { return 0; }
-    float get_PSEUDO_ANGLES(int index) override { return 0.0f; }
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+    float get_PSEUDO_ANGLE(int index) override { return 0.0f; }
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWIST(int index) override {
         return Eigen::Matrix<float, 6, 1>::Zero();
     }
 };
@@ -147,8 +149,16 @@ public:
     uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
     uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
 
-    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+    //float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    float get_PSEUDO_ANGLE(int index) override {
+        if (index < 0 || index >= yaml_loader.pseudo_angles.size()) {
+            ROS_ERROR_STREAM("Index " << index << " out of bounds for pseudo_angles.");
+            return 0.0f;
+        }
+        return yaml_loader.pseudo_angles[index];
+    }
+
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWIST(int index) override {
         return yaml_loader.passive_twist_0[index];
     }
 };
@@ -164,8 +174,16 @@ public:
     uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
     uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
 
-    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+    //float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    float get_PSEUDO_ANGLE(int index) override {
+        if (index < 0 || index >= yaml_loader.pseudo_angles.size()) {
+            ROS_ERROR_STREAM("Index " << index << " out of bounds for pseudo_angles.");
+            return 0.0f;
+        }
+        return yaml_loader.pseudo_angles[index];
+    }
+
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWIST(int index) override {
         return yaml_loader.passive_twist_0[index];
     }
 };
@@ -181,8 +199,16 @@ public:
     uint8_t get_PSEUDOS_METALINK1() override { return yaml_loader.META1_PSEUDOS; }
     uint8_t get_PSEUDOS_METALINK2() override { return yaml_loader.META2_PSEUDOS; }
 
-    float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
-    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWISTS(int index) override {
+    //float get_PSEUDO_ANGLES(int index) override { return 0.0f; } // TODO: angle loading
+    float get_PSEUDO_ANGLE(int index) override {
+        if (index < 0 || index >= yaml_loader.pseudo_angles.size()) {
+            ROS_ERROR_STREAM("Index " << index << " out of bounds for pseudo_angles.");
+            return 0.0f;
+        }
+        return yaml_loader.pseudo_angles[index];
+    }
+    
+    Eigen::Matrix<float, 6, 1> get_PASSIVE_TWIST(int index) override {
         return yaml_loader.passive_twist_0[index];
     }
 };

@@ -71,14 +71,16 @@ bool RobotYamlLoader::loadAll() {
         // Load passive twists
         YAML::Node xi_pj = YAML::LoadFile(basePath + "xi_pj_anat.yaml");
         ROS_INFO("[LoadFromYaml] Loading passive twists from xi_pj_anat.yaml:");
-        for (int j = 0; j < NUM_OF_PSEUDOJOINTS; ++j) {
-            std::string key = "xi_p" + std::to_string(j) + "_0";
-            if (xi_pj[key]) {
-                passive_twist_0[j] = loadTwist6f(xi_pj[key]);
-                ROS_INFO_STREAM("[LoadFromYaml] Loaded " << key << ": " << passive_twist_0[j].transpose());
-            } else {
-                ROS_WARN_STREAM("[LoadFromYaml] Key " << key << " not found in xi_pj_anat.yaml");
-            }
+        passive_twist_0.clear();
+        int index = 0;
+        while (true) {
+            std::string key = "xi_p" + std::to_string(index) + "_0";
+            if (!xi_pj[key]) break;
+        
+            Eigen::Matrix<float, 6, 1> twist = loadTwist6f(xi_pj[key]);
+            passive_twist_0.push_back(twist);
+            ROS_INFO_STREAM("[LoadFromYaml] Loaded " << key << ": " << twist.transpose());
+            ++index;
         }
 
         // Load link COM vectors and build full Isometry3f matrices
@@ -117,6 +119,23 @@ bool RobotYamlLoader::loadAll() {
             ROS_INFO_STREAM("[LoadFromYaml] Loaded " << key << ":\n" << M_s_com_0[i].format(fmt));
         }
 
+        // Load filtered pseudo joint angles (from a list)
+        YAML::Node pseudo_angles_node = YAML::LoadFile(basePath + "q_pj_anat.yaml");
+
+        pseudo_angles.clear();
+        const YAML::Node& angle_list = pseudo_angles_node["pseudo_angles"];
+        if (!angle_list || !angle_list.IsSequence()) {
+            ROS_ERROR("[LoadFromYaml] pseudo_angles entry is missing or not a sequence.");
+            return false;
+        }
+
+        for (size_t i = 0; i < angle_list.size(); ++i) {
+            float angle = angle_list[i].as<float>();
+            pseudo_angles.push_back(angle);
+            ROS_INFO_STREAM("[LoadFromYaml] Loaded pseudo_angles[" << i << "]: " << angle);
+        }
+
+        // Last info msg
         ROS_INFO("[LoadFromYaml] All robot parameters successfully loaded from YAML.");
         return true;
     } catch (const std::exception& ex) {

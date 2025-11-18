@@ -32,10 +32,10 @@
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
   <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
-  <!--   <depend>roscpp</depend> -->
+  <!--   <depend>rclcpp</depend> -->
   <!--   Note that this is equivalent to the following: -->
-  <!--   <build_depend>roscpp</build_depend> -->
-  <!--   <exec_depend>roscpp</exec_depend> -->
+  <!--   <build_depend>rclcpp</build_depend> -->
+  <!--   <exec_depend>rclcpp</exec_depend> -->
   <!-- Use build_depend for packages you need at compile time: -->
 
   <!-- Use build_export_depend for packages you need in order to build against this package: -->
@@ -48,10 +48,12 @@
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
-  <buildtool_depend>catkin</buildtool_depend>
+
+  <!--<buildtool_depend>catkin</buildtool_depend> --> <!-- [17-11-25] #Removed for ros2 -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
+  <build_depend>rclcpp</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>tf2</build_depend>
@@ -62,7 +64,7 @@
   <build_depend>roslib</build_depend>
 
   <build_export_depend>geometry_msgs</build_export_depend>
-  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>rclcpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>
   <build_export_depend>tf2</build_export_depend>
@@ -73,7 +75,7 @@
 
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>roscpp</exec_depend>
+  <exec_depend>rclcpp</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>tf2</exec_depend>

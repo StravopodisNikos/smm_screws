@@ -1,359 +1,194 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.8)
 project(smm_screws)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+# Use C++17 (you already use it in your manual g++ commands)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  roscpp
-  rospy # [20-7-24] Added for slider+publisher of joint velocities
-  std_msgs
-  tf2
-  tf2_ros
-  message_generation # [18-10-23] Added for custom msg/srv files generation
-  actionlib
-  actionlib_msgs     # [ 3-11-23] Added for custom action files generation
-  dynamic_reconfigure # [20-7-24] Added for slider+publisher of joint velocities
-  yaml-cpp
-  roslib
-)
-find_package(roslib REQUIRED)
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+#######################################
+## Find packages (AMENT + ROS 2)     ##
+#######################################
 
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(yaml-cpp REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+#######################################
+## Interface definitions (ROS 2)     ##
+#######################################
 
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## To declare and build messages, services or actions from within this
-## package, follow these steps:
-## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
-## * In the file package.xml:
-##   * add a build_depend tag for "message_generation"
-##   * add a build_depend and a exec_depend tag for each package in MSG_DEP_SET
-##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
-##     but can be declared for certainty nonetheless:
-##     * add a exec_depend tag for "message_runtime"
-## * In this file (CMakeLists.txt):
-##   * add "message_generation" and every package in MSG_DEP_SET to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
-##   * uncomment the add_*_files sections below as needed
-##     and list every .msg/.srv/.action file to be processed
-##   * uncomment the generate_messages entry below
-##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
-
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  JointAccel.msg
-  CurrentCartesianState.msg
-  ForceMeasurements.msg
-  JointVel.msg
- )
-
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  SetOperationalSpaceJacobian.srv
-  SetCurrentCartesianState.srv
+set(msg_files
+  "msg/JointAccel.msg"
+  "msg/CurrentCartesianState.msg"
+  "msg/ForceMeasurements.msg"
+  "msg/JointVel.msg"
 )
 
-## Generate actions in the 'action' folder
-add_action_files(
-  DIRECTORY action
-  FILES idosc.action
+set(srv_files
+  "srv/SetOperationalSpaceJacobian.srv"
+  "srv/SetCurrentCartesianState.srv"
 )
 
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs
-  std_msgs
-  actionlib_msgs
- )
-
-################################################
-## Declare ROS dynamic reconfigure parameters ##
-################################################
-
-## To declare and build dynamic reconfigure parameters within this
-## package, follow these steps:
-## * In the file package.xml:
-##   * add a build_depend and a exec_depend tag for "dynamic_reconfigure"
-## * In this file (CMakeLists.txt):
-##   * add "dynamic_reconfigure" to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * uncomment the "generate_dynamic_reconfigure_options" section below
-##     and list every .cfg file to be processed
-
-## Generate dynamic reconfigure parameters in the 'cfg' folder
- generate_dynamic_reconfigure_options(
-   cfg/JointVelocitiesConfig.cfg
- )
-
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if your package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-  INCLUDE_DIRS include
-#  CATKIN_DEPENDS  
-  LIBRARIES smm_screws robot_yaml_loader
-  CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs tf2 tf2_ros message_runtime  actionlib_msgs dynamic_reconfigure # [18-10-23] Added for custom msg generation 
-                                                                                                               # [3-11-23] Added action generation
-                                                                                                               # [20-7-24] Added dynamic_reconfigure,rospy
-#  DEPENDS system_lib
+set(action_files
+  "action/Idosc.action"
 )
 
-###########
-## Build ##
-###########
-catkin_install_python(PROGRAMS script/joint_velocities_publisher.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  ${srv_files}
+  ${action_files}
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
+# Export runtime dependency for generated interfaces
+ament_export_dependencies(rosidl_default_runtime)
+
+#######################################
+## Include directories               ##
+#######################################
+
+# Core headers are under include/smm_screws/core
 include_directories(
   include
-  ~/cpp_ws/libraries/eigen-3.4.0
-  ~/cpp_ws/libraries/odeint-v2-master
-  ~/cpp_ws/libraries/fuzzylite/include
-  ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  # If you really need these custom libs, keep them. Otherwise comment them out.
+  # /home/nikos/cpp_ws/libraries/odeint-v2-master
+  # /home/nikos/cpp_ws/libraries/fuzzylite/include
 )
 
-## Declare a C++ library
-add_library(fuzzylite_lib SHARED IMPORTED)
-set_target_properties(fuzzylite_lib PROPERTIES
-    IMPORTED_LOCATION ~/cpp_ws/libraries/fuzzylite/build/libfuzzylite.so
-)
+#######################################
+## Optional: fuzzylite imported lib  ##
+#######################################
 
-add_library(smm_screws INTERFACE)
-
-add_library(ScrewsMain
-  src/ScrewsMain.cpp
-)
-add_library(ScrewsKinematics
-  src/ScrewsKinematics.cpp
-)
-add_library(ScrewsDynamics
-  src/ScrewsDynamics.cpp
-)
-add_library(ScrewsVisualization
-  src/ScrewsVisualization.cpp
-)
-add_library(robot_shared
-  src/robot_shared.cpp
-)
-#add_library(OperationalSpaceControllers
-#  src/OperationalSpaceControllers.cpp
+# If you still use fuzzylite and the path is valid, keep this.
+# Otherwise comment this whole block.
+#add_library(fuzzylite_lib SHARED IMPORTED)
+#set_target_properties(fuzzylite_lib PROPERTIES
+#  IMPORTED_LOCATION /home/nikos/cpp_ws/libraries/fuzzylite/build/libfuzzylite.so
 #)
-add_library(robot_yaml_loader
-  src/RobotYamlLoader.cpp
+
+#######################################
+## Core C++ libraries (no ROS nodes) ##
+#######################################
+
+# ScrewsMain
+add_library(ScrewsMain
+  src/core/ScrewsMain.cpp
 )
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_include_directories(ScrewsMain PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(ScrewsMain
+  Eigen3::Eigen
+)
 
-## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-add_executable(example src/example.cpp)
-add_executable(example_dynamics src/example_dynamics.cpp)
-add_executable(example_shared src/example_shared.cpp)
-add_executable(serverOperationalSpaceJacobian src/serverOperationalSpaceJacobian.cpp)
-add_executable(clientOperationalSpaceJacobian src/clientOperationalSpaceJacobian.cpp)
-add_executable(serverCurrentCartesianState src/serverCurrentCartesianState.cpp)
-add_executable(clientCurrentCartesianState src/clientCurrentCartesianState.cpp)
-add_executable(publishCurrentCartesianState src/publishCurrentCartesianState.cpp)
-#add_executable(idosc_centralized src/idosc_centralized.cpp)
-#add_executable(impedance_centralized src/impedance_centralized.cpp)
-#add_executable(hybrid3_centralized src/hybrid3_centralized.cpp)
-#add_executable(example_idosc_centralized src/example_idosc_centralized.cpp)
-#add_executable(idosc_action_server src/idosc_action_server.cpp)
-#add_executable(idosc_action_client src/idosc_action_client.cpp)
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-#  add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#add_dependencies(idosc_action_server  ${smm_screws_EXPORTED_TARGETS} )
-#add_dependencies(idosc_action_client  ${smm_screws_EXPORTED_TARGETS} )
-
-## Specify libraries to link a library or executable target against
-## ONLY FOR LIBRARIES THAT HAVE A .cpp FILE!
-target_link_libraries(example
-   ${catkin_LIBRARIES}
-   # ScrewsMain # -> [4-10-23] Removed since ScrewsKinematics inherits from ScrewsMain
-   #ScrewsKinematics
-   robot_shared
- )
-target_link_libraries(example_dynamics
-   ${catkin_LIBRARIES}
-   #ScrewsDynamics
-   robot_shared # only test
- ) 
-target_link_libraries(example_shared
- ${catkin_LIBRARIES}
- robot_shared 
-) 
-target_link_libraries(serverOperationalSpaceJacobian
-${catkin_LIBRARIES}
-robot_shared 
-) 
-target_link_libraries(clientOperationalSpaceJacobian
-${catkin_LIBRARIES}
-robot_shared 
-) 
-target_link_libraries(serverCurrentCartesianState
-${catkin_LIBRARIES}
-robot_shared 
-) 
-target_link_libraries(clientCurrentCartesianState
-${catkin_LIBRARIES}
-robot_shared 
-) 
-target_link_libraries(publishCurrentCartesianState
-${catkin_LIBRARIES}
-robot_shared 
-) 
-# added to update robot definition
-target_link_libraries(robot_yaml_loader
-${catkin_LIBRARIES}
-yaml-cpp  
-) 
-
-#target_link_libraries(idosc_centralized # [29-7-24] Removed because "idosc_centralized" was paused for now
-#${catkin_LIBRARIES}
-#OperationalSpaceControllers 
-#) 
-#target_link_libraries(impedance_centralized # [29-7-24] Removed because "impedance_centralized" was paused for now
-#${catkin_LIBRARIES}
-#OperationalSpaceControllers 
-#) 
-#target_link_libraries(example_idosc_centralized # [29-7-24] Removed because "example_idosc_centralized" was paused for now
-#${catkin_LIBRARIES}
-#OperationalSpaceControllers 
-#) 
-#target_link_libraries(hybrid3_centralized # [29-7-24] Removed because "hybrid3_centralized" was paused for now
-#${catkin_LIBRARIES}
-#OperationalSpaceControllers 
-#) 
-#target_link_libraries(idosc_action_server # [29-7-24] Removed because "idosc_action_server" was paused for now
-#${catkin_LIBRARIES}
-#OperationalSpaceControllers 
-#) 
-#target_link_libraries(idosc_action_client # [29-7-24] Removed because "idosc_action_client" was paused for now
-#${catkin_LIBRARIES}
-#) 
-
-# [4-10-23] Added Link between libraries, due to cpp inheritance
+# ScrewsKinematics
+add_library(ScrewsKinematics
+  src/core/ScrewsKinematics.cpp
+)
+target_include_directories(ScrewsKinematics PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(ScrewsKinematics
-  ${catkin_LIBRARIES}
   ScrewsMain
+  Eigen3::Eigen
+)
+
+# ScrewsDynamics
+add_library(ScrewsDynamics
+  src/core/ScrewsDynamics.cpp
+)
+target_include_directories(ScrewsDynamics PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(ScrewsDynamics
-  ${catkin_LIBRARIES}
   ScrewsKinematics
+  Eigen3::Eigen
+  yaml-cpp
 )
-target_link_libraries(robot_shared
-  ${catkin_LIBRARIES}
-  ScrewsDynamics
-  ScrewsVisualization # [15-7-24] added to enable visual debugging tool
-  robot_yaml_loader # [2-5-25] added to link yaml loader with the abstract/shared libs
+
+# RobotYamlLoader
+add_library(robot_yaml_loader
+  src/core/RobotYamlLoader.cpp
 )
-#target_link_libraries(OperationalSpaceControllers
-#  ${catkin_LIBRARIES}
-#  robot_shared
-#)
-target_link_libraries(smm_screws INTERFACE
-  ScrewsKinematics
+target_include_directories(robot_yaml_loader PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(robot_yaml_loader
+  yaml-cpp
+  Eigen3::Eigen
+)
+
+#######################################
+## Simple core test executable       ##
+#######################################
+
+# Your pure C++ test (no ROS)
+add_executable(test_screws_core
+  src/core/test_screws_core.cpp
+)
+target_link_libraries(test_screws_core
   ScrewsDynamics
+  robot_yaml_loader
+)
+
+#######################################
+## Installation                      ##
+#######################################
+
+# Install headers
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+# Install libraries and test binary
+install(
+  TARGETS
+    ScrewsMain
+    ScrewsKinematics
+    ScrewsDynamics
+    robot_yaml_loader
+    test_screws_core
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+#######################################
+## Export                            ##
+#######################################
+
+ament_export_include_directories(include)
+ament_export_libraries(
   ScrewsMain
-  ScrewsVisualization
-  robot_shared
-  #OperationalSpaceControllers
+  ScrewsKinematics
+  ScrewsDynamics
+  robot_yaml_loader
 )
-#############
-## Install ##
-#############
 
-# all install targets should use catkin DESTINATION variables
-# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  geometry_msgs
+  tf2
+  tf2_ros
+  yaml-cpp
+  rosidl_default_runtime
+)
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# catkin_install_python(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
-## Mark executables for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-# install(TARGETS ${PROJECT_NAME}_node
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark libraries for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-# install(TARGETS ${PROJECT_NAME}
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-# )
-
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
-
-#############
-## Testing ##
-#############
-
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_smm_screws.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
-
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)
+ament_package()

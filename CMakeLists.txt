@@ -130,6 +130,40 @@ target_link_libraries(robot_yaml_loader
   Eigen3::Eigen
 )
 
+# RobotContext
+add_library(RobotContextLib
+  src/core/RobotContext.cpp
+)
+
+target_include_directories(RobotContextLib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(RobotContextLib PUBLIC
+  ScrewsKinematics
+  ScrewsDynamics
+  robot_yaml_loader
+  yaml-cpp
+  Eigen3::Eigen
+)
+
+#target_link_libraries(RobotContextLib
+#  ScrewsKinematics
+#  ScrewsDynamics
+#)
+
+#ament_export_targets(export_RobotContextLib HAS_LIBRARY_TARGET)
+#ament_export_libraries(RobotContextLib)
+
+#install(
+#  TARGETS RobotContextLib
+#  EXPORT export_RobotContextLib
+#  ARCHIVE DESTINATION lib
+#  LIBRARY DESTINATION lib
+#  RUNTIME DESTINATION bin
+#)
+
 #######################################
 ## Simple core test executable       ##
 #######################################
@@ -160,6 +194,7 @@ install(
     ScrewsKinematics
     ScrewsDynamics
     robot_yaml_loader
+    RobotContextLib
     test_screws_core
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
@@ -177,6 +212,7 @@ ament_export_libraries(
   ScrewsKinematics
   ScrewsDynamics
   robot_yaml_loader
+  RobotContextLib
 )
 
 ament_export_dependencies(

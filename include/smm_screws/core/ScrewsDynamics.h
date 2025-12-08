@@ -98,7 +98,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         //Eigen::Matrix3f ChristoffelSymbols[3];
         Eigen::Matrix<float, 6, 1> _LieBracketParDer[2];
         Eigen::Matrix<float, 1, 6> _xi_traspose;
-        float _PotEnergy_prev;;
+        float _PotEnergy_prev;
         float _PotEnergy;
         
 

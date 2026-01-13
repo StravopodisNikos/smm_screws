@@ -608,3 +608,147 @@ void ScrewsDynamics::print16Matrix(Eigen::Matrix<float, 1, 6> matrix) {
     std::cout <<  std::endl;
     return;
 }
+
+ScrewsDynamics::OperationalSpaceDynamicsResult
+ScrewsDynamics::computeOperationalSpaceDynamics(
+    ScrewsKinematics & kin,
+    const Eigen::Vector3f & q_vec,
+    const Eigen::Vector3f & dq_vec,
+    float base_lambda_dls,
+    float jacobian_cond_threshold)
+{
+    OperationalSpaceDynamicsResult result;
+
+    // ---- 1) Joint-space dynamics: M, C, G ----
+    float q_arr[robot_params::DOF];
+    float dq_arr[robot_params::DOF];
+    for (int i = 0; i < robot_params::DOF; ++i) {
+        q_arr[i]  = q_vec(i);
+        dq_arr[i] = dq_vec(i);
+    }
+
+    // Update dynamics and compute M, C, G(q)
+    updateJointPos(q_arr);
+    updateJointVel(dq_arr);
+
+    Eigen::Matrix3f M = MassMatrix();              // joint-space inertia
+    Eigen::Matrix3f C = CoriolisMatrix();          // joint-space Coriolis
+
+    // GravityVectorAnalytical() returns size DOF x 1
+    Eigen::Matrix<float, robot_params::DOF, 1> Gq =
+        GravityVectorAnalytical();
+
+    // We only map first 3 entries into task space
+    Eigen::Vector3f G = Gq.template head<3>();
+
+    // ---- 2) Kinematics / Jacobians in task space ----
+
+    kin.updateJointState(q_arr, dq_arr);
+
+    // Forward kinematics and body Jacobian
+    kin.ForwardKinematics3DOF_2();   // updates g[]
+    kin.BodyJacobian_Tool_1();       // fills Jbd_t_1 and related structures
+
+    // Operational space Jacobian J (3x3)
+    Eigen::Matrix3f J = Eigen::Matrix3f::Zero();
+    {
+        std::unique_ptr<Eigen::Matrix3f> Jptr =
+            kin.OperationalSpaceJacobian_ptr();
+        if (!Jptr) {
+            throw std::runtime_error(
+                "computeOperationalSpaceDynamics: null OperationalSpaceJacobian_ptr()");
+        }
+        J = *Jptr;
+    }
+
+    // Condition number of J
+    result.cond_J = kin.JacobianConditionNumber(J);
+
+    // Inverse of J (or DLS)
+    Eigen::Matrix3f Jinv = Eigen::Matrix3f::Zero();
+    {
+        std::unique_ptr<Eigen::Matrix3f> Jinv_ptr;
+        if (result.cond_J < jacobian_cond_threshold) {
+            // Use analytic inverse from your library
+            Jinv_ptr = kin.inverseOperationalSpaceJacobian_ptr();
+            result.used_dls_J = false;
+        } else {
+            // Use DLS inverse
+            Jinv_ptr = kin.DLSInverseJacobian(J, base_lambda_dls);
+            result.used_dls_J = true;
+        }
+        if (!Jinv_ptr) {
+            throw std::runtime_error(
+                "computeOperationalSpaceDynamics: failed to compute Jacobian inverse");
+        }
+        Jinv = *Jinv_ptr;
+    }
+
+    // Time derivative of Jacobian dJ
+    kin.DtBodyJacobian_Tool_1();  // updates dJbd_t_1, etc.
+    kin.SpatialJacobian_Tool_1(); // updates ptr2Jsp1
+    kin.ToolVelocityTwist(ScrewsKinematics::JacobianSelection::SPATIAL);
+    Eigen::Matrix3f dJ = Eigen::Matrix3f::Zero();
+    {
+        std::unique_ptr<Eigen::Matrix3f> dJptr =
+            kin.DtOperationalSpaceJacobian_ptr();
+        if (!dJptr) {
+            throw std::runtime_error(
+                "computeOperationalSpaceDynamics: null DtOperationalSpaceJacobian_ptr()");
+        }
+        dJ = *dJptr;
+    }
+
+    result.cond_dJ = kin.JacobianConditionNumber(dJ);
+
+    // Inverse of dJ (if needed, like in your ROS1 logic)
+    Eigen::Matrix3f dJinv = Eigen::Matrix3f::Zero();
+    bool have_dJinv = false;
+
+    try {
+        if (result.cond_dJ < jacobian_cond_threshold) {
+            dJinv = dJ.inverse();
+            result.used_dls_dJ = false;
+            have_dJinv = true;
+        } else {
+            auto dJinv_ptr = kin.DLSInverseJacobian(dJ, base_lambda_dls);
+            if (!dJinv_ptr) {
+                throw std::runtime_error(
+                    "computeOperationalSpaceDynamics: null from DLSInverseJacobian(dJ)");
+            }
+            dJinv = *dJinv_ptr;
+            result.used_dls_dJ = true;
+            have_dJinv = true;
+        }
+    } catch (const std::exception &) {
+        // same behavior as your ROS1 fallback: we just don't use dJinv
+        have_dJinv = false;
+    }
+
+    // ---- 3) Task-space quantities: Lambda, Fg, gamma ----
+
+    // Lambda(q) = J^{-T} M J^{-1}
+    result.Lambda = Jinv.transpose() * M * Jinv;
+
+    // Fg = J^{-T} G
+    result.Fg = Jinv.transpose() * G;
+
+    Eigen::Vector3f dq = dq_vec;
+
+    try {
+        if (have_dJinv) {
+            // Your final ROS1 expression:
+            // Gamma_Vector = Jinv^T * C * dq - Lambda * dJ * dq
+            result.gamma =
+                Jinv.transpose() * C * dq - result.Lambda * dJ * dq;
+        } else {
+            // Fallback: neglect Lambda * dJ term (as in your ROS1 catch block)
+            result.gamma =
+                Jinv.transpose() * C * dq;
+        }
+    } catch (const std::exception &) {
+        result.gamma.setZero();
+    }
+
+    return result;
+}

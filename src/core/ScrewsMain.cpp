@@ -324,6 +324,7 @@ Eigen::Matrix<float, 6, 1> ScrewsMain::extractLocalScrewPrevCoordVector(Eigen::I
     return _i_1Xi;
 } 
 
+/*
 //Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsMain::mergeColumns2Matrix(const Eigen::Matrix<float, 6, 1> * column_array)  {
 Eigen::Matrix<float, 6, 3> ScrewsMain::mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array)  {    
     int n = column_array->size(); // Number of columns 
@@ -341,6 +342,7 @@ Eigen::Matrix<float, 6, 3> ScrewsMain::mergeColumns2Matrix63(const Eigen::Matrix
 
     return matrix;
 }
+*/
 
 Eigen::Vector4f ScrewsMain::extractRotationQuaternion(const Eigen::Isometry3f g) {
     // [19-7-24] Extracts quaternions for providing active tfs rotation
@@ -376,7 +378,7 @@ void ScrewsMain::extract_twist_points(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen:
         Eigen::Vector3f p = w.cross(v) / (w_norm * w_norm);
 
         // Lambda value to compute the end point
-        float lambda = 0.25f; // You can change this value to scale the direction vector
+        float lambda = 1.0f; // You can change this value to scale the direction vector
 
         // Compute the start point (p)
         start = p;

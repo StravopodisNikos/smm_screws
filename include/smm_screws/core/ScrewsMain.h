@@ -58,7 +58,7 @@ public:
     Eigen::Isometry3f extractRelativeTf(Eigen::Isometry3f Ai, Eigen::Isometry3f Ai_1); // Computes: Bi [Mueller], g_i_i-1(0) [Murray]
     Eigen::Matrix<float, 6, 1> extractLocalScrewCoordVector(Eigen::Isometry3f Ai, Eigen::Matrix<float, 6, 1> Yi); // Computes the inverse of 1st relation in eq.(95),p.241,[3]
     Eigen::Matrix<float, 6, 1> extractLocalScrewPrevCoordVector(Eigen::Isometry3f Bi, Eigen::Matrix<float, 6, 1> iXi); // Computes eq.(7)/p.44,[2] 
-    Eigen::Matrix<float, 6, 3> mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array);    
+    //Eigen::Matrix<float, 6, 3> mergeColumns2Matrix63(const Eigen::Matrix<float, 6, 1> * column_array);    
     void extract_twist_points(Eigen::Matrix<float, 6, 1> & xi_R6, Eigen::Vector3f& start, Eigen::Vector3f& end);
     Eigen::Vector4f extractRotationQuaternion(const Eigen::Isometry3f g);
 
@@ -87,6 +87,20 @@ public:
         twist.template tail<3>() = omega_normalized;
         
         return twist;
+    }
+
+    // Generic helper: merges N 6x1 column vectors into a 6xN matrix.
+    // N is deduced automatically from the array size.
+    // This fn template substitutes mergeColumns2Matrix63!
+    template<int N>
+    static Eigen::Matrix<float, 6, N> mergeColumns2Matrix(
+        const Eigen::Matrix<float, 6, 1> (&column_array)[N])
+    {
+        Eigen::Matrix<float, 6, N> matrix;
+        for (int i = 0; i < N; ++i) {
+            matrix.col(i) = column_array[i];
+        }
+        return matrix;
     }
 
 private:

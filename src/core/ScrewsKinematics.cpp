@@ -885,6 +885,8 @@ void ScrewsKinematics::BodyJacobian_Tool_2() {
     if (_debug_verbosity) {  std::cout << "[ScrewsKinematics] Body Jacobian Tool 2:\n"; print6nMatrix(ptr2Jbd_t_2, robot_params::DOF);}
 }
 
+/*
+
 void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq, Eigen::Matrix<float, 6, 1> &Vtwist ) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]
     // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
@@ -914,7 +916,50 @@ void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection, float *dq
     }
     return; 
 }
+*/
+void ScrewsKinematics::ToolVelocityTwist(
+    typ_jacobian jacob_selection,
+    float *dq,
+    Eigen::Matrix<float, 6, 1> &Vtwist)
+{
+    // Returns the spatial OR the body velocity twist @ current [q,dq]
+    _debug_verbosity = false;
 
+    // Build dq_vector of size (DOF x 1)
+    Eigen::Matrix<float, robot_params::DOF, 1> dq_vector;
+    for (int i = 0; i < robot_params::DOF; ++i) {
+        dq_vector(i) = dq[i];
+    }
+
+    switch (jacob_selection)
+    {
+      case typ_jacobian::SPATIAL:
+        // Merge columns of Jsp_t_1 into 6xDOF matrix
+        Jsp63 = mergeColumns2Matrix(Jsp_t_1);   // N deduced as robot_params::DOF
+        Vtwist = Jsp63 * dq_vector;
+        if (_debug_verbosity) {
+          std::cout << "[ScrewsKinematics/ToolVelocityTwist] Spatial Velocity Twist:\n";
+          printTwist(Vtwist);
+        }
+        break;
+
+      case typ_jacobian::BODY:
+        // Merge columns of Jbd_t_1 into 6xDOF matrix
+        Jbd63 = mergeColumns2Matrix(Jbd_t_1);
+        Vtwist = Jbd63 * dq_vector;
+        if (_debug_verbosity) {
+          std::cout << "[ScrewsKinematics/ToolVelocityTwist] Body Velocity Twist:\n";
+          printTwist(Vtwist);
+        }
+        break;
+
+      default:
+        DEBUG_STREAM(true, "WRONG JACOBIAN SELECTION FOR VELOCITY TWIST");
+        break;
+    }
+}
+
+/*
 void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection) {
     // Returns the spatial OR the body velocity twist @ current [q,dq]
     // The twist returned relates to the Jacobian Matrix specified using "Jacob_select"
@@ -943,6 +988,48 @@ void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection) {
         break;
     }
     return; 
+}
+*/
+
+void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection)
+{
+    // Returns the spatial OR the body velocity twist @ current [q, dq]
+    _debug_verbosity = false;
+
+    // Build dq_vector from the stored joint velocities (_joint_vel)
+    Eigen::Matrix<float, robot_params::DOF, 1> dq_vector;
+    for (int i = 0; i < robot_params::DOF; ++i) {
+        dq_vector(i) = _joint_vel[i];
+    }
+
+    switch (jacob_selection)
+    {
+      case typ_jacobian::SPATIAL:
+        // Concatenate the Spatial Jacobian column vectors into 6xDOF
+        Jsp63 = mergeColumns2Matrix(Jsp_t_1);      // templated helper from ScrewsMain
+        Vsp_tool_twist = Jsp63 * dq_vector;
+        if (_debug_verbosity) {
+          std::cout
+            << "[ScrewsKinematics/ToolVelocityTwist] Spatial Velocity Twist:\n";
+          printTwist(Vsp_tool_twist);
+        }
+        break;
+
+      case typ_jacobian::BODY:
+        // Concatenate the Body Jacobian column vectors into 6xDOF
+        Jbd63 = mergeColumns2Matrix(Jbd_t_1);
+        Vbd_tool_twist = Jbd63 * dq_vector;
+        if (_debug_verbosity) {
+          std::cout
+            << "[ScrewsKinematics/ToolVelocityTwist] Body Velocity Twist:\n";
+          printTwist(Vbd_tool_twist);
+        }
+        break;
+
+      default:
+        DEBUG_STREAM(true, "WRONG JACOBIAN SELECTION FOR VELOCITY TWIST");
+        break;
+    }
 }
 
 void ScrewsKinematics::DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[robot_params::DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[robot_params::DOF] ) {
@@ -1330,6 +1417,7 @@ std::unique_ptr<Eigen::Matrix3f> ScrewsKinematics::DtOperationalSpaceJacobian_pt
     return std::make_unique<Eigen::Matrix3f>(dJop);
 }
 
+/*
 void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
     // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
     // Spatial and Body Jacobians must be be previously extracted for the current configuration.
@@ -1374,7 +1462,80 @@ void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection) {
     }    
     return;
 }
+*/
 
+void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection)
+{
+    // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
+    // Spatial and Body Jacobians must be previously extracted for the current configuration.
+    _debug_verbosity = false;
+
+    Eigen::Matrix<float, 6, 1> dV1;
+    Eigen::Matrix<float, 6, 1> dV2;
+    dV1.setZero();
+    dV2.setZero();
+
+    switch (jacob_selection)
+    {
+      case typ_jacobian::SPATIAL:
+      {
+        // --- Term 1: Σ J_i * ddq_i ---
+        for (int j = 0; j < robot_params::DOF; ++j) {
+          dV1 += Jsp_t_1[j] * _joint_accel[j];
+        }
+
+        // --- Term 2: Σ_{k<j} [J_k, J_j] * dq_k * dq_j ---
+        for (int k = 0; k < robot_params::DOF; ++k) {
+          for (int j = k + 1; j < robot_params::DOF; ++j) {
+            dV2 += lb(Jsp_t_1[k], Jsp_t_1[j])
+                   * _joint_vel[j] * _joint_vel[k];
+          }
+        }
+
+        dVsp_tool_twist = dV1 + dV2;
+
+        if (_debug_verbosity) {
+          std::cout
+            << "[ScrewsKinematics/DtToolVelocityTwist] Spatial Acceleration Twist:\n";
+          printTwist(dVsp_tool_twist);
+        }
+        break;
+      }
+
+      case typ_jacobian::BODY:
+      {
+        // dq, ddq as DOF-sized vectors
+        Eigen::Matrix<float, robot_params::DOF, 1> dq_vector;
+        Eigen::Matrix<float, robot_params::DOF, 1> ddq_vector;
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+          dq_vector(i)  = _joint_vel[i];
+          ddq_vector(i) = _joint_accel[i];
+        }
+
+        // Jbd63, dJbd63 are 6 x DOF
+        Jbd63  = mergeColumns2Matrix<robot_params::DOF>(Jbd_t_1);
+        dJbd63 = mergeColumns2Matrix<robot_params::DOF>(dJbd_t_1);
+
+        dVbd_tool_twist = Jbd63 * ddq_vector + dJbd63 * dq_vector;
+
+        if (_debug_verbosity) {
+          std::cout
+            << "[ScrewsKinematics/DtToolVelocityTwist] Body Acceleration Twist:\n";
+          printTwist(dVbd_tool_twist);
+        }
+        break;
+      }
+
+      default:
+        DEBUG_STREAM(true,
+          "[ScrewsKinematics/DtToolVelocityTwist] "
+          "WRONG JACOBIAN SELECTION FOR ACCELERATION TWIST");
+        break;
+    }
+}
+
+/*
 void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection, float *ddq, float *dq, Eigen::Matrix<float, 6, 1> &dVtwist ) {
     // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
     // Spatial and Body Jacobians must be be previously extracted for the current configuration.
@@ -1418,6 +1579,78 @@ void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection, float *
         break;
     }    
     return;
+}
+*/
+
+void ScrewsKinematics::DtToolVelocityTwist(
+    typ_jacobian jacob_selection,
+    float *ddq,
+    float *dq,
+    Eigen::Matrix<float, 6, 1> &dVtwist)
+{
+    // Returns the First Time Derivative of Velocity Twist (~Acceleration twist) of the {T} frame
+    // Spatial and Body Jacobians must be previously extracted for the current configuration.
+    _debug_verbosity = false;
+
+    Eigen::Matrix<float, 6, 1> dV1;
+    Eigen::Matrix<float, 6, 1> dV2;
+    dV1.setZero();
+    dV2.setZero();
+
+    switch (jacob_selection)
+    {
+      case typ_jacobian::SPATIAL:
+      {
+        // --- Term 1: Σ J_i * ddq_i ---
+        for (int j = 0; j < robot_params::DOF; ++j) {
+          dV1 += Jsp_t_1[j] * ddq[j];
+        }
+
+        // --- Term 2: Σ_{k<j} [J_k, J_j] * dq_k * dq_j ---
+        for (int k = 0; k < robot_params::DOF; ++k) {
+          for (int j = k + 1; j < robot_params::DOF; ++j) {
+            dV2 += lb(Jsp_t_1[k], Jsp_t_1[j]) * dq[j] * dq[k];
+          }
+        }
+
+        dVtwist = dV1 + dV2;
+
+        if (_debug_verbosity) {
+          std::cout << "[ScrewsKinematics/DtToolVelocityTwist] Spatial Acceleration Twist:\n";
+          printTwist(dVtwist);
+        }
+        break;
+      }
+
+      case typ_jacobian::BODY:
+      {
+        // dq, ddq as DOF-sized vectors
+        Eigen::Matrix<float, robot_params::DOF, 1> dq_vector;
+        Eigen::Matrix<float, robot_params::DOF, 1> ddq_vector;
+
+        for (int i = 0; i < robot_params::DOF; ++i) {
+          dq_vector(i)  = dq[i];
+          ddq_vector(i) = ddq[i];
+        }
+
+        // 6 x DOF Jacobians from column arrays
+        Jbd63  = mergeColumns2Matrix<robot_params::DOF>(Jbd_t_1);
+        dJbd63 = mergeColumns2Matrix<robot_params::DOF>(dJbd_t_1);
+
+        dVtwist = Jbd63 * ddq_vector + dJbd63 * dq_vector;
+
+        if (_debug_verbosity) {
+          std::cout << "[ScrewsKinematics/DtToolVelocityTwist] Body Acceleration Twist:\n";
+          printTwist(dVtwist);
+        }
+        break;
+      }
+
+      default:
+        DEBUG_STREAM(true,
+          "[ScrewsKinematics/DtToolVelocityTwist] WRONG JACOBIAN SELECTION FOR ACCELERATION TWIST");
+        break;
+    }
 }
 
 void ScrewsKinematics::CartesianVelocity_twist(Eigen::Vector4f &v_qs) {

@@ -130,6 +130,19 @@ target_link_libraries(robot_yaml_loader
   Eigen3::Eigen
 )
 
+# RobotYamlLoaderNdof
+add_library(robot_yaml_loader_ndof
+  src/core/RobotYamlLoaderNdof.cpp
+)
+target_include_directories(robot_yaml_loader_ndof PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(robot_yaml_loader_ndof
+  yaml-cpp
+  Eigen3::Eigen
+)
+
 # RobotContext
 add_library(RobotContextLib
   src/core/RobotContext.cpp
@@ -194,6 +207,7 @@ install(
     ScrewsKinematics
     ScrewsDynamics
     robot_yaml_loader
+    robot_yaml_loader_ndof
     RobotContextLib
     test_screws_core
   EXPORT export_${PROJECT_NAME}
@@ -201,6 +215,67 @@ install(
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
+
+# -----------------------------------------
+# Examples: pure C++ (no ROS)
+# -----------------------------------------
+option(SMM_SCREWS_BUILD_EXAMPLES "Build C++ core examples" ON)
+
+if(SMM_SCREWS_BUILD_EXAMPLES)
+# ---------- Simple core C++ example: screws_main_example ----------
+
+add_executable(smm_screws_main_example
+  examples/cpp_core/screws_main_example.cpp
+)
+
+target_include_directories(smm_screws_main_example PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(smm_screws_main_example
+  PUBLIC
+    ScrewsMain         # your core library from src/core/ScrewsMain.cpp
+    Eigen3::Eigen
+)
+
+install(
+  TARGETS smm_screws_main_example
+  DESTINATION lib/${PROJECT_NAME}
+)
+endif()
+
+# -----------------------------------------
+# Demos: ROS 2 nodes
+# -----------------------------------------
+option(SMM_SCREWS_BUILD_DEMOS "Build ROS 2 demo nodes" ON)
+
+if(SMM_SCREWS_BUILD_DEMOS)
+  add_executable(smm_fk_demo_node
+    demos/ros2/fk_demo_node.cpp
+  )
+
+  target_include_directories(smm_fk_demo_node PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${smm_screws_INCLUDE_DIRS}
+  )
+
+  target_link_libraries(smm_fk_demo_node
+    PUBLIC
+      rclcpp::rclcpp
+      Eigen3::Eigen
+      yaml-cpp
+      ScrewsKinematics
+      ScrewsDynamics
+      RobotContextLib
+  )
+
+  install(
+    TARGETS smm_fk_demo_node
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
 
 #######################################
 ## Export                            ##
@@ -212,6 +287,7 @@ ament_export_libraries(
   ScrewsKinematics
   ScrewsDynamics
   robot_yaml_loader
+  robot_yaml_loader_ndof
   RobotContextLib
 )
 

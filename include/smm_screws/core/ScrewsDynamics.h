@@ -68,6 +68,26 @@ class ScrewsDynamics: public ScrewsKinematics {
         std::pair<Eigen::Matrix3f, Eigen::Vector3f> DynamicManipulabilityEllipsoid();
 
         Eigen::Matrix3f ChristoffelSymbols[robot_params::DOF];
+
+        struct OperationalSpaceDynamicsResult
+        {
+            Eigen::Matrix3f Lambda;   // 3x3 task-space inertia
+            Eigen::Vector3f gamma;    // 3x1 task-space Coriolis / centrifugal
+            Eigen::Vector3f Fg;       // 3x1 task-space gravity
+
+            float cond_J   = 0.0f;    // cond(J)
+            float cond_dJ  = 0.0f;    // cond(dJ)
+            bool  used_dls_J   = false;
+            bool  used_dls_dJ  = false;
+        };
+
+        OperationalSpaceDynamicsResult computeOperationalSpaceDynamics(
+            ScrewsKinematics & kin,
+            const Eigen::Vector3f & q,
+            const Eigen::Vector3f & dq,
+            float base_lambda_dls = 0.005f,
+            float jacobian_cond_threshold = 10.0f);
+
 	private:
         static constexpr float _g_z = -9.80665f;
 

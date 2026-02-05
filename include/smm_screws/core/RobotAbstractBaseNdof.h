@@ -70,7 +70,7 @@ public:
         dof_ = yaml_loader.DOF;
         if (dof_ <= 0 || dof_ > robot_params::MAX_DOF) {
             std::cerr << "[RobotAbstractBaseNdof::initializeFromYaml] Invalid DOF = "
-                      << dof_ << " (expected 1.." << MAX_DOF << ")." << std::endl;
+                      << dof_ << " (expected 1.." << robot_params::MAX_DOF << ")." << std::endl;
             return false;
         }
 
@@ -122,7 +122,7 @@ public:
                   << g_test_0[dof_].matrix() << std::endl;
 
         // Initialize remaining unused frames as identity
-        for (int i = dof_ + 1; i < MAX_DOF + 1; ++i) {
+        for (int i = dof_ + 1; i < robot_params::MAX_DOF + 1; ++i) {
             g_test_0[i] = Eigen::Isometry3f::Identity();
             gsai_test_ptr[i] = &g_test_0[i];
         }
@@ -181,7 +181,7 @@ public:
         static float dummy_fc[robot_params::MAX_DOF]      = {1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
         static float dummy_fv[robot_params::MAX_DOF]      = {50.f, 50.f, 50.f, 50.f, 50.f, 50.f};
 
-        for (int i = 0; i < MAX_DOF; ++i) {
+        for (int i = 0; i < robot_params::MAX_DOF; ++i) {
             link_mass[i]    = &dummy_mass[i];
             link_inertia[i] = &dummy_inertia[i];
             fc_coeffs[i]    = &dummy_fc[i];

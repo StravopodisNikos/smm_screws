@@ -120,17 +120,17 @@ public:
     void initializeLocalScrewCoordVectors();
     void initializeReferenceAnatomyActiveTwists();
     void initializeReferenceAnatomyActiveTfs();
-    
+
     // ============================================================
     // 4) Forward Kinematics (templated; float/double → float)
     // ============================================================
 
-    // Generic FK for {T} frame given q[0..dof-1] (float or double)
+    // Generic FK for {T} frame (TCP) given q[0..dof-1] (float or double)
     template<typename df_number>
-    void ForwardKinematicsTCP(const df_number* q)
+    void ScrewsKinematicsNdof::ForwardKinematicsTCP(const df_number* q)
     {
         static_assert(std::is_floating_point<df_number>::value,
-                      "ForwardKinematicsTCP requires floating-point df_number");
+                    "ForwardKinematicsTCP requires floating-point df_number");
 
         if (!q) {
             std::cerr << "[ScrewsKinematicsNdof::ForwardKinematicsTCP(q)] WARNING: q is null\n";
@@ -139,29 +139,31 @@ public:
 
         if (!_ptr2abstract_ndof) {
             std::cerr << "[ScrewsKinematicsNdof::ForwardKinematicsTCP(q)] "
-                         "RobotAbstractBaseNdof pointer is null\n";
+                        "RobotAbstractBaseNdof pointer is null\n";
             return;
         }
 
         _debug_verbosity = false;
 
-        // Precompute exponentials for all joints (reference anatomy twists)
-        setExponentials(q);
+        // IMPORTANT:
+        // Use CURRENT / ANATOMY twists (active_twists_anat),
+        // not reference twists. This already includes the effect of pseudos.
+        setExponentialsAnat(q);
 
         Eigen::Isometry3f prefix = Eigen::Isometry3f::Identity();
 
-        // Joint frames
+        // Joint frames (current anatomy)
         for (int i = 0; i < _dof; ++i) {
-            prefix  = prefix * _active_expos[i];
-            _g[i]   = prefix * *(_ptr2abstract_ndof->gsai_ptr[i]);
+            prefix    = prefix * _active_expos[i];
+            _g[i]     = prefix * *(_ptr2abstract_ndof->gsai_test_ptr[i]);
         }
 
-        // TCP frame at index _dof
-        _g[_dof] = prefix * *(_ptr2abstract_ndof->gsai_ptr[_dof]);
+        // TCP frame at index _dof (current anatomy)
+        _g[_dof] = prefix * *(_ptr2abstract_ndof->gsai_test_ptr[_dof]);
         _gst     = _g[_dof];
 
         if (_debug_verbosity) {
-            std::cout << "[ForwardKinematicsTCP] gst =\n" << _gst.matrix() << '\n';
+            std::cout << "[ForwardKinematicsTCPNdof] gst =\n" << _gst.matrix() << '\n';
         }
     }
 
@@ -215,9 +217,11 @@ public:
     // Assumes:
     //   - initializeLocalScrewCoordVectors() was called once
     //   - ForwardKinematicsTCP(...) was run for current q
-    void computeSpatialJacobianTCP();   // fills _Jsp_tool (6 x _dof)
-    void computeBodyJacobianTCP();      // fills _Jbd_tool (6 x _dof)
-
+    void computeSpatialJacobianTCP1();  // Ad(g_i) * iXi[i] --> fills _Jsp_tool (6 x _dof)
+    void computeSpatialJacobianTCP2();  // Ad(g_i * g_ref_i^{-1}) * active_twists[i] --> fills _Jsp_tool (6 x _dof)
+    void computeBodyJacobianTCP1();  // Tool 1: Ad(g_T⁻¹ g_i) * iXi[i]  --> fills _Jbd_tool (6 x _dof)
+    void computeBodyJacobianTCP2();  // Tool 2: Ad(g_T⁻¹ g_i g_ref_i⁻¹) * active_twists[i] --> fills _Jbd_tool (6 x _dof)   
+    
     // Convenience getters (return 6 x dof blocks)
     Eigen::Matrix<float, 6, Eigen::Dynamic> getSpatialJacobianTCP() const;
     Eigen::Matrix<float, 6, Eigen::Dynamic> getBodyJacobianTCP() const;

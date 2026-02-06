@@ -389,25 +389,38 @@ void ScrewsKinematicsNdof::ForwardKinematicsTCP()
 
 // ==================== 5) Jacobians (tool frame) ====================
 
-void ScrewsKinematicsNdof::computeSpatialJacobianTCP()
+// ==================== Spatial Jacobian – Option 1 (Tool_1) ====================
+// Matches: SpatialJacobian_Tool_1() from 3-DOF case
+//   J^s_i = Ad_{g_i} * iXi[i]
+void ScrewsKinematicsNdof::computeSpatialJacobianTCP1()
 {
-    // Precondition: _g[0.._dof-1], _iXi[0.._dof-1] are up-to-date
-    // Typically:
-    //   - initializeLocalScrewCoordVectors() once at startup
-    //   - ForwardKinematicsTCP(...) for current q before calling this
-
     if (_dof <= 0) {
-        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP] DOF <= 0\n";
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP1] DOF <= 0\n";
         return;
     }
 
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP1] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Assumptions (same as 3-DOF):
+    //  - ForwardKinematicsTCP(q) was called for current q -> _g[i] are up to date
+    //  - initializeLocalScrewCoordVectorsNdof() was called -> _iXi[i] are set
+
+    _debug_verbosity = false;  // same behavior as original SpatialJacobian_Tool_1
+
     for (int i = 0; i < _dof; ++i) {
-        ad(_ad, _g[i]);                       // Ad_{g_i}
-        _Jsp_tool.col(i) = _ad * _iXi[i];     // J^s_i = Ad_{g_i} * iXi_i
+        // Ad_{g_i}
+        ad(_ad, _g[i]);
+
+        // J^s_i = Ad_{g_i} * iXi[i]
+        _Jsp_tool.col(i) = _ad * _iXi[i];
     }
 
     if (_debug_verbosity) {
-        std::cout << "[computeSpatialJacobianTCP] Jsp_tool (6 x " << _dof << "):\n";
+        std::cout << "[ScrewsKinematicsNdof] Spatial Jacobian 1 (Ad(g_i) * iXi[i]):\n";
         for (int r = 0; r < 6; ++r) {
             for (int c = 0; c < _dof; ++c) {
                 std::cout << _Jsp_tool(r, c) << "\t";
@@ -417,25 +430,104 @@ void ScrewsKinematicsNdof::computeSpatialJacobianTCP()
     }
 }
 
-void ScrewsKinematicsNdof::computeBodyJacobianTCP()
+// ==================== Spatial Jacobian – Option 2 (Tool_2) ====================
+// Matches: SpatialJacobian_Tool_2() from 3-DOF case
+//   J^s_i = Ad_{ g_i * (g_ref_i)^{-1} } * active_twists[i]
+void ScrewsKinematicsNdof::computeSpatialJacobianTCP2()
 {
-    // Precondition: ForwardKinematicsTCP was called (so _g[_dof] is TCP pose)
-    // Body Jacobian for TCP: J^b_i = Ad_{g_T^{-1} g_i} * iXi_i
-
     if (_dof <= 0) {
-        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP] DOF <= 0\n";
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP2] DOF <= 0\n";
         return;
     }
 
-    Eigen::Isometry3f gT_inv = _g[_dof].inverse();
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP2] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Assumptions:
+    //  - initializePseudoTfsNdof()
+    //  - initializeReferenceAnatomyActiveTwistsNdof()
+    //  - initializeReferenceAnatomyActiveTfsNdof()
+    //  - ForwardKinematicsTCP(q)
+    // have been called appropriately, so:
+    //   _g[i]                          -> current joint frames
+    //   _ptr2abstract_ndof->gsai_ptr[i] -> reference anatomy joint frames
+    //   _ptr2abstract_ndof->active_twists[i] -> reference anatomy twists
+
+    _debug_verbosity = false;
 
     for (int i = 0; i < _dof; ++i) {
-        ad(_ad, gT_inv * _g[i]);              // Ad_{g_T^{-1} g_i}
-        _Jbd_tool.col(i) = _ad * _iXi[i];     // J^b_i = Ad_{g_T^{-1} g_i} * iXi_i
+
+        // Ad_{ g_i * (g_ref_i)^{-1} }
+        Eigen::Isometry3f g_current   = _g[i];
+        Eigen::Isometry3f g_reference = *(_ptr2abstract_ndof->gsai_ptr[i]);
+        ad(_ad, g_current * g_reference.inverse());
+
+        // J^s_i = Ad_{..} * active_twists[i]
+        _Jsp_tool.col(i) = _ad * _ptr2abstract_ndof->active_twists[i];
     }
 
     if (_debug_verbosity) {
-        std::cout << "[computeBodyJacobianTCP] Jbd_tool (6 x " << _dof << "):\n";
+        std::cout << "[ScrewsKinematicsNdof] Spatial Jacobian 2 (Ad(g_i g_ref_i^{-1}) * active_twists[i]):\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jsp_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+// ===================================================
+// How to use Spatial Jacobian options:
+// ===================================================
+// After FK:
+// kin_ndof.ForwardKinematicsTCP(q);
+//
+// Option 1: directly from Ad(g_i) * iXi[i]
+//kin_ndof.computeSpatialJacobianTCP1();
+//Eigen::MatrixXf J1 = kin_ndof.getSpatialJacobianTCP();
+//
+// Option 2: via reference anatomy + pseudos
+//kin_ndof.computeSpatialJacobianTCP2();
+//Eigen::MatrixXf J2 = kin_ndof.getSpatialJacobianTCP();
+
+// ==================== Body Jacobian – Option 1 (Tool_1) ====================
+// Matches: BodyJacobian_Tool_1() from 3-DOF case
+//   J^b_i = Ad_{ g_T^{-1} g_i } * iXi[i]
+
+void ScrewsKinematicsNdof::computeBodyJacobianTCP1()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP1] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP1] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Assumptions (same as 3-DOF version):
+    //  1. ForwardKinematicsTCP(q) has been called for current q
+    //     => _g[0.._dof], _gst are up to date
+    //  2. initializeLocalScrewCoordVectorsNdof() has been called
+    //     => _iXi[i] are set
+
+    _debug_verbosity = false;
+
+    for (int i = 0; i < _dof; ++i) {
+        // Ad_{ g_T^{-1} g_i }
+        ad(_ad, _gst.inverse() * _g[i]);
+
+        // J^b_i = Ad_{ g_T^{-1} g_i } * iXi[i]
+        _Jbd_tool.col(i) = _ad * _iXi[i];
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof] Body Jacobian Tool 1 (Ad(g_T^{-1} g_i) * iXi[i]):\n";
         for (int r = 0; r < 6; ++r) {
             for (int c = 0; c < _dof; ++c) {
                 std::cout << _Jbd_tool(r, c) << "\t";
@@ -444,6 +536,71 @@ void ScrewsKinematicsNdof::computeBodyJacobianTCP()
         }
     }
 }
+
+// ==================== Body Jacobian – Option 2 (Tool_2) ====================
+// Matches: BodyJacobian_Tool_2() from 3-DOF case
+//   J^b_i = Ad_{ g_T^{-1} g_i g_ref_i^{-1} } * active_twists[i]
+void ScrewsKinematicsNdof::computeBodyJacobianTCP2()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP2] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP2] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Assumptions:
+    //  1. initializePseudoTfsNdof()
+    //  2. initializeReferenceAnatomyActiveTwistsNdof()
+    //  3. initializeReferenceAnatomyActiveTfsNdof()
+    //  4. ForwardKinematicsTCP(q)
+    // have been called appropriately, so:
+    //   _g[i]                                  -> current joint frames
+    //   _gst                                   -> current TCP frame
+    //   _ptr2abstract_ndof->gsai_ptr[i]       -> reference joint frames
+    //   _ptr2abstract_ndof->active_twists[i]  -> reference twists
+
+    _debug_verbosity = false;
+
+    for (int i = 0; i < _dof; ++i) {
+        Eigen::Isometry3f g_ref_i = *(_ptr2abstract_ndof->gsai_ptr[i]);
+
+        // Ad_{ g_T^{-1} g_i g_ref_i^{-1} }
+        ad(_ad, _gst.inverse() * _g[i] * g_ref_i.inverse());
+
+        // J^b_i = Ad_{..} * active_twists[i]
+        _Jbd_tool.col(i) = _ad * _ptr2abstract_ndof->active_twists[i];
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof] Body Jacobian Tool 2 "
+                     "(Ad(g_T^{-1} g_i g_ref_i^{-1}) * active_twists[i]):\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+// ===================================================
+// How to use TCP Body Jacobian options:
+// ===================================================
+// After FK:
+// kin_ndof.ForwardKinematicsTCP(q);
+//
+// Option 1: directly from Ad(g_i) * iXi[i]
+//kin_ndof.computeBodyJacobianTCP1();
+//Eigen::MatrixXf Jb1 = kin_ndof.getBodyJacobianTCP();
+//
+// Option 2: via reference anatomy + pseudos
+//kin_ndof.computeBodyJacobianTCP2();
+//Eigen::MatrixXf Jb2 = kin_ndof.getBodyJacobianTCP();
 
 // ==================== Jacobian getters ====================
 

@@ -479,6 +479,66 @@ void ScrewsKinematicsNdof::computeSpatialJacobianTCP2()
         }
     }
 }
+
+// ==================== Spatial Jacobian – Option 3 (Tool_3) ====================
+// Matches: SpatialJacobian_Tool() from Murray book.
+//   Uses anatomy twists and their exponentials (PoE form).
+//
+//   J^s = [ xi'_1  xi'_2  ...  xi'_n ]
+//   xi'_i = Ad_{ exp(xi_1 * theta_1) * ... * exp(xi_{i-1} * theta_{i-1}) } * xi_i
+//
+// Preconditions:
+//   1. _ptr2abstract_ndof is valid
+//   2. _dof in {3,4,5,6}
+//   3. active_twists_anat[i] have been loaded from YAML
+//   4. setExponentialsAnat(q) has been called for current q, so that
+//      _active_expos_anat[i] = exp( xi_anat[i] * q[i] )
+void ScrewsKinematicsNdof::computeSpatialJacobianTCP3()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP3] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialJacobianTCP3] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // Prefix product: exp(xi_1 theta_1) * ... * exp(xi_{i-1} theta_{i-1})
+    Eigen::Isometry3f prefix = Eigen::Isometry3f::Identity();
+
+    for (int i = 0; i < _dof; ++i) {
+        if (i > 0) {
+            // Multiply by exp(xi_{i-1} * theta_{i-1}) from setExponentialsAnat()
+            prefix = prefix * _active_expos_anat[i - 1];
+        }
+
+        // Ad_{prefix}
+        ad(_ad, prefix);
+
+        // xi'_i = Ad_{prefix} * xi_anat[i]
+        const Eigen::Matrix<float, 6, 1>& xi_anat_i =
+            _ptr2abstract_ndof->active_twists_anat[i];
+
+        _Jsp_tool.col(i) = _ad * xi_anat_i;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof] Spatial Jacobian Tool 3 "
+                     "(Murray PoE with anat twists):\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jsp_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
 // ===================================================
 // How to use Spatial Jacobian options:
 // ===================================================
@@ -492,6 +552,15 @@ void ScrewsKinematicsNdof::computeSpatialJacobianTCP2()
 // Option 2: via reference anatomy + pseudos
 //kin_ndof.computeSpatialJacobianTCP2();
 //Eigen::MatrixXf J2 = kin_ndof.getSpatialJacobianTCP();
+//
+// Option 3: via test anatomy only
+// 1. Ensure anat twists loaded (via RobotAbstractBaseNdof::initializeFromYaml)
+// 2. For a given q (size = dof):
+//kin_ndof.setExponentialsAnat(q);   // fills _active_expos_anat[i]
+// 3. Compute Jacobian (Tool_3)
+//kin_ndof.computeSpatialJacobianTCP3();
+// 4. Get 6×dof matrix
+//Eigen::MatrixXf Js = kin_ndof.getSpatialJacobianTCP();
 
 // ==================== Body Jacobian – Option 1 (Tool_1) ====================
 // Matches: BodyJacobian_Tool_1() from 3-DOF case
@@ -588,6 +657,68 @@ void ScrewsKinematicsNdof::computeBodyJacobianTCP2()
     }
 }
 
+// ==================== Body Jacobian – Option 3 (Tool_3, TCP) ====================
+// Murray-style PoE body Jacobian, expressed in the {T} frame, using ONLY
+// anatomy twists and their exponentials.
+//
+//   J^s_tool_b(q) = [ xi'_1  xi'_2  ...  xi'_n ]
+//   xi'_i = Ad_{ exp(xi_i * theta_i) * ... * exp(xi_n * theta_n) * gst_0 }^{-1} * xi_i
+//
+// Preconditions:
+//   1. _ptr2abstract_ndof is valid
+//   2. _dof in {3,4,5,6}
+//   3. active_twists_anat[i] have been loaded from YAML
+//   4. setExponentialsAnat(q) has been called for current q so that
+//      _active_expos_anat[i] = exp( xi_anat[i] * q[i] )
+void ScrewsKinematicsNdof::computeBodyJacobianTCP3()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP3] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobianTCP3] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // gst_0: TCP pose at q = 0 (loaded from YAML as gst_test_0)
+    const Eigen::Isometry3f& gst0 = _ptr2abstract_ndof->g_test_0[_dof];
+
+    for (int i = 0; i < _dof; ++i) {
+        // suffix_i = exp(xi_i * theta_i) * ... * exp(xi_n * theta_n) * gst_0
+        Eigen::Isometry3f suffix = Eigen::Isometry3f::Identity();
+
+        for (int k = i; k < _dof; ++k) {
+            suffix = suffix * _active_expos_anat[k];
+        }
+        suffix = suffix * gst0;
+
+        // Ad_{suffix}
+        ad(_ad, suffix);
+
+        // xi'_i = Ad_{suffix}^{-1} * xi_i
+        const Eigen::Matrix<float, 6, 1>& xi_anat_i =
+            _ptr2abstract_ndof->active_twists_anat[i];
+
+        _Jbd_tool.col(i) = _ad.inverse() * xi_anat_i;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof] Body Jacobian Tool 3 "
+                     "(Murray PoE with anat twists, TCP frame):\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
 // ===================================================
 // How to use TCP Body Jacobian options:
 // ===================================================
@@ -595,13 +726,18 @@ void ScrewsKinematicsNdof::computeBodyJacobianTCP2()
 // kin_ndof.ForwardKinematicsTCP(q);
 //
 // Option 1: directly from Ad(g_i) * iXi[i]
-//kin_ndof.computeBodyJacobianTCP1();
-//Eigen::MatrixXf Jb1 = kin_ndof.getBodyJacobianTCP();
+// kin_ndof.computeBodyJacobianTCP1();
+// Eigen::MatrixXf Jb1 = kin_ndof.getBodyJacobianTCP();
 //
 // Option 2: via reference anatomy + pseudos
-//kin_ndof.computeBodyJacobianTCP2();
-//Eigen::MatrixXf Jb2 = kin_ndof.getBodyJacobianTCP();
-
+// kin_ndof.computeBodyJacobianTCP2();
+// Eigen::MatrixXf Jb2 = kin_ndof.getBodyJacobianTCP();
+// Option 3: via test anatomy twists and tfs
+// q: current joint vector (size = dof)
+// kin_ndof.setExponentialsAnat(q);     // fills _active_expos_anat[i]
+// Murray-style body Jacobian (option 3)
+// kin_ndof.computeBodyJacobianTCP3();
+// Eigen::MatrixXf Jb = kin_ndof.getBodyJacobianTCP();  // 6 x dof
 // ==================== Jacobian getters ====================
 
 Eigen::Matrix<float, 6, Eigen::Dynamic>

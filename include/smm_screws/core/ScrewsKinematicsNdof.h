@@ -219,9 +219,10 @@ public:
     //   - ForwardKinematicsTCP(...) was run for current q
     void computeSpatialJacobianTCP1();  // Ad(g_i) * iXi[i] --> fills _Jsp_tool (6 x _dof)
     void computeSpatialJacobianTCP2();  // Ad(g_i * g_ref_i^{-1}) * active_twists[i] --> fills _Jsp_tool (6 x _dof)
+    void computeSpatialJacobianTCP3();  // J^s_tool = [xi'_1  xi'_2 ... xi'_n], xi'_i = Ad_{ exp(xi_anat_1 * theta_1) * . . . * exp(xi_anat{i-1} * theta_{i-1}}) } * Xi_anat[i] --> fills _Jsp_tool (6 x _dof)
     void computeBodyJacobianTCP1();  // Tool 1: Ad(g_T⁻¹ g_i) * iXi[i]  --> fills _Jbd_tool (6 x _dof)
     void computeBodyJacobianTCP2();  // Tool 2: Ad(g_T⁻¹ g_i g_ref_i⁻¹) * active_twists[i] --> fills _Jbd_tool (6 x _dof)   
-    
+    void computeBodyJacobianTCP3();  // Tool 3: J^s_tool_b(q) = [ xi'_1  xi'_2  ...  xi'_n ], xi'_i = Ad_{ exp(xi_i * theta_i) * ... * exp(xi_n * theta_n) * gst_0 }^{-1} * xi_i
     // Convenience getters (return 6 x dof blocks)
     Eigen::Matrix<float, 6, Eigen::Dynamic> getSpatialJacobianTCP() const;
     Eigen::Matrix<float, 6, Eigen::Dynamic> getBodyJacobianTCP() const;

@@ -127,7 +127,7 @@ public:
 
     // Generic FK for {T} frame (TCP) given q[0..dof-1] (float or double)
     template<typename df_number>
-    void ScrewsKinematicsNdof::ForwardKinematicsTCP(const df_number* q)
+    void ForwardKinematicsTCP(const df_number* q)
     {
         static_assert(std::is_floating_point<df_number>::value,
                     "ForwardKinematicsTCP requires floating-point df_number");

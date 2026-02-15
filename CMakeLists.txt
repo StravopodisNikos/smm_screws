@@ -176,21 +176,23 @@ target_link_libraries(RobotContextLib PUBLIC
   Eigen3::Eigen
 )
 
-#target_link_libraries(RobotContextLib
-#  ScrewsKinematics
-#  ScrewsDynamics
-#)
+# RobotContextNdof
+add_library(RobotContextLibNdof
+  src/core/RobotContextNdof.cpp
+)
 
-#ament_export_targets(export_RobotContextLib HAS_LIBRARY_TARGET)
-#ament_export_libraries(RobotContextLib)
+target_include_directories(RobotContextLibNdof PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 
-#install(
-#  TARGETS RobotContextLib
-#  EXPORT export_RobotContextLib
-#  ARCHIVE DESTINATION lib
-#  LIBRARY DESTINATION lib
-#  RUNTIME DESTINATION bin
-#)
+target_link_libraries(RobotContextLibNdof PUBLIC
+  ScrewsKinematics
+  ScrewsDynamics
+  robot_yaml_loader
+  yaml-cpp
+  Eigen3::Eigen
+)
 
 #######################################
 ## Simple core test executable       ##
@@ -225,6 +227,7 @@ install(
     robot_yaml_loader
     robot_yaml_loader_ndof
     RobotContextLib
+    RobotContextLibNdof
     test_screws_core
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
@@ -306,6 +309,7 @@ ament_export_libraries(
   robot_yaml_loader
   robot_yaml_loader_ndof
   RobotContextLib
+  RobotContextLibNdof
 )
 
 ament_export_dependencies(

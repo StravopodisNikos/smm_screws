@@ -23,9 +23,9 @@ RobotAbstractBaseNdof * RobotContextNdof::get_robot()
 // For now you can just return true or mirror whatever your 3-DOF version does.
 bool RobotContextNdof::initializeSharedLib()
 {
-    kin_ndof_.initializePseudoTfs();
-    kin_ndof_.initializeReferenceAnatomyActiveTwists();
-    kin_ndof_.initializeReferenceAnatomyActiveTfs();
+    kin_.initializePseudoTfs();
+    kin_.initializeReferenceAnatomyActiveTwists();
+    kin_.initializeReferenceAnatomyActiveTfs();
     kin_.initializeRelativeTfs();
     kin_.initializeLocalScrewCoordVectors();
 

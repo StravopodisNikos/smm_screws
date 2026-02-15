@@ -134,6 +134,9 @@ void ScrewsKinematics::initializePseudoTfs() {
 }
 */
 void ScrewsKinematics::initializePseudoTfs() {
+
+    _debug_verbosity = true;
+    
     std::cerr << "[initializePseudoTfs] DEPRECATED ANATOMY TFS API - FOR BACKWARD COMPATIBILITY.";
 
     if (_total_pseudojoints == 0) {

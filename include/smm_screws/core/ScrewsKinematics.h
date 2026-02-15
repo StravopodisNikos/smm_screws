@@ -171,7 +171,7 @@ class ScrewsKinematics: public ScrewsMain {
 		Eigen::Isometry3f _Bi; 
 		Eigen::Matrix<float, 6, 1> _X;
 		Eigen::Vector3f _trans_vector;
-		bool _debug_verbosity;
+		bool _debug_verbosity {true};
 		Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
 		Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 		Eigen::Matrix4f _twist_se3;

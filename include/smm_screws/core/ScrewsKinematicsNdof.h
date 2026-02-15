@@ -154,7 +154,7 @@ public:
 
         // Joint frames (current anatomy)
         for (int i = 0; i < _dof; ++i) {
-            prefix    = prefix * _active_expos[i];
+            prefix    = prefix * _active_expos_anat[i];
             _g[i]     = prefix * *(_ptr2abstract_ndof->gsai_test_ptr[i]);
         }
 
@@ -227,6 +227,15 @@ public:
     Eigen::Matrix<float, 6, Eigen::Dynamic> getSpatialJacobianTCP() const;
     Eigen::Matrix<float, 6, Eigen::Dynamic> getBodyJacobianTCP() const;
 
+    const Eigen::Isometry3f& getJointFrame(int i) const
+    {
+        if (i < 0 || i > _dof) {
+            throw std::out_of_range(
+                "[ScrewsKinematicsNdof::getJointFrame] index out of range");
+        }
+        return _g[i];
+    }
+
 private:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
@@ -263,7 +272,7 @@ private:
     // Aux for adjoint operations
     Eigen::Matrix<float, 6, 6> _ad;
 
-    bool _debug_verbosity {false};
+    bool _debug_verbosity {true};
 };
 
 #endif // SCREWS_KINEMATICS_NDOF_H

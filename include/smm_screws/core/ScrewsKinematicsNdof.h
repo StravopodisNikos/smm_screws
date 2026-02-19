@@ -18,6 +18,9 @@
 
 class ScrewsKinematicsNdof : public ScrewsMain {
 public:
+	enum class JacobianSelection { SPATIAL, BODY};
+	typedef JacobianSelection typ_jacobian;
+
     // Alias to global robot parameters so everything stays consistent.
     static constexpr int MAX_DOF       = robot_params::MAX_DOF;
     static constexpr int MAX_METALINKS = robot_params::MAX_METALINKS;          
@@ -210,6 +213,93 @@ public:
     // Getter for TCP pose
     const Eigen::Isometry3f& getTcpPose() const { return _gst; }
 
+    // =================================================================
+    // 5) Velocity-only utility (templated). Uses position only internal
+    // =================================================================
+    // How to call:
+    // auto & kin = robot_context_ndof_->get_kinematics();
+    // 1) Update joint state (q & dq) – dq needed for velocity
+    // kin.updateJointState(q.data(), dq.data());
+    // 2) Cartesian velocity in base frame
+    // Eigen::Vector3f v_tcp = kin.updateVelocityTCP(q.data());
+    // or, if you have an Eigen vector q_eig:
+    // Eigen::Vector3f v_tcp2 = kin.updateVelocityTCP(q_eig);
+
+    template<typename df_number>
+    Eigen::Vector3f updateVelocityTCP(const df_number* q)
+    {
+        static_assert(std::is_floating_point<df_number>::value,
+                      "updateVelocityTCP(q) requires floating-point df_number");
+
+        if (!q) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCP(q)] WARNING: q is null\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        if (_dof <= 0) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCP(q)] DOF <= 0\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // 1) Forward kinematics at this configuration
+        //    (updates _gst and _g[0.._dof])
+        ForwardKinematicsTCP(q);
+
+        // 2) Spatial Jacobian at TCP for current q
+        //    (fills internal _Jsp_tool 6 x _dof)
+        computeSpatialJacobianTCP2();   // same choice as your viz node
+
+        // 3) Build spatial velocity twist Vsp_tool_twist from Jsp and _joint_vel
+        //    NOTE: _joint_vel[] must have been updated earlier via updateJointState(...)
+        Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
+        for (int i = 0; i < _dof; ++i) {
+            dq_vector(i) = _joint_vel[i];
+        }
+
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jsp = getSpatialJacobianTCP();
+        _Vsp_twist_tcp = Jsp * dq_vector;      // 6x1
+
+        formTwist(_X_se3, _Vsp_twist_tcp);
+
+        Eigen::Vector4f p;
+        p << _gst(0, 3), _gst(1, 3), _gst(2, 3), 1.0f;
+
+        Eigen::Vector4f v4 = _X_se3 * p;
+
+        Eigen::Vector3f v3;
+        v3 << v4(0), v4(1), v4(2);     
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::updateVelocityTCP(q)] "
+                      << "v = [" << v3(0) << ", " << v3(1) << ", " << v3(2) << "]\n";
+        }
+
+        return v3;
+    }
+
+    // q as Eigen vector (float or double)
+    template<typename Derived>
+    Eigen::Vector3f updateVelocityTCP(const Eigen::MatrixBase<Derived>& q)
+    {
+        using Scalar = typename Derived::Scalar;
+        static_assert(std::is_floating_point<Scalar>::value,
+                      "updateVelocityTCP(Eigen) requires floating-point Scalar");
+
+        if (q.size() < _dof) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCP(Eigen)] "
+                         "Input vector too small (size=" << q.size()
+                      << ", dof=" << _dof << ")\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        float qf[MAX_DOF];
+        for (int i = 0; i < _dof; ++i) {
+            qf[i] = static_cast<float>(q(i));
+        }
+
+        return updateVelocityTCP(qf);
+    }
+
     // ============================================================
     // 6) Jacobians (tool frame, spatial & body)
     // ============================================================
@@ -234,6 +324,19 @@ public:
                 "[ScrewsKinematicsNdof::getJointFrame] index out of range");
         }
         return _g[i];
+    }
+
+    // 7) TCP velocity twists (spatial/body) from Jacobian and dq
+    void VelocityTwistTCP(typ_jacobian jacob_selection);
+
+    const Eigen::Matrix<float, 6, 1>& getSpatialVelocityTwistTCP() const
+    {
+        return _Vsp_twist_tcp;
+    }
+
+    const Eigen::Matrix<float, 6, 1>& getBodyVelocityTwistTCP() const
+    {
+        return _Vbd_twist_tcp;
     }
 
 private:
@@ -265,6 +368,9 @@ private:
     // R6 twists
     Eigen::Matrix<float, 6, 1> _iXi[MAX_DOF + 1];   // local screw coords
 
+    // SE(3) twists
+    Eigen::Matrix4f _X_se3;
+
     // Jacobians (tool)
     Eigen::Matrix<float, 6, MAX_DOF> _Jsp_tool;     // spatial TCP Jacobian (cols 0.._dof-1)
     Eigen::Matrix<float, 6, MAX_DOF> _Jbd_tool;     // body TCP Jacobian    (cols 0.._dof-1)
@@ -272,7 +378,14 @@ private:
     // Aux for adjoint operations
     Eigen::Matrix<float, 6, 6> _ad;
 
+     // TCP velocity twists
+    Eigen::Matrix<float, 6, 1> _Vsp_twist_tcp;  // spatial twist of TCP
+    Eigen::Matrix<float, 6, 1> _Vbd_twist_tcp;  // body twist of TCP
+
     bool _debug_verbosity {true};
+
+    void printTwist(Eigen::Matrix<float, 6, 1> twist);
+
 };
 
 #endif // SCREWS_KINEMATICS_NDOF_H

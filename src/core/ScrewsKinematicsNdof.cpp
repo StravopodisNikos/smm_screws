@@ -763,3 +763,79 @@ ScrewsKinematicsNdof::getBodyJacobianTCP() const
     }
     return J;
 }
+
+void ScrewsKinematicsNdof::VelocityTwistTCP(typ_jacobian jacob_selection)
+{
+    // Returns the spatial OR the body velocity twist @ current [q, dq]
+    _debug_verbosity = false;
+
+    if (_dof <= 0) {
+        std::cerr
+            << "[ScrewsKinematicsNdof::VelocityTwistTCP] DOF <= 0, aborting.\n";
+        return;
+    }
+
+    // Build dq_vector from stored joint velocities (_joint_vel[0.._dof-1])
+    Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        dq_vector(i) = _joint_vel[i];
+    }
+
+    switch (jacob_selection)
+    {
+      case typ_jacobian::SPATIAL:
+      {
+        // Use already-computed spatial Jacobian (6 x _dof)
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jsp = getSpatialJacobianTCP();
+        if (Jsp.cols() != _dof) {
+            std::cerr
+                << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
+                << "Jsp.cols() = " << Jsp.cols()
+                << " but _dof = " << _dof << "\n";
+        }
+
+        _Vsp_twist_tcp = Jsp * dq_vector;
+
+        if (_debug_verbosity) {
+            std::cout
+              << "[ScrewsKinematicsNdof::VelocityTwistTCP] Spatial Velocity Twist:\n";
+            printTwist(_Vsp_twist_tcp);
+        }
+        break;
+      }
+
+      case typ_jacobian::BODY:
+      {
+        // Use already-computed body Jacobian (6 x _dof)
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jbd = getBodyJacobianTCP();
+        if (Jbd.cols() != _dof) {
+            std::cerr
+                << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
+                << "Jbd.cols() = " << Jbd.cols()
+                << " but _dof = " << _dof << "\n";
+        }
+
+        _Vbd_twist_tcp = Jbd * dq_vector;
+
+        if (_debug_verbosity) {
+            std::cout
+              << "[ScrewsKinematicsNdof::VelocityTwistTCP] Body Velocity Twist:\n";
+            printTwist(_Vbd_twist_tcp);
+        }
+        break;
+      }
+
+      default:
+        std::cerr
+          << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
+          << "WRONG JACOBIAN SELECTION FOR VELOCITY TWIST\n";
+        break;
+    }
+}
+
+void ScrewsKinematicsNdof::printTwist(Eigen::Matrix<float, 6, 1> twist) {
+    for (size_t i = 0; i < 6; i++) {
+        std::cout << twist[i] << std::endl;
+    }
+    return;
+}

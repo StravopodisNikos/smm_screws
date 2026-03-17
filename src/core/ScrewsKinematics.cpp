@@ -1037,9 +1037,11 @@ void ScrewsKinematics::ToolVelocityTwist(typ_jacobian jacob_selection)
 
 void ScrewsKinematics::DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float, 6, 1> *Jsp_t_1[robot_params::DOF], Eigen::Matrix<float, 6, 1> *dJsp_t_1[robot_params::DOF] ) {
     // Implements the first "=" in eq.(17)/p.223/[3]
-    Eigen::Matrix<float, 6, 1> dJ;
+    //Eigen::Matrix<float, 6, 1> dJ;
     for (size_t j = 0; j < robot_params::DOF; j++)
     {
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
         for (size_t k = 0; k < j; k++)
         {
             dJ = dJ + lb(*Jsp_t_1[k], *Jsp_t_1[j]) * dq[k];
@@ -1051,9 +1053,11 @@ void ScrewsKinematics::DtSpatialJacobian_Tool_1( float *dq, Eigen::Matrix<float,
 
 void ScrewsKinematics::DtSpatialJacobian_Tool_1() {
     // Implements the first "=" in eq.(17)/p.223/[3]
-    Eigen::Matrix<float, 6, 1> dJ;
+    //Eigen::Matrix<float, 6, 1> dJ;
     for (size_t j = 0; j < robot_params::DOF; j++)
     {
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
         for (size_t k = 0; k < j; k++)
         {
             dJ = dJ + lb(*ptr2Jsp1[k], *ptr2Jsp1[j]) * _joint_vel[k];

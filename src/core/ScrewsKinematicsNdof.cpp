@@ -54,6 +54,15 @@ ScrewsKinematicsNdof::ScrewsKinematicsNdof(RobotAbstractBaseNdof* ptr2abstract_n
         _Bi[i].setIdentity();
         _iXi[i].setZero();
     }
+
+    // Initialize per-frame body Jacobian storage and pointer table
+    for (int k = 0; k < MAX_DOF + 1; ++k) {
+        for (int i = 0; i < MAX_DOF; ++i) {
+            _BodyJacobiansFrames[k][i].setZero();
+            _ptr2BodyJacobiansFrames[k][i] = &_BodyJacobiansFrames[k][i];
+        }
+    }
+
 }
 
 void ScrewsKinematicsNdof::initializePseudoTfs()
@@ -202,6 +211,55 @@ void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
         std::cout << "[initializeLocalScrewCoordVectors] iXi (0.."
                   << _dof << ") initialized\n";
     }
+}
+
+void ScrewsKinematicsNdof::initializeSpatialJointScrewCoordVectors()
+{
+    _debug_verbosity = false;
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::initializeSpatialJointScrewCoordVectors] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        std::cerr << "[ScrewsKinematicsNdof::initializeSpatialJointScrewCoordVectors] "
+                     "Invalid DOF = " << _dof << "\n";
+        return;
+    }
+
+    // Yi := spatial joint screw coordinates of the CURRENT anatomy
+    // These are already loaded from YAML into active_twists_anat[i].
+    for (int i = 0; i < _dof; ++i) {
+        _Yi[i] = _ptr2abstract_ndof->active_twists_anat[i];
+    }
+
+    // Zero remaining slots for safety
+    for (int i = _dof; i < MAX_DOF; ++i) {
+        _Yi[i].setZero();
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[initializeSpatialJointScrewCoordVectors] Yi initialized:\n";
+        for (int i = 0; i < _dof; ++i) {
+            std::cout << "_Yi[" << i << "] = "
+                      << _Yi[i].transpose() << "\n";
+        }
+    }
+}
+
+const Eigen::Matrix<float, 6, 1>& ScrewsKinematicsNdof::getSpatialJointScrewCoordVector(int i) const
+{
+    static Eigen::Matrix<float, 6, 1> zero = Eigen::Matrix<float, 6, 1>::Zero();
+
+    if (i < 0 || i >= _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::getSpatialJointScrewCoordVector] "
+                     "Index out of bounds: " << i << "\n";
+        return zero;
+    }
+
+    return _Yi[i];
 }
 
 void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTwists()
@@ -376,6 +434,20 @@ void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTfs()
     for (int i = 0; i <= dof; ++i) {
         std::cout << "g_ref_0[" << i << "] =\n"
                   << _ptr2abstract_ndof->g_ref_0[i].matrix() << std::endl;
+    }
+}
+
+void ScrewsKinematicsNdof::initializeHomeAnatomyActiveTfs()
+{
+    for (int i = 0; i <= _dof; ++i) {
+        _g0[i] = _ptr2abstract_ndof->g_test_0[i];
+
+        std::cout << "[ScrewsKinematicsNdof::initializeHomeAnatomyActiveTfs] _g0[" << i << "] =\n"
+                  << _g0[i].matrix() << std::endl;
+    }
+
+    for (int i = _dof + 1; i < robot_params::MAX_DOF + 1; ++i) {
+        _g0[i] = Eigen::Isometry3f::Identity();
     }
 }
 
@@ -764,74 +836,764 @@ ScrewsKinematicsNdof::getBodyJacobianTCP() const
     return J;
 }
 
-void ScrewsKinematicsNdof::VelocityTwistTCP(typ_jacobian jacob_selection)
+void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
 {
-    // Returns the spatial OR the body velocity twist @ current [q, dq]
-    _debug_verbosity = false;
-
     if (_dof <= 0) {
-        std::cerr
-            << "[ScrewsKinematicsNdof::VelocityTwistTCP] DOF <= 0, aborting.\n";
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames1] DOF <= 0\n";
         return;
     }
 
-    // Build dq_vector from stored joint velocities (_joint_vel[0.._dof-1])
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames1] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Preconditions:
+    //  1) initializeRelativeTfs() has been called    -> _Bi
+    //  2) initializeLocalScrewCoordVectors() called -> _iXi[0.._dof]
+    //  3) ForwardKinematicsTCP(q) called for current q
+    //     -> _g[0.._dof] are up to date (joint frames + TCP)
+
+    _debug_verbosity = false;
+
+    // For each reference frame k (0.._dof, including TCP at k = _dof)
+    for (int k = 0; k <= _dof; ++k) {
+
+        const Eigen::Isometry3f& g_k = _g[k];
+
+        // Build J^b_(k) column by column
+        for (int i = 0; i < _dof; ++i) {
+
+            const Eigen::Isometry3f& g_i = _g[i];
+
+            // Ad_{ g_k^{-1} g_i }
+            ad(_ad, g_k.inverse() * g_i);
+
+            // J^b_(k),i = Ad_{ g_k^{-1} g_i } * iXi[i]
+            Eigen::Matrix<float, 6, 1> col = _ad * _iXi[i];
+
+            _BodyJacobiansFrames[k][i] = col;
+
+            // Keep the pointer table in sync (if you want to access via pointers)
+            if (_ptr2BodyJacobiansFrames[k][i]) {
+                *(_ptr2BodyJacobiansFrames[k][i]) = col;
+            }
+        }
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames1] "
+                         "J^b for frame k=" << k << ":\n";
+            for (int r = 0; r < 6; ++r) {
+                for (int c = 0; c < _dof; ++c) {
+                    std::cout << _BodyJacobiansFrames[k][c](r) << "\t";
+                }
+                std::cout << "\n";
+            }
+        }
+    }
+}
+
+void ScrewsKinematicsNdof::computeBodyJacobiansFrames2()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames2] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames2] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Preconditions:
+    //  1) initializeHomeAnatomyActiveTfs() has been called -> _g0[0.._dof]
+    //  2) initializeSpatialJointScrewCoordVectors() or equivalent called -> _Yi[0.._dof-1]
+    //  3) ForwardKinematicsTCP(q) called for current q
+    //     -> _g[0.._dof] are up to date (joint frames + TCP)
+    //
+    // Implements the 2nd "=" of Eq. 4.16:
+    //   J^b_{k,j} = Ad_{ C_{k,j} A_j^{-1} } Y_j
+    // with
+    //   C_{k,j} = g_k^{-1} g_j
+    //   A_j     = _g0[j]
+
+    _debug_verbosity = false;
+
+    for (int k = 0; k <= _dof; ++k) {
+
+        const Eigen::Isometry3f& g_k = _g[k];
+
+        for (int j = 0; j < _dof; ++j) {
+
+            const Eigen::Isometry3f& g_j  = _g[j];
+            const Eigen::Isometry3f& A_j  = _g0[j];
+            const Eigen::Matrix<float, 6, 1>& Y_j = _Yi[j];
+
+            // Ad_{ C_{k,j} A_j^{-1} } = Ad_{ g_k^{-1} g_j A_j^{-1} }
+            ad(_ad, g_k.inverse() * g_j * A_j.inverse());
+
+            Eigen::Matrix<float, 6, 1> col = _ad * Y_j;
+
+            _BodyJacobiansFrames[k][j] = col;
+
+            if (_ptr2BodyJacobiansFrames[k][j]) {
+                *(_ptr2BodyJacobiansFrames[k][j]) = col;
+            }
+        }
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames2] "
+                         "J^b for frame k=" << k << ":\n";
+            for (int r = 0; r < 6; ++r) {
+                for (int c = 0; c < _dof; ++c) {
+                    std::cout << _BodyJacobiansFrames[k][c](r) << "\t";
+                }
+                std::cout << "\n";
+            }
+        }
+    }
+}
+
+const Eigen::Matrix<float, 6, 1>&
+ScrewsKinematicsNdof::getBodyJacobianFrame(int frameIndex, int jointIndex) const
+{
+    static Eigen::Matrix<float, 6, 1> dummy_zero = Eigen::Matrix<float, 6, 1>::Zero();
+
+    if (frameIndex < 0 || frameIndex > _dof ||
+        jointIndex < 0 || jointIndex >= _dof)
+    {
+        std::cerr << "[ScrewsKinematicsNdof::getBodyJacobianFrame] "
+                     "Index out of range: frameIndex=" << frameIndex
+                  << ", jointIndex=" << jointIndex
+                  << ", dof=" << _dof << "\n";
+        return dummy_zero;
+    }
+
+    return _BodyJacobiansFrames[frameIndex][jointIndex];
+}
+
+void ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP()
+{
+    // ========================================================================
+    // N-DOF split version of the old combined:
+    //   ScrewsKinematicsNdof::VelocityTwistTCP(typ_jacobian::SPATIAL)
+    //
+    // Computes the spatial velocity twist at the TCP:
+    //   V^s_tcp = J^s_tcp(q) * dq
+    //
+    // Preconditions:
+    //   1) _dof > 0
+    //   2) joint velocities _joint_vel[0.._dof-1] are up to date
+    //   3) spatial Jacobian has already been computed for the current q
+    //      (e.g. via computeSpatialJacobianTCP1/2/3())
+    // ========================================================================
+
+    _debug_verbosity = false;
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP] "
+                  << "DOF <= 0, aborting.\n";
+        _Vsp_twist_tcp.setZero();
+        return;
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jsp = getSpatialJacobianTCP();
+
+    if (Jsp.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP] "
+                  << "Spatial Jacobian has invalid row count: "
+                  << Jsp.rows() << " (expected 6)\n";
+        _Vsp_twist_tcp.setZero();
+        return;
+    }
+
+    if (Jsp.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP] "
+                  << "Spatial Jacobian has invalid column count: "
+                  << Jsp.cols() << " (expected " << _dof << ")\n";
+        _Vsp_twist_tcp.setZero();
+        return;
+    }
+
     Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
     for (int i = 0; i < _dof; ++i) {
         dq_vector(i) = _joint_vel[i];
     }
 
-    switch (jacob_selection)
-    {
-      case typ_jacobian::SPATIAL:
-      {
-        // Use already-computed spatial Jacobian (6 x _dof)
-        Eigen::Matrix<float, 6, Eigen::Dynamic> Jsp = getSpatialJacobianTCP();
-        if (Jsp.cols() != _dof) {
-            std::cerr
-                << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
-                << "Jsp.cols() = " << Jsp.cols()
-                << " but _dof = " << _dof << "\n";
-        }
+    if (dq_vector.size() != Jsp.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP] "
+                  << "Dimension mismatch: dq size = " << dq_vector.size()
+                  << ", Jsp.cols() = " << Jsp.cols() << "\n";
+        _Vsp_twist_tcp.setZero();
+        return;
+    }
 
-        _Vsp_twist_tcp = Jsp * dq_vector;
+    _Vsp_twist_tcp = Jsp * dq_vector;
 
-        if (_debug_verbosity) {
-            std::cout
-              << "[ScrewsKinematicsNdof::VelocityTwistTCP] Spatial Velocity Twist:\n";
-            printTwist(_Vsp_twist_tcp);
-        }
-        break;
-      }
-
-      case typ_jacobian::BODY:
-      {
-        // Use already-computed body Jacobian (6 x _dof)
-        Eigen::Matrix<float, 6, Eigen::Dynamic> Jbd = getBodyJacobianTCP();
-        if (Jbd.cols() != _dof) {
-            std::cerr
-                << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
-                << "Jbd.cols() = " << Jbd.cols()
-                << " but _dof = " << _dof << "\n";
-        }
-
-        _Vbd_twist_tcp = Jbd * dq_vector;
-
-        if (_debug_verbosity) {
-            std::cout
-              << "[ScrewsKinematicsNdof::VelocityTwistTCP] Body Velocity Twist:\n";
-            printTwist(_Vbd_twist_tcp);
-        }
-        break;
-      }
-
-      default:
-        std::cerr
-          << "[ScrewsKinematicsNdof::VelocityTwistTCP] "
-          << "WRONG JACOBIAN SELECTION FOR VELOCITY TWIST\n";
-        break;
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP] "
+                  << "Spatial Velocity Twist:\n";
+        printTwist(_Vsp_twist_tcp);
     }
 }
+
+void ScrewsKinematicsNdof::computeBodyVelocityTwistTCP()
+{
+    // ========================================================================
+    // N-DOF split version of the old combined:
+    //   ScrewsKinematicsNdof::VelocityTwistTCP(typ_jacobian::BODY)
+    //
+    // Computes the body velocity twist at the TCP:
+    //   V^b_tcp = J^b_tcp(q) * dq
+    //
+    // Preconditions:
+    //   1) _dof > 0
+    //   2) joint velocities _joint_vel[0.._dof-1] are up to date
+    //   3) body Jacobian has already been computed for the current q
+    //      (e.g. via computeBodyJacobianTCP1/2/3())
+    // ========================================================================
+
+    _debug_verbosity = false;
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyVelocityTwistTCP] "
+                  << "DOF <= 0, aborting.\n";
+        _Vbd_twist_tcp.setZero();
+        return;
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jbd = getBodyJacobianTCP();
+
+    if (Jbd.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyVelocityTwistTCP] "
+                  << "Body Jacobian has invalid row count: "
+                  << Jbd.rows() << " (expected 6)\n";
+        _Vbd_twist_tcp.setZero();
+        return;
+    }
+
+    if (Jbd.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyVelocityTwistTCP] "
+                  << "Body Jacobian has invalid column count: "
+                  << Jbd.cols() << " (expected " << _dof << ")\n";
+        _Vbd_twist_tcp.setZero();
+        return;
+    }
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        dq_vector(i) = _joint_vel[i];
+    }
+
+    if (dq_vector.size() != Jbd.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyVelocityTwistTCP] "
+                  << "Dimension mismatch: dq size = " << dq_vector.size()
+                  << ", Jbd.cols() = " << Jbd.cols() << "\n";
+        _Vbd_twist_tcp.setZero();
+        return;
+    }
+
+    _Vbd_twist_tcp = Jbd * dq_vector;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeBodyVelocityTwistTCP] "
+                  << "Body Velocity Twist:\n";
+        printTwist(_Vbd_twist_tcp);
+    }
+}
+
+void ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP()
+{
+    // =========================================================================
+    // N-DOF split version of:
+    //   ScrewsKinematics::DtToolVelocityTwist(typ_jacobian::SPATIAL)
+    //
+    // Original 3-DOF source function:
+    //   void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection)
+    //   --> case typ_jacobian::SPATIAL
+    //
+    // Purpose:
+    //   Computes the first time derivative of the SPATIAL velocity twist of the
+    //   TCP / {T} frame (i.e. the spatial acceleration twist).
+    //
+    // Mathematical form used in the original 3-DOF code:
+    //   dV^s_T = J^s_T(q) * ddq + dJ^s_T(q,dq) * dq
+    //
+    // but evaluated explicitly as:
+    //   Term 1: sum_j J^s_T(:,j) * ddq_j
+    //   Term 2: sum_{k<j} [ J^s_T(:,k), J^s_T(:,j) ] * dq_k * dq_j
+    //
+    // Mapping from old 3-DOF storage to current N-DOF storage:
+    //   Jsp_t_1[j]        --> _Jsp_tool.col(j)
+    //   dVsp_tool_twist   --> _dVsp_twist_tcp
+    //
+    // Preconditions:
+    //   1) _dof > 0
+    //   2) _joint_vel[0.._dof-1] and _joint_accel[0.._dof-1] are up to date
+    //   3) spatial Jacobian at TCP has been computed for current q
+    //      (e.g. computeSpatialJacobianTCP1/2/3())
+    // =========================================================================
+
+    _debug_verbosity = false;
+    _dVsp_twist_tcp.setZero();
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP] "
+                  << "DOF <= 0, aborting.\n";
+        return;
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jsp = getSpatialJacobianTCP();
+
+    if (Jsp.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP] "
+                  << "Spatial Jacobian row count = " << Jsp.rows()
+                  << ", expected 6.\n";
+        return;
+    }
+
+    if (Jsp.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP] "
+                  << "Spatial Jacobian column count = " << Jsp.cols()
+                  << ", expected " << _dof << ".\n";
+        return;
+    }
+
+    Eigen::Matrix<float, 6, 1> dV1 = Eigen::Matrix<float, 6, 1>::Zero();
+    Eigen::Matrix<float, 6, 1> dV2 = Eigen::Matrix<float, 6, 1>::Zero();
+
+    // --- Term 1: Σ J_i * ddq_i ---
+    for (int j = 0; j < _dof; ++j) {
+        dV1 += Jsp.col(j) * _joint_accel[j];
+    }
+
+    // --- Term 2: Σ_{k<j} [J_k, J_j] * dq_k * dq_j ---
+    for (int k = 0; k < _dof; ++k) {
+        for (int j = k + 1; j < _dof; ++j) {
+            dV2 += lb(Jsp.col(k), Jsp.col(j)) * _joint_vel[k] * _joint_vel[j];
+        }
+    }
+
+    _dVsp_twist_tcp = dV1 + dV2;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP] "
+                  << "Spatial Acceleration Twist:\n";
+        printTwist(_dVsp_twist_tcp);
+    }
+}
+
+void ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP()
+{
+    // =========================================================================
+    // N-DOF split version of:
+    //   ScrewsKinematics::DtToolVelocityTwist(typ_jacobian::BODY)
+    //
+    // Original 3-DOF source function:
+    //   void ScrewsKinematics::DtToolVelocityTwist(typ_jacobian jacob_selection)
+    //   --> case typ_jacobian::BODY
+    //
+    // Purpose:
+    //   Computes the first time derivative of the BODY velocity twist of the
+    //   TCP / {T} frame (i.e. the body acceleration twist).
+    //
+    // Mathematical form used in the original 3-DOF code:
+    //   dV^b_T = J^b_T(q) * ddq + dJ^b_T(q,dq) * dq
+    //
+    // Mapping from old 3-DOF storage to current N-DOF storage:
+    //   Jbd63            --> getBodyJacobianTCP()
+    //   dJbd63           --> getDtBodyJacobianTCP()
+    //   dVbd_tool_twist  --> _dVbd_twist_tcp
+    //
+    // Preconditions:
+    //   1) _dof > 0
+    //   2) _joint_vel[0.._dof-1] and _joint_accel[0.._dof-1] are up to date
+    //   3) body Jacobian at TCP has been computed for current q
+    //   4) time derivative of body Jacobian at TCP has been computed
+    //      (e.g. computeDtBodyJacobianTCP1/2/3())
+    // =========================================================================
+
+    _debug_verbosity = false;
+    _dVbd_twist_tcp.setZero();
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "DOF <= 0, aborting.\n";
+        return;
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jbd  = getBodyJacobianTCP();
+    Eigen::Matrix<float, 6, Eigen::Dynamic> dJbd = getDtBodyJacobianTCP();
+
+    if (Jbd.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Body Jacobian row count = " << Jbd.rows()
+                  << ", expected 6.\n";
+        return;
+    }
+
+    if (Jbd.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Body Jacobian column count = " << Jbd.cols()
+                  << ", expected " << _dof << ".\n";
+        return;
+    }
+
+    if (dJbd.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "dBody Jacobian row count = " << dJbd.rows()
+                  << ", expected 6.\n";
+        return;
+    }
+
+    if (dJbd.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "dBody Jacobian column count = " << dJbd.cols()
+                  << ", expected " << _dof << ".\n";
+        return;
+    }
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
+    Eigen::Matrix<float, Eigen::Dynamic, 1> ddq_vector(_dof);
+
+    for (int i = 0; i < _dof; ++i) {
+        dq_vector(i)  = _joint_vel[i];
+        ddq_vector(i) = _joint_accel[i];
+    }
+
+    if (dq_vector.size() != Jbd.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Dimension mismatch: dq size = " << dq_vector.size()
+                  << ", Jbd.cols() = " << Jbd.cols() << ".\n";
+        return;
+    }
+
+    if (ddq_vector.size() != Jbd.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Dimension mismatch: ddq size = " << ddq_vector.size()
+                  << ", Jbd.cols() = " << Jbd.cols() << ".\n";
+        return;
+    }
+
+    if (dq_vector.size() != dJbd.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Dimension mismatch: dq size = " << dq_vector.size()
+                  << ", dJbd.cols() = " << dJbd.cols() << ".\n";
+        return;
+    }
+
+    _dVbd_twist_tcp = Jbd * ddq_vector + dJbd * dq_vector;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP] "
+                  << "Body Acceleration Twist:\n";
+        printTwist(_dVbd_twist_tcp);
+    }
+}
+
+void ScrewsKinematicsNdof::computeDtSpatialJacobianTCP1()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtSpatialJacobianTCP1] DOF <= 0\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // Clear all columns first
+    for (int j = 0; j < _dof; ++j) {
+        _dJsp_tool.col(j).setZero();
+    }
+
+    // Implements the first "=" in eq.(17)
+    for (int j = 0; j < _dof; ++j) {
+
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
+        for (int k = 0; k < j; ++k) {
+            dJ += lb(_Jsp_tool.col(k), _Jsp_tool.col(j)) * _joint_vel[k];
+        }
+
+        _dJsp_tool.col(j) = dJ;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtSpatialJacobianTCP1] dJsp_tool =\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _dJsp_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getDtSpatialJacobianTCP() const
+{
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = _dJsp_tool.col(j);
+    }
+
+    return out;
+}
+
+void ScrewsKinematicsNdof::computeDtBodyJacobianTCP1()
+{
+    // ================================================================
+    // N-DOF version of:
+    //   ScrewsKinematics::DtBodyJacobian_Tool_1()
+    //
+    // Implements:
+    //   First "=" in eq.(8)/p.223/[3]
+    //   Time derivative of the BODY Jacobian at the TCP frame {T}
+    //
+    // Original 3-DOF logic:
+    //   dJ_j = sum_{k=j+1}^{DOF-1} [J_j, J_k] * dq[k]
+    //
+    // Mapping:
+    //   ptr2BodyJacobiansFrames[DOF][j]  -->  _Jbd_tool.col(j)
+    //   ptr2dJbd_t_1[j]                  -->  _dJbd_tool.col(j)
+    // ================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP1] DOF <= 0\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // Make sure the body Jacobian at TCP is up to date
+    computeBodyJacobianTCP1();
+
+    for (int j = 0; j < _dof; ++j) {
+
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
+        for (int k = j + 1; k < _dof; ++k) {
+            dJ += lb(_Jbd_tool.col(j), _Jbd_tool.col(k)) * _joint_vel[k];
+        }
+
+        _dJbd_tool.col(j) = dJ;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP1] dJbd_tool =\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _dJbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+void ScrewsKinematicsNdof::computeDtBodyJacobianTCP2()
+{
+    // ========================================================================
+    // N-DOF version of:
+    //   ScrewsKinematics::DtBodyJacobian_Tool_1()
+    //
+    // Original 3-DOF function:
+    //   void ScrewsKinematics::DtBodyJacobian_Tool_1()
+    //
+    // Original 3-DOF purpose:
+    //   Implements the first "=" in eq.(8)/p.223/[3]
+    //   Outputs the time derivative of the BODY Jacobian at the tool / {T}
+    //
+    // Mathematical form implemented:
+    //   dJ^b_T(:,j) = sum_{k=j+1}^{n-1} [ J^b_T(:,j), J^b_T(:,k) ] * dq_k
+    //
+    // IMPORTANT STORAGE CHOICE:
+    //   This N-DOF version follows the SAME philosophy as the 3-DOF code:
+    //   it uses the body Jacobian columns stored in:
+    //       _BodyJacobiansFrames[_dof][j]
+    //   where frame index _dof corresponds to the TCP / tool frame {T}.
+    //
+    // Mapping from 3-DOF code to N-DOF code:
+    //   ptr2BodyJacobiansFrames[robot_params::DOF][j]
+    //       --> _ptr2BodyJacobiansFrames[_dof][j]
+    //
+    //   *ptr2dJbd_t_1[j]
+    //       --> _dJbd_tool.col(j)
+    //
+    // Preconditions:
+    //   1) ForwardKinematicsTCP(...) has been called for the current q
+    //      so that _g[0.._dof] are up to date
+    //   2) computeBodyJacobiansFrames2() has been called, OR this function
+    //      calls it directly to refresh _BodyJacobiansFrames
+    //   3) _joint_vel[] contains the current dq values
+    //
+    // NOTE:
+    //   We use computeBodyJacobiansFrames2() here so that this derivative
+    //   is consistent with your "2" body Jacobian implementation.
+    // ========================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP2] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP2] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // Refresh body Jacobians for all frames.
+    // We specifically use version "2", but also "1" could be used, since both write to the same meomry address.
+    computeBodyJacobiansFrames2();
+
+    // Tool/TCP frame is stored at frame index _dof
+    const int tcp_frame_index = _dof;
+
+    for (int j = 0; j < _dof; ++j)
+    {
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
+        for (int k = j + 1; k < _dof; ++k)
+        {
+            dJ += lb(*_ptr2BodyJacobiansFrames[tcp_frame_index][j],
+                     *_ptr2BodyJacobiansFrames[tcp_frame_index][k]) * _joint_vel[k];
+        }
+
+        _dJbd_tool.col(j) = dJ;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP2] "
+                     "Time Derivative Body Jacobian Tool 2:\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _dJbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    return;
+}
+
+void ScrewsKinematicsNdof::computeDtBodyJacobianTCP3()
+{
+    // ========================================================================
+    // N-DOF version of:
+    //   ScrewsKinematics::DtBodyJacobian_Tool_2()
+    //
+    // Original 3-DOF function:
+    //   void ScrewsKinematics::DtBodyJacobian_Tool_2()
+    //
+    // Original 3-DOF purpose:
+    //   Implements the second "=" in eq.(8)/p.223/[3]
+    //   Outputs the time derivative of the BODY Jacobian at the tool / {T}
+    //
+    // Original 3-DOF code logic:
+    //   for each column j:
+    //     dJ_j = sum_{k=j+1}^{DOF-1}
+    //              ( - Ad_{ g_T^{-1} g_k } * ad(iXi_k) * J^b_k(:,j) ) * dq_k
+    //
+    // where:
+    //   g_T = g[robot_params::DOF]
+    //   J^b_k(:,j) = ptr2BodyJacobiansFrames[k][j]
+    //
+    // Mapping from 3-DOF code to N-DOF code:
+    //   g[robot_params::DOF]                 --> _g[_dof]
+    //   g[k]                                --> _g[k]
+    //   iXi[k]                              --> _iXi[k]
+    //   ptr2BodyJacobiansFrames[k][j]       --> _ptr2BodyJacobiansFrames[k][j]
+    //   ptr2dJbd_t_2[j]                     --> _dJbd_tool.col(j)
+    //
+    //
+    // IMPORTANT:
+    //   This function uses the frame-wise body Jacobians stored in:
+    //       _BodyJacobiansFrames[k][j]
+    //   exactly like the original 3-DOF implementation.
+    //
+    // Preconditions:
+    //   1) ForwardKinematicsTCP(...) has been called for the current q
+    //      so that _g[0.._dof] are up to date
+    //   2) computeBodyJacobiansFrames1() has been called, OR this function
+    //      calls it directly to refresh _BodyJacobiansFrames
+    //   3) initializeLocalScrewCoordVectors() has been called so that _iXi[] exist
+    //   4) _joint_vel[] contains the current dq values
+    // ========================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP3] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP3] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // Refresh body Jacobians for all frames.
+    // This follows the original 3-DOF formula, which uses iXi[k],
+    // so we pair it with computeBodyJacobiansFrames1(). Again "2"
+    // could be used with no problem
+    computeBodyJacobiansFrames1();
+
+    const int tcp_frame_index = _dof;
+    Eigen::Matrix<float, 6, 1> Adad3;
+
+    for (int j = 0; j < _dof; ++j)
+    {
+        Eigen::Matrix<float, 6, 1> dJ = Eigen::Matrix<float, 6, 1>::Zero();
+
+        for (int k = j + 1; k < _dof; ++k)
+        {
+            // Ad_{ g_T^{-1} g_k }
+            ad(_ad, _g[tcp_frame_index].inverse() * _g[k]);
+
+            // ad(iXi_k)
+            spatialCrossProduct(_scp, _iXi[k]);
+
+            // - Ad_{ g_T^{-1} g_k } * ad(iXi_k) * J^b_k(:,j)
+            Adad3 = -_ad * _scp * (*_ptr2BodyJacobiansFrames[k][j]);
+
+            dJ += Adad3 * _joint_vel[k];
+        }
+
+        _dJbd_tool.col(j) = dJ;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtBodyJacobianTCP3] "
+                     "Time Derivative Body Jacobian Tool 3:\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _dJbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    return;
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getDtBodyJacobianTCP() const
+{
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = _dJbd_tool.col(j);
+    }
+
+    return out;
+}
+
+// ============================================================
+// Private members
+// ============================================================
 
 void ScrewsKinematicsNdof::printTwist(Eigen::Matrix<float, 6, 1> twist) {
     for (size_t i = 0; i < 6; i++) {

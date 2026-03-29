@@ -239,6 +239,51 @@ void ScrewsMain::spatialCrossProduct(Eigen::Matrix<float, 6, 6> & A, const Eigen
     A.block<3, 3>(3, 3) = w_hat;
 }
 
+void ScrewsMain::adTwistVW(Eigen::Matrix<float, 6, 6>& A,
+                           const Eigen::Matrix<float, 6, 1>& X)
+{
+    // ------------------------------------------------------------------
+    // Lie bracket matrix for twist ordering [v; w]
+    // so that:
+    //   [X1, X2] = adTwistVW(X1) * X2
+    //
+    // This implements the spatial cross-product operator for twists in
+    // Murray ordering [v; w], and corresponds to eq.(114) - eq.(116)
+    // in paper [3].
+    // ------------------------------------------------------------------
+
+    const Eigen::Vector3f v = X.block<3,1>(0,0);
+    const Eigen::Vector3f w = X.block<3,1>(3,0);
+
+    A.block<3,3>(0,0) = skew(w);
+    A.block<3,3>(0,3) = skew(v);
+    A.block<3,3>(3,0) = Eigen::Matrix3f::Zero();
+    A.block<3,3>(3,3) = skew(w);
+}
+
+Eigen::Matrix<float, 6, 6> ScrewsMain::adTwistVW(const Eigen::Matrix<float, 6, 1>& X)
+{
+    // ------------------------------------------------------------------
+    // Lie bracket matrix for twist ordering [v; w]
+    // so that:
+    //   [X1, X2] = adTwistVW(X1) * X2
+    //
+    // This implements the spatial cross-product operator for twists in
+    // Murray ordering [v; w], and corresponds to eq.(114) - eq.(116)
+    // in paper [3].
+    // ------------------------------------------------------------------
+
+    const Eigen::Vector3f v = X.block<3,1>(0,0);
+    const Eigen::Vector3f w = X.block<3,1>(3,0);
+
+    _scp.block<3,3>(0,0) = skew(w);
+    _scp.block<3,3>(0,3) = skew(v);
+    _scp.block<3,3>(3,0) = Eigen::Matrix3f::Zero();
+    _scp.block<3,3>(3,3) = skew(w);
+
+    return _scp;
+}
+
 Eigen::Matrix<float, 6, 1>  ScrewsMain::screwProduct(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6) {
     // Lie bracket operator, as in [3]/p.243/eq.(115), "screw product"
     Eigen::Matrix<float, 6, 1> LB;

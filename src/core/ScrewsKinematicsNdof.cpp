@@ -974,6 +974,193 @@ ScrewsKinematicsNdof::getBodyJacobianFrame(int frameIndex, int jointIndex) const
     return _BodyJacobiansFrames[frameIndex][jointIndex];
 }
 
+void ScrewsKinematicsNdof::computeHybridJacobianTCP()
+{
+    // =========================================================================
+    // N-DOF implementation of the MATLAB function:
+    //   [Jh_tcp, Jb_tcp, g_last_tcp] = calculateHybridJacobianTCP(...)
+    //
+    // MATLAB source meaning:
+    //   Computes the TCP hybrid Jacobian from the BODY Jacobian of the last
+    //   actual joint frame.
+    //
+    // Inputs in MATLAB:
+    //   C_last   : spatial transform of last actual joint axis frame
+    //   C_tcp    : spatial transform of tcp frame
+    //   Jb_last  : 6xn body Jacobian of last actual body frame
+    //
+    // Mapping in this N-DOF class:
+    //   C_last   --> _g[_dof - 1]
+    //   C_tcp    --> _g[_dof]
+    //   Jb_last  --> _BodyJacobiansFrames[_dof - 1][j], j = 0.._dof-1
+    //
+    // Outputs stored in this class:
+    //   Jb_tcp      --> _Jbd_tool
+    //   Jh_tcp      --> _Jh_tcp
+    //   g_last_tcp  --> _g_last_tcp
+    //
+    // Convention:
+    //   Twists ordered as [v; w]
+    //
+    // Preconditions:
+    //   1) ForwardKinematicsTCP(...) has been called for the current q so that
+    //      _g[0.._dof] are up to date.
+    //   2) computeBodyJacobiansFrames1() or computeBodyJacobiansFrames2() has
+    //      been called so that _BodyJacobiansFrames are up to date.
+    //
+    // Note:
+    //   This function does NOT recompute body Jacobians automatically.
+    //   It assumes the frame-wise body Jacobians already exist, exactly as in
+    //   the MATLAB workflow where Jb_last is given as input.
+    // =========================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    const int last_frame_index = _dof - 1;
+    const int tcp_frame_index  = _dof;
+
+    // C_last and C_tcp
+    const Eigen::Isometry3f& C_last = _g[last_frame_index];
+    const Eigen::Isometry3f& C_tcp  = _g[tcp_frame_index];
+
+    // Step 1: g_last_tcp = inv(C_last) * C_tcp
+    _g_last_tcp = C_last.inverse() * C_tcp;
+
+    // Step 2: Jb_tcp = ad(inv(g_last_tcp)) * Jb_last
+    //
+    // Here Jb_last(:,j) is stored as _BodyJacobiansFrames[last_frame_index][j]
+    Eigen::Matrix<float, 6, 6> ad_inv_g_last_tcp;
+    ad(ad_inv_g_last_tcp, _g_last_tcp.inverse());
+
+    for (int j = 0; j < _dof; ++j) {
+        _Jbd_tool.col(j) = ad_inv_g_last_tcp * _BodyJacobiansFrames[last_frame_index][j];
+    }
+
+    // Step 3: Jh_tcp = ad(g_rot) * Jb_tcp
+    // where g_rot contains only the rotation part of C_tcp
+    Eigen::Isometry3f g_rot = Eigen::Isometry3f::Identity();
+    g_rot.linear() = C_tcp.linear();
+    g_rot.translation().setZero();
+
+    Eigen::Matrix<float, 6, 6> ad_g_rot;
+    ad(ad_g_rot, g_rot);
+
+    for (int j = 0; j < _dof; ++j) {
+        _Jh_tcp.col(j) = ad_g_rot * _Jbd_tool.col(j);
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] "
+                     "g_last_tcp =\n"
+                  << _g_last_tcp.matrix() << std::endl;
+
+        std::cout << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] "
+                     "Jb_tcp =\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jbd_tool(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+
+        std::cout << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] "
+                     "Jh_tcp =\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _Jh_tcp(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getHybridJacobianTCP() const
+{
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = _Jh_tcp.col(j);
+    }
+
+    return out;
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::bodyToHybridJacobian(
+    const Eigen::Isometry3f& C_frame,
+    const Eigen::Matrix<float, 6, Eigen::Dynamic>& Jb) const
+{
+    // =========================================================================
+    // N-DOF implementation of the MATLAB function:
+    //   Jh = bodyToHybridJacobian(C_frame, Jb, USE_SYM)
+    //
+    // Purpose:
+    //   Converts the BODY Jacobian of a frame into the HYBRID Jacobian of the
+    //   same frame.
+    //
+    // Convention:
+    //   Twists ordered as [v; w]
+    //
+    // MATLAB form:
+    //   R = C_frame(1:3,1:3)
+    //   g_rot = eye(4); g_rot(1:3,1:3) = R
+    //   Jh = ad(g_rot) * Jb
+    //
+    // Interpretation:
+    //   The hybrid Jacobian expresses:
+    //     - linear velocity in the base frame
+    //     - angular velocity with the same rotational mapping induced by the
+    //       frame orientation
+    //
+    // Notes on theory:
+    //   This is the same body-to-hybrid conversion step used in:
+    //     - calculateHybridJacobianTCP(...)
+    //     - calculateDtHybridJacobian(...)
+    //
+    //   In your MATLAB pipeline, this conversion is the frame-level operation
+    //   that precedes the use of Mueller Eq. (27) for the analytical time
+    //   derivative of the hybrid Jacobian.
+    //
+    //   So while this helper is not itself the full Eq. (27), it is a direct
+    //   building block for that derivation and for the TCP hybrid Jacobian.
+    //
+    // Preconditions:
+    //   1) Jb must be 6 x n
+    //   2) C_frame must be a valid SE(3) transform
+    // =========================================================================
+
+    if (Jb.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::bodyToHybridJacobian] "
+                  << "Invalid body Jacobian row count: "
+                  << Jb.rows() << " (expected 6)\n";
+        return Eigen::Matrix<float, 6, Eigen::Dynamic>::Zero(6, Jb.cols());
+    }
+
+    // Extract only the rotation of the frame
+    Eigen::Isometry3f g_rot = Eigen::Isometry3f::Identity();
+    g_rot.linear() = C_frame.linear();
+    g_rot.translation().setZero();
+
+    // ad(g_rot)
+    Eigen::Matrix<float, 6, 6> ad_g_rot;
+    const_cast<ScrewsKinematicsNdof*>(this)->ad(ad_g_rot, g_rot);
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jh(6, Jb.cols());
+    Jh = ad_g_rot * Jb;
+
+    return Jh;
+}
+
 void ScrewsKinematicsNdof::computeSpatialVelocityTwistTCP()
 {
     // ========================================================================
@@ -1107,6 +1294,7 @@ void ScrewsKinematicsNdof::computeBodyVelocityTwistTCP()
 void ScrewsKinematicsNdof::computeDtSpatialVelocityTwistTCP()
 {
     // =========================================================================
+    // Implements eq.(18)/p.223 in Mueller-Dynamics paper.
     // N-DOF split version of:
     //   ScrewsKinematics::DtToolVelocityTwist(typ_jacobian::SPATIAL)
     //
@@ -1291,6 +1479,319 @@ void ScrewsKinematicsNdof::computeDtBodyVelocityTwistTCP()
                   << "Body Acceleration Twist:\n";
         printTwist(_dVbd_twist_tcp);
     }
+}
+
+void ScrewsKinematicsNdof::computeHybridVelocityTwistTCP()
+{
+    // =========================================================================
+    // N-DOF implementation of the MATLAB function:
+    //   [Vh_tcp, v_tcp, w_tcp] = calculateHybridVelTwistTCP(Jh_tcp, qdot)
+    //
+    // MATLAB meaning:
+    //   Calculates TCP hybrid velocity twist with respect to the base frame.
+    //
+    // Mathematical form:
+    //   Vh_tcp = Jh_tcp * qdot
+    //   v_tcp  = Vh_tcp(1:3)
+    //   w_tcp  = Vh_tcp(4:6)
+    //
+    // Convention:
+    //   Twist ordering [v; w]
+    //
+    // Inputs in this N-DOF class:
+    //   Jh_tcp  --> getHybridJacobianTCP()
+    //   qdot    --> _joint_vel[0.._dof-1]
+    //
+    // Output stored in this class:
+    //   Vh_tcp  --> _Vh_twist_tcp
+    //
+    // Preconditions:
+    //   1) _dof > 0
+    //   2) _joint_vel[0.._dof-1] are up to date
+    //   3) Hybrid Jacobian TCP has already been computed for the current q
+    //      (e.g. via computeHybridJacobianTCP())
+    //
+    // Function assumes code implementation: |-->-->-->-->|
+    // ForwardKinematicsTCP(q);
+    // computeBodyJacobiansFrames1();   // or 2, depending on your chosen pipeline
+    // computeHybridJacobianTCP();
+    // computeHybridVelocityTwistTCP();
+    //
+    // =========================================================================
+
+    _debug_verbosity = false;
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "DOF <= 0, aborting.\n";
+        _Vh_twist_tcp.setZero();
+        return;
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> Jh = getHybridJacobianTCP();
+
+    if (Jh.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "Hybrid Jacobian has invalid row count: "
+                  << Jh.rows() << " (expected 6)\n";
+        _Vh_twist_tcp.setZero();
+        return;
+    }
+
+    if (Jh.cols() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "Hybrid Jacobian has invalid column count: "
+                  << Jh.cols() << " (expected " << _dof << ")\n";
+        _Vh_twist_tcp.setZero();
+        return;
+    }
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> dq_vector(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        dq_vector(i) = _joint_vel[i];
+    }
+
+    if (dq_vector.size() != Jh.cols()) {
+        std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "Dimension mismatch: dq size = " << dq_vector.size()
+                  << ", Jh.cols() = " << Jh.cols() << "\n";
+        _Vh_twist_tcp.setZero();
+        return;
+    }
+
+    _Vh_twist_tcp = Jh * dq_vector;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "Hybrid Velocity Twist:\n";
+        printTwist(_Vh_twist_tcp);
+
+        std::cout << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
+                  << "v_tcp = ["
+                  << _Vh_twist_tcp(0) << ", "
+                  << _Vh_twist_tcp(1) << ", "
+                  << _Vh_twist_tcp(2) << "], w_tcp = ["
+                  << _Vh_twist_tcp(3) << ", "
+                  << _Vh_twist_tcp(4) << ", "
+                  << _Vh_twist_tcp(5) << "]\n";
+    }
+}
+
+const Eigen::Matrix<float, 6, 1>& ScrewsKinematicsNdof::getHybridVelocityTwistTCP() const
+{
+    return _Vh_twist_tcp;
+}
+
+Eigen::Vector3f ScrewsKinematicsNdof::getHybridLinearVelocityTCP() const
+{
+    return _Vh_twist_tcp.block<3,1>(0,0);
+}
+
+Eigen::Vector3f ScrewsKinematicsNdof::getHybridAngularVelocityTCP() const
+{
+    return _Vh_twist_tcp.block<3,1>(3,0);
+}
+
+void ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP()
+{
+    // =========================================================================
+    // N-DOF implementation of the MATLAB function:
+    //   calculateDtHybridVelocityTwistEq29(...)
+    //
+    // This C++ version intentionally OMITS recalculation of quantities that are
+    // assumed to be already available from previously called functions.
+    //
+    // Assumed already computed before calling this function:
+    //   1) ForwardKinematicsTCP(...)
+    //      -> _g[0.._dof] are up to date
+    //   2) Body Jacobians for actual bodies / frames
+    //      -> _BodyJacobiansFrames[frame][joint]
+    //   3) TCP hybrid Jacobian
+    //      -> _Jh_tcp
+    //   4) TCP hybrid velocity twist
+    //      -> _Vh_twist_tcp
+    //
+    // Theory:
+    //   Mueller Eq. (29):
+    //
+    //     Vdot_i^h = sum_j ( J_{i,j}^h * qddot_j
+    //                      + [ J_{i,j}^h , ^v(Vtilde_{j-1,i}^h) ] * qdot_j )
+    //
+    //   with
+    //
+    //     Vtilde_{j-1,i}^h = V_i^h - Ad_{r_{i,j-1}} * V_{j-1}^h
+    //
+    // Convention:
+    //   twists ordered as [v; w]
+    //
+    // TCP-specific mapping:
+    //   i -> tcp
+    //   V_i^h       -> _Vh_twist_tcp
+    //   J_{i,j}^h   -> _Jh_tcp.col(j)
+    //
+    // For body (j-1), we compute only what is still needed:
+    //   - Jh_prev    = bodyToHybridJacobian( C_prev, Jb_prev )
+    //   - Vh_prev    = Jh_prev * qdot
+    //   - Vtilde     = Vh_tcp - Ad_{r_{tcp,j-1}} * Vh_prev
+    //
+    // Then Eq. (29) is applied directly column-by-column.
+    //
+    // Outputs stored in this class:
+    //   _dVh_twist_tcp  : hybrid acceleration twist of TCP [a_tcp; alpha_tcp]
+    //
+    // Function assumes code implementation: |-->-->-->-->|
+    // kin.ForwardKinematicsTCP(q.data());
+    // kin.computeBodyJacobiansFrames1();      // or 2, as long as storage is updated
+    // kin.computeHybridJacobianTCP();
+    // kin.computeHybridVelocityTwistTCP();
+    // kin.computeDtHybridVelocityTwistTCP();    
+    // =========================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "DOF <= 0\n";
+        _dVh_twist_tcp.setZero();
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "RobotAbstractBaseNdof pointer is null\n";
+        _dVh_twist_tcp.setZero();
+        return;
+    }
+
+    _debug_verbosity = false;
+    _dVh_twist_tcp.setZero();
+
+    // -------------------------------------------------------------------------
+    // Build qdot and qddot vectors from stored joint state
+    // -------------------------------------------------------------------------
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qddot(_dof);
+
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i)  = _joint_vel[i];
+        qddot(i) = _joint_accel[i];
+    }
+
+    if (qdot.size() != _dof || qddot.size() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "Invalid qdot/qddot size\n";
+        _dVh_twist_tcp.setZero();
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Basic consistency checks for already-computed TCP hybrid Jacobian/twist
+    // -------------------------------------------------------------------------
+    if (_Jh_tcp.rows() != 6) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "Hybrid Jacobian row count invalid: "
+                  << _Jh_tcp.rows() << " (expected 6)\n";
+        _dVh_twist_tcp.setZero();
+        return;
+    }
+
+    const Eigen::Isometry3f& C_tcp = _g[_dof];
+    const Eigen::Vector3f r_tcp = C_tcp.translation();
+
+    // -------------------------------------------------------------------------
+    // Direct implementation of Mueller Eq. (29)
+    // -------------------------------------------------------------------------
+    for (int j = 0; j < _dof; ++j)
+    {
+        Eigen::Matrix<float, 6, 1> Vh_prev_at_tcp = Eigen::Matrix<float, 6, 1>::Zero();
+
+        // ---------------------------------------------------------------------
+        // For j > 0, compute the hybrid twist of actual body (j-1)
+        // ---------------------------------------------------------------------
+        if (j > 0)
+        {
+            const int prev_body_index = j - 1;
+
+            // Build Jb_prev from stored frame-wise body Jacobian table
+            Eigen::Matrix<float, 6, Eigen::Dynamic> Jb_prev(6, _dof);
+            for (int col = 0; col < _dof; ++col) {
+                Jb_prev.col(col) = _BodyJacobiansFrames[prev_body_index][col];
+            }
+
+            // Convert body Jacobian of body (j-1) to hybrid Jacobian
+            Eigen::Matrix<float, 6, Eigen::Dynamic> Jh_prev =
+                bodyToHybridJacobian(_g[prev_body_index], Jb_prev);
+
+            if (Jh_prev.rows() != 6 || Jh_prev.cols() != _dof) {
+                std::cerr << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                          << "Invalid Jh_prev dimensions for body index "
+                          << prev_body_index << "\n";
+                _dVh_twist_tcp.setZero();
+                return;
+            }
+
+            // Hybrid twist of body (j-1)
+            Eigen::Matrix<float, 6, 1> Vh_prev = Jh_prev * qdot;
+
+            // Vector from TCP origin to origin of body (j-1), base-resolved
+            const Eigen::Vector3f r_prev = _g[prev_body_index].translation();
+            const Eigen::Vector3f r_tcp_prev = r_prev - r_tcp;
+
+            Eigen::Isometry3f g_r = Eigen::Isometry3f::Identity();
+            g_r.translation() = r_tcp_prev;
+
+            Eigen::Matrix<float, 6, 6> ad_g_r;
+            ad(ad_g_r, g_r);
+
+            // Ad_{r_{tcp,j-1}} * Vh_prev
+            Vh_prev_at_tcp = ad_g_r * Vh_prev;
+        }
+
+        // ---------------------------------------------------------------------
+        // Vtilde_{j-1,tcp}
+        // ---------------------------------------------------------------------
+        Eigen::Matrix<float, 6, 1> Vtilde = _Vh_twist_tcp - Vh_prev_at_tcp;
+
+        // Keep only translational part: ^v Vtilde
+        Eigen::Matrix<float, 6, 1> Vtilde_v = Eigen::Matrix<float, 6, 1>::Zero();
+        Vtilde_v.block<3,1>(0,0) = Vtilde.block<3,1>(0,0);
+
+        // Eq. (29) term for column j:
+        //   Jh(:,j) * qddot(j) + ad_twist_vw(Jh(:,j)) * Vtilde_v * qdot(j)
+        Eigen::Matrix<float, 6, 6> adJh;
+        adTwistVW(adJh, _Jh_tcp.col(j));
+
+        _dVh_twist_tcp += _Jh_tcp.col(j) * qddot(j)
+                        + adJh * Vtilde_v * qdot(j);
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "Hybrid Acceleration Twist:\n";
+        printTwist(_dVh_twist_tcp);
+
+        std::cout << "[ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP] "
+                  << "a_tcp = ["
+                  << _dVh_twist_tcp(0) << ", "
+                  << _dVh_twist_tcp(1) << ", "
+                  << _dVh_twist_tcp(2) << "], alpha_tcp = ["
+                  << _dVh_twist_tcp(3) << ", "
+                  << _dVh_twist_tcp(4) << ", "
+                  << _dVh_twist_tcp(5) << "]\n";
+    }
+}
+
+const Eigen::Matrix<float, 6, 1>& ScrewsKinematicsNdof::getDtHybridVelocityTwistTCP() const
+{
+    return _dVh_twist_tcp;
+}
+
+Eigen::Vector3f ScrewsKinematicsNdof::getHybridLinearAccelerationTCP() const
+{
+    return _dVh_twist_tcp.block<3,1>(0,0);
+}
+
+Eigen::Vector3f ScrewsKinematicsNdof::getHybridAngularAccelerationTCP() const
+{
+    return _dVh_twist_tcp.block<3,1>(3,0);
 }
 
 void ScrewsKinematicsNdof::computeDtSpatialJacobianTCP1()
@@ -1586,6 +2087,194 @@ Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getDtBodyJacobianT
 
     for (int j = 0; j < _dof; ++j) {
         out.col(j) = _dJbd_tool.col(j);
+    }
+
+    return out;
+}
+
+void ScrewsKinematicsNdof::computeDtHybridJacobianTCP()
+{
+    // =========================================================================
+    // N-DOF implementation of the MATLAB function:
+    //   calculateDtHybridJacobian(...)
+    //
+    // Here we intentionally OMIT recalculation of quantities that are assumed
+    // to be already available in the class.
+    //
+    // Assumed already computed before calling this function:
+    //   1) ForwardKinematicsTCP(...) has been called
+    //      -> _g[0.._dof] are up to date
+    //   2) Body Jacobians for joint frames + TCP have been computed
+    //      -> _BodyJacobiansFrames[frame][joint]
+    //   3) TCP hybrid Jacobian has already been computed
+    //      -> _Jh_tcp
+    //   4) TCP hybrid velocity twist has already been computed
+    //      -> _Vh_twist_tcp
+    //
+    // MATLAB quantities omitted here because they are assumed already known:
+    //   Jh_tcp  -> _Jh_tcp
+    //   Vh_tcp  -> _Vh_twist_tcp
+    //   Jb_tcp  -> already available elsewhere if needed
+    //
+    // Theory:
+    //   Mueller Eq. (27):
+    //
+    //     Jdot^h_{i,j} = [ J^h_{i,j},  ^v(Vtilde^h_{j-1,i}) ]
+    //
+    //   with
+    //
+    //     Vtilde^h_{j-1,i} = V^h_i - Ad_{r_{i,j-1}} V^h_{j-1}
+    //
+    // Convention:
+    //   twists ordered as [v; w]
+    //
+    // In this TCP-specific implementation:
+    //   i   -> tcp
+    //   V^h_i -> _Vh_twist_tcp
+    //   J^h_{i,j} -> _Jh_tcp.col(j)
+    //
+    // For body (j-1), we compute:
+    //   Jh_body_(j-1) = bodyToHybridJacobian( C_(j-1), Jb_(j-1) )
+    //   Vh_body_(j-1) = Jh_body_(j-1) * qdot
+    //
+    // Then:
+    //   Vtilde = Vh_tcp - Ad_{r_{tcp,j-1}} * Vh_body_(j-1)
+    //
+    // and only the translational part enters:
+    //   Vtilde_v = [ Vtilde(1:3) ; 0 ; 0 ; 0 ]
+    //
+    // Finally:
+    //   dJh_tcp.col(j) = ad_twist_vw( Jh_tcp.col(j) ) * Vtilde_v
+    //
+    // Function assumes code implementation: |-->-->-->-->|
+    // kin.ForwardKinematicsTCP(q.data());
+    // kin.computeBodyJacobiansFrames1();      // or 2, as long as storage is updated
+    // kin.computeHybridJacobianTCP();
+    // kin.computeHybridVelocityTwistTCP();
+    // kin.computeDtHybridJacobianTCP();
+    //
+    // IMPORTANT NOTE:
+    // Right now it recomputes jh_prev and Vh_prev for each iteration step.
+    // =========================================================================
+
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
+                  << "DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
+                  << "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+    _dJh_tcp.setZero();
+
+    // -------------------------------------------------------------------------
+    // Build qdot vector from stored joint velocities
+    // -------------------------------------------------------------------------
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i) = _joint_vel[i];
+    }
+
+    if (qdot.size() != _dof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
+                  << "Invalid qdot size\n";
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // TCP transform and origin in base frame
+    // -------------------------------------------------------------------------
+    const Eigen::Isometry3f& C_tcp = _g[_dof];
+    const Eigen::Vector3f r_tcp = C_tcp.translation();
+
+    // -------------------------------------------------------------------------
+    // For each column j, apply Mueller Eq. (27)
+    // -------------------------------------------------------------------------
+    for (int j = 0; j < _dof; ++j)
+    {
+        Eigen::Matrix<float, 6, 1> Vh_prev_at_tcp = Eigen::Matrix<float, 6, 1>::Zero();
+
+        // ---------------------------------------------------------------------
+        // If j > 0, compute hybrid twist of actual body (j-1)
+        // ---------------------------------------------------------------------
+        if (j > 0)
+        {
+            const int prev_body_index = j - 1;
+
+            // Build Jb_prev from stored frame-wise body Jacobian table
+            Eigen::Matrix<float, 6, Eigen::Dynamic> Jb_prev(6, _dof);
+            for (int col = 0; col < _dof; ++col) {
+                Jb_prev.col(col) = _BodyJacobiansFrames[prev_body_index][col];
+            }
+
+            // Convert body Jacobian of body (j-1) to hybrid Jacobian
+            Eigen::Matrix<float, 6, Eigen::Dynamic> Jh_prev =
+                bodyToHybridJacobian(_g[prev_body_index], Jb_prev);
+
+            if (Jh_prev.rows() != 6 || Jh_prev.cols() != _dof) {
+                std::cerr << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
+                          << "Invalid Jh_prev dimensions for body index "
+                          << prev_body_index << "\n";
+                return;
+            }
+
+            // Hybrid twist of body (j-1)
+            Eigen::Matrix<float, 6, 1> Vh_prev = Jh_prev * qdot;
+
+            // Vector from TCP origin to origin of body (j-1), expressed in base frame
+            const Eigen::Vector3f r_prev = _g[prev_body_index].translation();
+            const Eigen::Vector3f r_tcp_prev = r_prev - r_tcp;
+
+            Eigen::Isometry3f g_r = Eigen::Isometry3f::Identity();
+            g_r.translation() = r_tcp_prev;
+
+            Eigen::Matrix<float, 6, 6> ad_g_r;
+            ad(ad_g_r, g_r);
+
+            // Ad_{r_{tcp,j-1}} * Vh_{j-1}
+            Vh_prev_at_tcp = ad_g_r * Vh_prev;
+        }
+
+        // ---------------------------------------------------------------------
+        // Vtilde = Vh_tcp - Vh_prev_at_tcp
+        // ---------------------------------------------------------------------
+        Eigen::Matrix<float, 6, 1> Vtilde = _Vh_twist_tcp - Vh_prev_at_tcp;
+
+        // Only translational part enters as ^v(Vtilde)
+        Eigen::Matrix<float, 6, 1> Vtilde_v = Eigen::Matrix<float, 6, 1>::Zero();
+        Vtilde_v.block<3,1>(0,0) = Vtilde.block<3,1>(0,0);
+
+        // Eq. (27):
+        //   dJh(:,j) = ad_twist_vw( Jh(:,j) ) * Vtilde_v
+        Eigen::Matrix<float, 6, 6> adJh;
+        adTwistVW(adJh, _Jh_tcp.col(j));
+
+        _dJh_tcp.col(j) = adJh * Vtilde_v;
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
+                  << "dJh_tcp =\n";
+        for (int r = 0; r < 6; ++r) {
+            for (int c = 0; c < _dof; ++c) {
+                std::cout << _dJh_tcp(r, c) << "\t";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getDtHybridJacobianTCP() const
+{
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = _dJh_tcp.col(j);
     }
 
     return out;

@@ -51,6 +51,9 @@ public:
     Eigen::Matrix<float, 6, 6> iad(const Eigen::Isometry3f& g );
     Eigen::Matrix<float, 6, 1> lb(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6);    
     void spatialCrossProduct(Eigen::Matrix<float, 6, 6> & A, const Eigen::Matrix<float, 6, 1> xi_R6);
+    // adTwistVW are a different name to the spatialCrossProduct
+    void adTwistVW(Eigen::Matrix<float, 6, 6>& A, const Eigen::Matrix<float, 6, 1>& X);
+    Eigen::Matrix<float, 6, 6> adTwistVW(const Eigen::Matrix<float, 6, 1>& X);
     Eigen::Matrix<float, 6, 1> screwProduct(Eigen::Matrix<float, 6, 1> xi_i_R6, Eigen::Matrix<float, 6, 1> xi_j_R6);
     Eigen::Matrix3f skewExp(const Eigen::Vector3f& w, float theta);
     Eigen::Isometry3f twistExp(const Eigen::Matrix<float, 6, 1>& xi, float theta);
@@ -113,7 +116,8 @@ private:
     Eigen::Matrix<float, 6, 1> _iXi_1;
     Eigen::Matrix<float, 6, 6> _ad;
     Eigen::Matrix<float, 6, 6> _iad;
-
+    Eigen::Matrix<float, 6, 6> _scp;
+    
     // Auxiliary functions 
     bool isequalf(double a, double b);
     bool isrot(const Eigen::Matrix3f& R);

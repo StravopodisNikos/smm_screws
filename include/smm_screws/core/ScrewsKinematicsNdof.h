@@ -456,7 +456,7 @@ public:
     }
 
     // ============================================================
-    // 6) Jacobians (tool frame, spatial & body)
+    // 6.1) Jacobians (tool frame, spatial & body)
     // ============================================================
 
     // Assumes:
@@ -481,6 +481,10 @@ public:
         return _g[i];
     }
 
+    // ============================================================
+    // 6.2) Jacobians (body @ joint+tcp frames)
+    // ============================================================
+
     // Assumes:
     // - initializeLocalScrewCoordVectors()         was called to generate iXi used in eq.4.16/Mueller paper, 1st ""=""
     // - initializeSpatialJointScrewCoordVectors(); was called to generate Yi used in eq.4.16/Mueller paper, 2nd ""=""
@@ -491,7 +495,19 @@ public:
     const Eigen::Matrix<float, 6, 1>& getBodyJacobianFrame(int frameIndex, int jointIndex) const;
 
     // ============================================================
-    // 7) TCP velocity/acceleration twists (spatial/body) from Jacobian and dq
+    // 6.3) TCP Jacobian (Operational Space jacobian) 
+    //      - this is hybrid expression. 
+    //      - measured @ body-tcp. 
+    //      - expressed @ base (inertial/spatial)
+    // ============================================================
+    void computeHybridJacobianTCP();
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> getHybridJacobianTCP() const;
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> bodyToHybridJacobian(const Eigen::Isometry3f& C_frame, const Eigen::Matrix<float, 6, Eigen::Dynamic>& Jb) const;
+
+    // ============================================================
+    // 7.1) TCP velocity/acceleration twists (spatial/body) from Jacobian and dq
     // ============================================================
     void computeSpatialVelocityTwistTCP();
     void computeBodyVelocityTwistTCP();
@@ -518,6 +534,22 @@ public:
     {
         return _dVbd_twist_tcp;
     }
+
+    // ============================================================
+    // 7.2) TCP velocity/acceleration twists (hybrid) from Jacobian and dq
+    // ============================================================
+    void computeHybridVelocityTwistTCP();
+
+    const Eigen::Matrix<float, 6, 1>& getHybridVelocityTwistTCP() const;
+    Eigen::Vector3f getHybridLinearVelocityTCP() const;
+    Eigen::Vector3f getHybridAngularVelocityTCP() const;    
+    
+    void computeDtHybridVelocityTwistTCP();
+
+    const Eigen::Matrix<float, 6, 1>& getDtHybridVelocityTwistTCP() const;
+    Eigen::Vector3f getHybridLinearAccelerationTCP() const;
+    Eigen::Vector3f getHybridAngularAccelerationTCP() const;
+
     // ============================================================
     // 8) Jacobian Time Derivatives (tool frame, spatial & body)
     // ============================================================
@@ -536,6 +568,9 @@ public:
     void computeDtBodyJacobianTCP3();
 
     Eigen::Matrix<float, 6, Eigen::Dynamic> getDtBodyJacobianTCP() const;
+
+    void computeDtHybridJacobianTCP();
+    Eigen::Matrix<float, 6, Eigen::Dynamic> getDtHybridJacobianTCP() const;
 
 private:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
@@ -587,15 +622,24 @@ private:
     // Time Derivatives of Jacobians (tool)
     Eigen::Matrix<float, 6, MAX_DOF> _dJsp_tool;     
     Eigen::Matrix<float, 6, MAX_DOF> _dJbd_tool;
+    Eigen::Matrix<float, 6, MAX_DOF> _dJh_tcp;     // time derivative of hybrid Jacobian of TCP
+
+    // Hybrid Jacobian of TCP (linear velocity in base frame, angular velocity in tcp/body convention)
+    Eigen::Matrix<float, 6, MAX_DOF> _Jh_tcp;
+
+    // Transform from last actual joint frame to tcp frame
+    Eigen::Isometry3f _g_last_tcp;
 
     // TCP velocity twists
     Eigen::Matrix<float, 6, 1> _Vsp_twist_tcp;  // spatial twist of TCP
     Eigen::Matrix<float, 6, 1> _Vbd_twist_tcp;  // body twist of TCP
+    Eigen::Matrix<float, 6, 1> _Vh_twist_tcp;   // hybrid velocity twist of TCP [v; w]
 
     // Fist time derivative of TCP velocity twists
     Eigen::Matrix<float, 6, 1> _dVsp_twist_tcp;   // spatial acceleration twist of TCP
     Eigen::Matrix<float, 6, 1> _dVbd_twist_tcp;   // body acceleration twist of TCP
-
+    Eigen::Matrix<float, 6, 1> _dVh_twist_tcp;   // hybrid acceleration twist of TCP [a; alpha] 
+       
     bool _debug_verbosity {true};
 
     void printTwist(Eigen::Matrix<float, 6, 1> twist);

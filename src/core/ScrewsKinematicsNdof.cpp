@@ -1014,6 +1014,8 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
     //   the MATLAB workflow where Jb_last is given as input.
     // =========================================================================
 
+    _is_operational_jacobian_valid = false;
+
     if (_dof <= 0) {
         std::cerr << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] DOF <= 0\n";
         return;
@@ -1057,8 +1059,16 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
     ad(ad_g_rot, g_rot);
 
     for (int j = 0; j < _dof; ++j) {
-        _Jh_tcp.col(j) = ad_g_rot * _Jbd_tool.col(j);
+        _Jh_tcp.col(j) = ad_g_rot * _Jbd_tool.col(j); // here is where magic happens 
+        Jop.col(j) = _Jh_tcp.col(j);  // populate the public memeber
     }
+
+    // Zero unused columns of public member for safety
+    for (int j = _dof; j < MAX_DOF; ++j) {
+        Jop.col(j).setZero();
+    }
+
+    _is_operational_jacobian_valid = true; // now we set the boolean as true, since Jop is populated
 
     if (_debug_verbosity) {
         std::cout << "[ScrewsKinematicsNdof::computeHybridJacobianTCP] "
@@ -2275,6 +2285,44 @@ Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getDtHybridJacobia
 
     for (int j = 0; j < _dof; ++j) {
         out.col(j) = _dJh_tcp.col(j);
+    }
+
+    return out;
+}
+
+// Example usage in node:
+//try {
+//    Eigen::Matrix<float, 6, Eigen::Dynamic> Jop = kin.getOperationalJacobianTCP();
+//    // use Jop
+//}
+//catch (const std::runtime_error& e) {
+//    std::cerr << "Error: " << e.what() << std::endl;
+//}
+// and the respective msg shown if no jacobian is computed:
+// >> Error: Operational Jacobian not computed
+Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getOperationalJacobianTCP() const
+{
+    // With exception
+    if (!_is_operational_jacobian_valid) {
+        throw std::runtime_error("Operational Jacobian not computed");
+    }
+    // No exception. Remode on [4.4.26]
+    //if (!_is_operational_jacobian_valid) {
+    //    std::cerr << "[ScrewsKinematicsNdof::getOperationalJacobianTCP] "
+    //              << "Operational Jacobian not computed. "
+    //             << "Call computeHybridJacobianTCP() first.\n";
+    //    return Eigen::Matrix<float, 6, Eigen::Dynamic>::Zero(6, _dof);
+    //}
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        std::cerr << "[ScrewsKinematicsNdof::getOperationalJacobianTCP] "
+                  << "Invalid DOF = " << _dof << "\n";
+        return Eigen::Matrix<float, 6, Eigen::Dynamic>::Zero(6, 0);
+    }
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = Jop.col(j);
     }
 
     return out;

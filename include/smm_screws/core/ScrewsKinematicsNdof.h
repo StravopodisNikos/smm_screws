@@ -172,6 +172,8 @@ public:
         if (_debug_verbosity) {
             std::cout << "[ForwardKinematicsTCPNdof] gst =\n" << _gst.matrix() << '\n';
         }
+
+        _is_operational_jacobian_valid = false; // to ensure warning is on if someone asks for Jop after joint state is updated
     }
 
     // FK using internally stored _joint_pos
@@ -302,6 +304,126 @@ public:
         }
 
         return updateVelocityTCP(qf);
+    }
+
+    // =================================================================
+    // 5.1b) Velocity-only utility from HYBRID twist
+    // =================================================================
+    // Uses:
+    //   - ForwardKinematicsTCP(q)
+    //   - computeBodyJacobiansFrames1()   (or 2, depending on your pipeline)
+    //   - computeHybridJacobianTCP()
+    //   - computeHybridVelocityTwistTCP()
+    //
+    // Returns Cartesian TCP linear velocity directly from the first 3
+    // elements of the hybrid velocity twist wrt the inertial/base frame.
+
+    template<typename df_number>
+    Eigen::Vector3f updateVelocityTCPHybrid(const df_number* q)
+    {
+        static_assert(std::is_floating_point<df_number>::value,
+                      "updateVelocityTCPHybrid(q) requires floating-point df_number");
+
+        _debug_verbosity = false;
+
+        if (!q) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "WARNING: q is null\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        if (_dof <= 0) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "DOF <= 0\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 1) Update FK for current configuration
+        // -----------------------------------------------------------------
+        ForwardKinematicsTCP(q);
+
+        const Eigen::Matrix4f gst_matrix = _gst.matrix();
+        if (gst_matrix.rows() != 4 || gst_matrix.cols() != 4) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "Invalid TCP transform dimensions\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 2) Compute body Jacobians for actual frames + TCP
+        //
+        // IMPORTANT:
+        // computeHybridJacobianTCP() assumes the frame body Jacobians already
+        // exist. We use version 1 here; if your chosen pipeline is version 2,
+        // replace with computeBodyJacobiansFrames2().
+        // -----------------------------------------------------------------
+        computeBodyJacobiansFrames1();
+
+        // -----------------------------------------------------------------
+        // 3) Compute TCP hybrid Jacobian
+        // -----------------------------------------------------------------
+        computeHybridJacobianTCP();
+
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jh = getHybridJacobianTCP();
+        if (Jh.rows() != 6 || Jh.cols() != _dof) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "Hybrid Jacobian has invalid dimensions: "
+                      << Jh.rows() << "x" << Jh.cols()
+                      << " (expected 6x" << _dof << ")\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 4) Compute TCP hybrid velocity twist
+        // -----------------------------------------------------------------
+        computeHybridVelocityTwistTCP();
+
+        const Eigen::Matrix<float, 6, 1>& Vh = getHybridVelocityTwistTCP();
+        if (Vh.size() != 6) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "Hybrid velocity twist has invalid size\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 5) Direct extraction:
+        //    first 3 components of hybrid velocity twist are the TCP
+        //    linear velocity wrt inertial/base frame
+        // -----------------------------------------------------------------
+        Eigen::Vector3f v_tcp = Vh.block<3,1>(0,0);
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(q)] "
+                      << "v_hybrid = [" << v_tcp(0) << ", "
+                      << v_tcp(1) << ", "
+                      << v_tcp(2) << "]\n";
+        }
+
+        return v_tcp;
+    }
+
+    // q as Eigen vector (float or double)
+    template<typename Derived>
+    Eigen::Vector3f updateVelocityTCPHybrid(const Eigen::MatrixBase<Derived>& q)
+    {
+        using Scalar = typename Derived::Scalar;
+        static_assert(std::is_floating_point<Scalar>::value,
+                      "updateVelocityTCPHybrid(Eigen) requires floating-point Scalar");
+
+        if (q.size() < _dof) {
+            std::cerr << "[ScrewsKinematicsNdof::updateVelocityTCPHybrid(Eigen)] "
+                      << "Input vector too small (size=" << q.size()
+                      << ", dof=" << _dof << ")\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        float qf[MAX_DOF];
+        for (int i = 0; i < _dof; ++i) {
+            qf[i] = static_cast<float>(q(i));
+        }
+
+        return updateVelocityTCPHybrid(qf);
     }
 
     // =================================================================
@@ -455,6 +577,140 @@ public:
         return updateAccelerationTCP(qf);
     }
 
+    // =================================================================
+    // 5.2b) Acceleration-only utility from HYBRID twist derivative
+    // =================================================================
+    // Uses:
+    //   - ForwardKinematicsTCP(q)
+    //   - computeBodyJacobiansFrames1()   (or 2, depending on your chosen pipeline)
+    //   - computeHybridJacobianTCP()
+    //   - computeHybridVelocityTwistTCP()
+    //   - computeDtHybridVelocityTwistTCP()
+    //
+    // Returns Cartesian TCP acceleration directly from the first 3 elements
+    // of the hybrid acceleration twist wrt the inertial/base frame.
+
+    template<typename df_number>
+    Eigen::Vector3f updateAccelerationTCPHybrid(const df_number* q)
+    {
+        static_assert(std::is_floating_point<df_number>::value,
+                      "updateAccelerationTCPHybrid(q) requires floating-point df_number");
+
+        _debug_verbosity = false;
+
+        if (!q) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "WARNING: q is null\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        if (_dof <= 0) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "DOF <= 0\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 1) Update FK for current configuration
+        // -----------------------------------------------------------------
+        ForwardKinematicsTCP(q);
+
+        const Eigen::Matrix4f gst_matrix = _gst.matrix();
+        if (gst_matrix.rows() != 4 || gst_matrix.cols() != 4) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "Invalid TCP transform dimensions\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 2) Compute body Jacobians for actual frames + TCP
+        //
+        // IMPORTANT:
+        // computeHybridJacobianTCP() assumes the frame body Jacobians already
+        // exist. We use version 1 here; if your chosen pipeline is version 2,
+        // replace with computeBodyJacobiansFrames2().
+        // -----------------------------------------------------------------
+        computeBodyJacobiansFrames1();
+
+        // -----------------------------------------------------------------
+        // 3) Compute TCP hybrid Jacobian
+        // -----------------------------------------------------------------
+        computeHybridJacobianTCP();
+
+        // Basic consistency check
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jh = getHybridJacobianTCP();
+        if (Jh.rows() != 6 || Jh.cols() != _dof) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "Hybrid Jacobian has invalid dimensions: "
+                      << Jh.rows() << "x" << Jh.cols()
+                      << " (expected 6x" << _dof << ")\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 4) Compute TCP hybrid velocity twist
+        // -----------------------------------------------------------------
+        computeHybridVelocityTwistTCP();
+
+        const Eigen::Matrix<float, 6, 1>& Vh = getHybridVelocityTwistTCP();
+        if (Vh.size() != 6) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "Hybrid velocity twist has invalid size\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 5) Compute TCP hybrid acceleration twist (Mueller Eq. 29 path)
+        // -----------------------------------------------------------------
+        computeDtHybridVelocityTwistTCP();
+
+        const Eigen::Matrix<float, 6, 1>& dVh = getDtHybridVelocityTwistTCP();
+        if (dVh.size() != 6) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "Hybrid acceleration twist has invalid size\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        // -----------------------------------------------------------------
+        // 6) Direct extraction:
+        //    first 3 components of hybrid acceleration twist are the TCP
+        //    linear acceleration wrt inertial/base frame
+        // -----------------------------------------------------------------
+        Eigen::Vector3f a_tcp = dVh.block<3,1>(0,0);
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(q)] "
+                      << "a_hybrid = [" << a_tcp(0) << ", "
+                      << a_tcp(1) << ", "
+                      << a_tcp(2) << "]\n";
+        }
+
+        return a_tcp;
+    }
+
+    // q as Eigen vector (float or double)
+    template<typename Derived>
+    Eigen::Vector3f updateAccelerationTCPHybrid(const Eigen::MatrixBase<Derived>& q)
+    {
+        using Scalar = typename Derived::Scalar;
+        static_assert(std::is_floating_point<Scalar>::value,
+                      "updateAccelerationTCPHybrid(Eigen) requires floating-point Scalar");
+
+        if (q.size() < _dof) {
+            std::cerr << "[ScrewsKinematicsNdof::updateAccelerationTCPHybrid(Eigen)] "
+                      << "Input vector too small (size=" << q.size()
+                      << ", dof=" << _dof << ")\n";
+            return Eigen::Vector3f::Zero();
+        }
+
+        float qf[MAX_DOF];
+        for (int i = 0; i < _dof; ++i) {
+            qf[i] = static_cast<float>(q(i));
+        }
+
+        return updateAccelerationTCPHybrid(qf);
+    }
+
     // ============================================================
     // 6.1) Jacobians (tool frame, spatial & body)
     // ============================================================
@@ -572,6 +828,16 @@ public:
     void computeDtHybridJacobianTCP();
     Eigen::Matrix<float, 6, Eigen::Dynamic> getDtHybridJacobianTCP() const;
 
+    // ============================================================
+    // 9) Operational Jacobian, This is the TCP Hybrid Jacobian, 
+    //    exposed with operational-space naming
+    // ============================================================
+    Eigen::Matrix<float, 6, MAX_DOF> Jop;
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> getOperationalJacobianTCP() const;
+
+    bool hasOperationalJacobianTCP() const noexcept { return _is_operational_jacobian_valid; }
+    
 private:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
@@ -626,6 +892,9 @@ private:
 
     // Hybrid Jacobian of TCP (linear velocity in base frame, angular velocity in tcp/body convention)
     Eigen::Matrix<float, 6, MAX_DOF> _Jh_tcp;
+
+    // Operational Jacobian boolean for checking expose of private member
+    bool _is_operational_jacobian_valid {false};
 
     // Transform from last actual joint frame to tcp frame
     Eigen::Isometry3f _g_last_tcp;

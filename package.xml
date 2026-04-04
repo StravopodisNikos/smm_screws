@@ -5,7 +5,7 @@
   <description>The smm_screws package (ROS 2 port)</description>
 
   <maintainer email="nikos@todo.todo">nikos</maintainer>
-  <license>TODO</license>
+  <license>BSD-3-Clause</license>
 
   <!-- Build tool -->
   <buildtool_depend>ament_cmake</buildtool_depend>

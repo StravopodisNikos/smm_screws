@@ -27,29 +27,25 @@ Files without `Ndof`:
 - will be removed in future versions
 
 ## Package Structure
+
+```text
 smm_screws/
-├── include/
-│   └── smm_screws/
-│       └── core/          # Core headers (N-DOF screw theory classes)
-│
-├── src/
-│   └── core/              # Core implementations (C++ source files)
-│
-├── config/                # YAML configuration files (robot data, parameters)
-├── launch/                # ROS2 launch files
-├── msg/                   # Custom ROS2 messages
-├── srv/                   # Custom ROS2 services
-├── action/                # ROS2 actions (if used)
-│
-├── examples/              # Minimal usage examples
-├── demos/                 # Higher-level demonstrations
-├── script/                # Utility scripts
-├── doc/                   # Documentation, images, drawings
-│
+├── include/smm_screws/core/   # Core class headers
+├── src/core/                  # Core class implementations
+├── config/                    # YAML robot data and parameters
+├── launch/                    # ROS2 launch files
+├── msg/                       # Custom ROS2 messages
+├── srv/                       # Custom ROS2 services
+├── action/                    # ROS2 actions
+├── examples/                  # Minimal usage examples
+├── demos/                     # Higher-level demonstrations
+├── script/                    # Utility scripts
+├── doc/                       # Documentation and media
 ├── CMakeLists.txt
 ├── package.xml
 ├── LICENSE
 └── README.md
+```
 
 ## API
 

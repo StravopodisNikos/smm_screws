@@ -837,35 +837,38 @@ public:
     Eigen::Matrix<float, 6, Eigen::Dynamic> getOperationalJacobianTCP() const;
 
     bool hasOperationalJacobianTCP() const noexcept { return _is_operational_jacobian_valid; }
-    
-private:
+
+protected:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
-
-    // Auxiliary arrays
-    Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
-    Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 
     // --- Ndof metamorphic link data ---
     int _total_pseudojoints {0};
     int _meta_pseudojoints[MAX_METALINKS] {0, 0, 0}; // per meta-link
-
-    Eigen::Isometry3f _Pi[MAX_METALINKS];  // anatomy transforms per meta-link
-    Eigen::Isometry3f _last_expo;          // running product within meta-link
-    int _last_twist_cnt {0};               // global index into passive twists
-
-    // Exponentials - Ndof equivalents of the 3-DOF private members
-    Eigen::Isometry3f _active_expos[MAX_DOF];       // exp(ξ_ref_i * q_i)
-    Eigen::Isometry3f _active_expos_anat[MAX_DOF];  // exp(ξ_anat_i * q_i)
 
     // Joint State    
     float _joint_pos[MAX_DOF];
     float _joint_vel[MAX_DOF];
     float _joint_accel[MAX_DOF];
 
+    // Exponentials - Ndof equivalents of the 3-DOF private members
+    Eigen::Isometry3f _active_expos[MAX_DOF];       // exp(ξ_ref_i * q_i)
+    Eigen::Isometry3f _active_expos_anat[MAX_DOF];  // exp(ξ_anat_i * q_i)
+    Eigen::Isometry3f _Pi[MAX_METALINKS];  // anatomy transforms per meta-link
+
     // Transformations
     Eigen::Isometry3f _gst;                         // TCP pose
     Eigen::Isometry3f _g[MAX_DOF + 1];              // joint frames + TCP
+
+private:
+    // Auxiliary arrays
+    Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
+    Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
+
+    Eigen::Isometry3f _last_expo;          // running product within meta-link
+    int _last_twist_cnt {0};               // global index into passive twists
+
+
     Eigen::Isometry3f _g0[MAX_DOF + 1];             // joint frames + TCP @ zero configuration, Ai tfs of Mueller
     Eigen::Isometry3f _Bi[MAX_DOF + 1];             // relative frames C_i,i-1(0)
     

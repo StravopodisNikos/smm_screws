@@ -13,7 +13,7 @@ bool RobotContext::initializeSharedLib()
     kin_.initializePseudoTfs();
     kin_.initializeReferenceAnatomyActiveTwists();
     kin_.initializeReferenceAnatomyActiveTfs();
-    dyn_.intializeLinkMassMatrices();
+    dyn_.initializeLinkMassMatrices();
     kin_.initializeRelativeTfs();
     kin_.initializeLocalScrewCoordVectors();
 

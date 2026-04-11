@@ -132,6 +132,20 @@ target_link_libraries(ScrewsDynamics
   yaml-cpp
 )
 
+# ScrewsDynamicsNdof
+add_library(ScrewsDynamicsNdof
+  src/core/ScrewsDynamicsNdof.cpp
+)
+target_include_directories(ScrewsDynamicsNdof PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(ScrewsDynamicsNdof
+  ScrewsKinematicsNdof
+  Eigen3::Eigen
+  yaml-cpp
+)
+
 # RobotYamlLoader
 add_library(robot_yaml_loader
   src/core/RobotYamlLoader.cpp
@@ -224,6 +238,7 @@ install(
     ScrewsKinematics
     ScrewsKinematicsNdof
     ScrewsDynamics
+    ScrewsDynamicsNdof
     robot_yaml_loader
     robot_yaml_loader_ndof
     RobotContextLib
@@ -306,6 +321,7 @@ ament_export_libraries(
   ScrewsKinematics
   ScrewsKinematicsNdof
   ScrewsDynamics
+  ScrewsDynamicsNdof
   robot_yaml_loader
   robot_yaml_loader_ndof
   RobotContextLib

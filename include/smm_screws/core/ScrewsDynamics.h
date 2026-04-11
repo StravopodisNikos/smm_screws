@@ -31,7 +31,7 @@ class ScrewsDynamics: public ScrewsKinematics {
         void LinkGeometricJacobians();
 
         // Initialize Functions
-        void intializeLinkMassMatrices();
+        void initializeLinkMassMatrices();
 
         // Matrices exported for usage in ROS nodes
         Eigen::Matrix3f MM; // Marc Marquez (!), or Mass Matrix
@@ -100,7 +100,7 @@ class ScrewsDynamics: public ScrewsKinematics {
 		uint8_t _last_twist_cnt;
         bool _debug_verbosity;
 
-        // Matrices used for internal compuatations
+        // Matrices used for internal computations
         float _delta_joint_pos[robot_params::DOF];
         float _joint_pos_prev[robot_params::DOF];
         float _joint_pos[robot_params::DOF];

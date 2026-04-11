@@ -60,7 +60,7 @@ void ScrewsDynamics::updateJointVel(float *dq_new) {
     return;
 }
 
-void ScrewsDynamics::intializeLinkMassMatrices() {
+void ScrewsDynamics::initializeLinkMassMatrices() {
     // Loads the Links' Mass matrices @ {S} Frame
     _Mis[0] = *(_ptr2abstract->Mi_s_ptr[0]);
     _Mis[1] = *(_ptr2abstract->Mi_s_ptr[1]);

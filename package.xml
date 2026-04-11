@@ -4,7 +4,7 @@
   <version>0.0.1</version>
   <description>The smm_screws package (ROS 2 port)</description>
 
-  <maintainer email="nikos@todo.todo">nikos</maintainer>
+  <maintainer email="stravnik.rob@gmail.com">nikos</maintainer>
   <license>BSD-3-Clause</license>
 
   <!-- Build tool -->

@@ -520,6 +520,67 @@ ScrewsDynamicsNdof::computeParDerMassElement(size_t i, size_t j, size_t k)
     return _parDer_MassIJ_ThetaK;
 }
 
+void ScrewsDynamicsNdof::computeBodyInertiaFromSpatial(BodyFrameSelection body_frame)
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsDynamicsNdof::computeBodyInertiaFromSpatial] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsDynamicsNdof::computeBodyInertiaFromSpatial] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    _debug_verbosity = false;
+
+    // ============================================================
+    // Inverse of Mueller Eq. (35):
+    //
+    //   M_i^s = Ad_{C_i}^{-T} M_i^b Ad_{C_i}^{-1}
+    //
+    // therefore
+    //
+    //   M_i^b = Ad_{C_i}^{T} M_i^s Ad_{C_i}
+    //
+    // body_frame == JOINT:
+    //   use current joint/body frame _g[i]
+    //
+    // body_frame == COM:
+    //   use current COM frame _gl[i]
+    //
+    // Spatial link inertias are assumed stored in _Mis[i].
+    // ============================================================
+
+    for (int i = 0; i < _dof; ++i) {
+
+        const Eigen::Isometry3f& C_i =
+            (body_frame == BodyFrameSelection::JOINT) ? _g[i] : _gl[i];
+
+        const Eigen::Matrix<float, 6, 6>& M_s_i = _Mis[i];
+
+        ad(_ad, C_i);  // _ad = Ad_{C_i} in your [v; w] convention
+
+        Eigen::Matrix<float, 6, 6> M_b_i = _ad.transpose() * M_s_i * _ad;
+
+        _BodyInertiaFrames[i] = M_b_i;
+
+        if (_ptr2BodyInertiaFrames[i]) {
+            *(_ptr2BodyInertiaFrames[i]) = M_b_i;
+        }
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsDynamicsNdof::computeBodyInertiaFromSpatial] "
+                      << "link " << i
+                      << " body_frame = "
+                      << ((body_frame == BodyFrameSelection::JOINT) ? "JOINT" : "COM")
+                      << "\nM_b[" << i << "] =\n"
+                      << M_b_i << "\n";
+        }
+    }
+}
+
 void ScrewsDynamicsNdof::computeLinkGeometricJacobians()
 {
     // =========================================================================
@@ -703,79 +764,101 @@ void ScrewsDynamicsNdof::computeLinkGeometricJacobians()
 }
 
 Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
-ScrewsDynamicsNdof::MassMatrix()
+ScrewsDynamicsNdof::MassMatrix(
+    MassMatrixRepresentation representation,
+    BodyFrameSelection body_frame)
+{
+    // =====================================================================
+    // Dispatcher for Mass Matrix computation
+    //
+    // Routes the request to the appropriate internal implementation based on:
+    //   - representation (SPATIAL / BODY)
+    //   - body frame selection (JOINT / COM)
+    //
+    // This is the ONLY public entry point for users.
+    // =====================================================================
+
+    switch (representation)
+    {
+        case MassMatrixRepresentation::SPATIAL:
+        {
+            // Body frame selection is irrelevant here
+            return MassMatrix_s(body_frame);
+        }
+
+        case MassMatrixRepresentation::BODY:
+        {
+            return MassMatrix_b(body_frame);
+        }
+
+        default:
+        {
+            throw std::runtime_error(
+                "[ScrewsDynamicsNdof::MassMatrix] Invalid representation type.");
+        }
+    }
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::MassMatrix_s(BodyFrameSelection /*body_frame*/)
 {
     // =========================================================================
-    // N-DOF ROS2 upgrade of the old 3-DOF function:
+    // Spatial-formulation Mass Matrix M(q)
+    // =========================================================================
     //
-    //   ScrewsDynamics::MassMatrix()
+    // This function computes the joint-space mass matrix using the
+    // **spatial (base-frame) representation** of screw theory.
     //
-    // Purpose
-    // -------
-    // Computes the joint-space mass matrix M(q) of the current SMM anatomy,
-    // using the same screw-theoretic summation structure validated in the
-    // old 3DOF code, but generalized to runtime N-DOF.
-    //
-    // Mathematical structure
-    // ----------------------
-    // For each (i,j), the mass matrix element is computed as:
+    // THEORY (Mueller / Murray consistent)
+    // -----------------------------------
+    // Each element is computed as:
     //
     //   M(i,j) = sum_{l=max(i,j)}^{n-1}
     //            xi_i^T * A_li^T * M_l * A_lj * xi_j
     //
     // where:
-    //   - xi_i, xi_j : active anatomy twists
-    //   - A_li, A_lj : Alpha matrices (anatomy/current version)
-    //   - M_l        : spatial link inertia matrix of link l in frame {S}
+    //   xi_i, xi_j : active joint twists (expressed in spatial frame)
+    //   A_li       : Alpha matrix mapping joint i → link l
+    //   M_l        : spatial inertia matrix of link l (expressed in {S})
     //
-    // This preserves the exact structure of the old validated 3DOF code, with:
-    //   setAlphamatrix(...)        -> computeAlphaMatrixAnat(...)
-    //   _ptr2abstract->...         -> _ptr2abstract_ndof->...
-    //   robot_params::DOF          -> runtime _dof
+    // IMPORTANT
+    // ---------
+    // - This implementation uses **spatial inertias (_Mis)** directly.
+    // - No adjoint transformation is required for inertia.
+    // - Alpha matrices are computed using:
+    //       computeAlphaMatrixAnat(...)
     //
-    // Compatibility / architecture
-    // ----------------------------
-    // This implementation is fully aligned with:
-    //   - ScrewsKinematicsNdof inherited joint state
-    //   - RobotAbstractBaseNdof YAML-loaded active anatomy twists
-    //   - N-DOF spatial link inertias _Mis[]
-    //   - runtime DOF via _dof
+    // DESIGN ASSUMPTIONS
+    // ------------------
+    // This function assumes:
     //
-    // IMPORTANT DESIGN CHOICE
-    // -----------------------
-    // This function does NOT:
-    //   - recompute active exponentials
-    //   - reinitialize link mass matrices
+    //   1) Joint state (_joint_pos, _joint_vel) is already updated
+    //   2) Kinematics has already computed:
+    //        _active_expos_anat[]
+    //   3) Link inertias _Mis[] are initialized once (NOT here)
     //
-    // It assumes:
-    //   - _active_expos_anat[] is already up to date for the current q
-    //   - _Mis[] has already been initialized once
+    // This avoids recomputation and keeps dynamics aligned with
+    // ScrewsKinematicsNdof.
     //
-    // This avoids repeated work and keeps dynamics aligned with the inherited
-    // kinematics state.
-    //
-    // Preconditions
-    // -------------
-    // 1) _ptr2abstract_ndof is valid
-    // 2) _dof is valid
-    // 3) current joint positions _joint_pos[] are already updated
-    // 4) inherited kinematics exponentials _active_expos_anat[] are already valid
-    // 5) _Mis[] has already been initialized
-    //
-    // Output
+    // OUTPUT
     // ------
-    // Returns the top-left _dof x _dof block of the internal fixed-capacity
-    // matrix MM.
+    // Returns an (_dof x _dof) dynamic matrix containing the valid
+    // mass matrix entries.
+    //
+    // INTERNAL STORAGE
+    // ----------------
+    // MM is stored as fixed-size (MAX_DOF x MAX_DOF).
+    // Only the top-left (_dof x _dof) block is valid.
     // =========================================================================
 
     if (!_ptr2abstract_ndof) {
         throw std::runtime_error(
-            "[ScrewsDynamicsNdof::MassMatrix] RobotAbstractBaseNdof pointer is null.");
+            "[ScrewsDynamicsNdof::MassMatrix_s] RobotAbstractBaseNdof pointer is null.");
     }
 
     if (_dof <= 0 || _dof > MAX_DOF) {
         throw std::runtime_error(
-            "[ScrewsDynamicsNdof::MassMatrix] Invalid DOF.");
+            "[ScrewsDynamicsNdof::MassMatrix_s] Invalid DOF.");
     }
 
     _debug_verbosity = false;
@@ -783,7 +866,7 @@ ScrewsDynamicsNdof::MassMatrix()
     MM.setZero();
 
     if (_debug_verbosity) {
-        std::cout << "[ScrewsDynamicsNdof::MassMatrix] Computing M(q):\n";
+        std::cout << "[MassMatrix_s] Computing spatial mass matrix M(q)\n";
     }
 
     for (size_t i = 0; i < static_cast<size_t>(_dof); ++i)
@@ -794,19 +877,22 @@ ScrewsDynamicsNdof::MassMatrix()
 
             for (size_t l = max_ij; l < static_cast<size_t>(_dof); ++l)
             {
-                // Alpha matrices (anatomy/current version)
-                _alpha[0] = computeAlphaMatrixAnat(l, i); // A_li
-                _alpha[1] = computeAlphaMatrixAnat(l, j); // A_lj
+                // --- Alpha matrices (anatomy-based)
+                const Eigen::Matrix<float, 6, 6>& A_li =
+                    (_alpha[0] = computeAlphaMatrixAnat(l, i));
 
-                // Spatial link inertia of link l
-                // Already expressed in frame {S}, so no extra adjoint transform
+                const Eigen::Matrix<float, 6, 6>& A_lj =
+                    (_alpha[1] = computeAlphaMatrixAnat(l, j));
+
+                // --- Spatial inertia of link l
                 _Ml_temp = _Mis[l];
 
+                // --- Contribution to M(i,j)
                 MM(i, j) +=
                     _ptr2abstract_ndof->active_twists_anat[i].transpose()
-                    * _alpha[0].transpose()
+                    * A_li.transpose()
                     * _Ml_temp
-                    * _alpha[1]
+                    * A_lj
                     * _ptr2abstract_ndof->active_twists_anat[j];
             }
 
@@ -816,16 +902,117 @@ ScrewsDynamicsNdof::MassMatrix()
         }
 
         if (_debug_verbosity) {
-            std::cout << std::endl;
+            std::cout << "\n";
         }
     }
 
     ptr2MM = &MM;
 
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> M_out(_dof, _dof);
-    M_out = MM.block(0, 0, _dof, _dof);
+    // -------------------------------------------------------------------------
+    // Return only the valid submatrix (dynamic-sized)
+    // -------------------------------------------------------------------------
+    return MM.topLeftCorner(_dof, _dof);
+}
 
-    return M_out;
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::MassMatrix_b(BodyFrameSelection body_frame)
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsDynamicsNdof::MassMatrix_b] DOF <= 0\n";
+        return Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>();
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsDynamicsNdof::MassMatrix_b] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>();
+    }
+
+    _debug_verbosity = false;
+
+    // ============================================================
+    // Preconditions
+    // ------------------------------------------------------------
+    // body_frame == BodyFrameSelection::JOINT:
+    //   1) ForwardKinematicsTCP(q) has been called
+    //      -> _g[0.._dof-1] valid
+    //   2) computeBodyJacobiansFrames2() has been called
+    //      -> _BodyJacobiansFrames valid for real links
+    //   3) computeBodyInertiaFromSpatial(BodyFrameSelection::JOINT)
+    //      can transform _Mis[i] into _BodyInertiaFrames[i]
+    //
+    // body_frame == BodyFrameSelection::COM:
+    //   1) ForwardKinematicsCOM(q) has been called
+    //      -> _gl[k] valid
+    //   2) computeBodyCOMJacobiansFrames() has been called
+    //      -> _BodyCOMJacobiansFrames valid
+    //   3) computeBodyInertiaFromSpatial(BodyFrameSelection::COM)
+    //      can transform _Mis[i] into _BodyInertiaFrames[i]
+    //
+    // Implements the same computation as MATLAB
+    // calculateMassMatrix_Mueller():
+    //
+    //   M(q) = sum_{i=0}^{_dof-1} J_i^T M_i^b J_i
+    //
+    // where J_i is selected according to body_frame.
+    //
+    // Example usage:
+    // ------------------------------------------------------------
+    // ForwardKinematicsTCP(q);
+    // computeBodyJacobiansFrames2();
+    // Eigen::MatrixXf M_joint = MassMatrix_b(BodyFrameSelection::JOINT);
+    // OR
+    // ForwardKinematicsCOM(q);
+    // computeBodyCOMJacobiansFrames();
+    // Eigen::MatrixXf M_com = MassMatrix_b(BodyFrameSelection::COM);
+    // 
+    // Test to do:
+    // ------------------------------------------------------------
+    // Eigen::MatrixXf M_joint = MassMatrix_b(BodyFrameSelection::Joint);
+    // Eigen::MatrixXf M_com   = MassMatrix_b(BodyFrameSelection::Com);
+    // std::cout << "||M_joint - M_com|| = " << (M_joint - M_com).norm() << "\n";
+    // ============================================================
+
+    computeBodyInertiaFromSpatial(body_frame);
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> M;
+    M.resize(_dof, _dof);
+    M.setZero();
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> J_i(6, _dof);
+    J_i.setZero();
+
+    for (int i = 0; i < _dof; ++i) {
+
+        J_i.setZero();
+
+        for (int j = 0; j < _dof; ++j) {
+            if (body_frame == BodyFrameSelection::JOINT) {
+                J_i.col(j) = _BodyJacobiansFrames[i][j];
+            } else {
+                J_i.col(j) = _BodyCOMJacobiansFrames[i][j];
+            }
+        }
+
+        const Eigen::Matrix<float, 6, 6>& M_i_b = _BodyInertiaFrames[i];
+
+        M.noalias() += J_i.transpose() * M_i_b * J_i;
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsDynamicsNdof::MassMatrix_b] Link " << i
+                      << " contribution in "
+                      << ((body_frame == BodyFrameSelection::JOINT) ? "JOINT" : "COM")
+                      << " frame:\n"
+                      << (J_i.transpose() * M_i_b * J_i) << "\n";
+        }
+    }
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsDynamicsNdof::MassMatrix_b] Final M(q):\n"
+                  << M << "\n";
+    }
+
+    return M;
 }
 
 /*

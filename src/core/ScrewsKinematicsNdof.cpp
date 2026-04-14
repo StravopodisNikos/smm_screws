@@ -451,6 +451,20 @@ void ScrewsKinematicsNdof::initializeHomeAnatomyActiveTfs()
     }
 }
 
+void ScrewsKinematicsNdof::initializeHomeAnatomyCOMTfs()
+{
+    for (int i = 0; i <= _dof; ++i) {
+        _gl0[i] = _ptr2abstract_ndof->gl_test_0[i];
+
+        std::cout << "[ScrewsKinematicsNdof::initializeHomeAnatomyCOMTfs] _gl0[" << i << "] =\n"
+                  << _gl0[i].matrix() << std::endl;
+    }
+
+    for (int i = _dof + 1; i < robot_params::MAX_DOF + 1; ++i) {
+        _gl0[i] = Eigen::Isometry3f::Identity();
+    }
+}
+
 // ==================== 4) FK using stored joint state ====================
 
 void ScrewsKinematicsNdof::ForwardKinematicsTCP()
@@ -459,6 +473,11 @@ void ScrewsKinematicsNdof::ForwardKinematicsTCP()
     ForwardKinematicsTCP(_joint_pos);
 }
 
+// FK using internally stored _joint_pos
+void ScrewsKinematicsNdof::ForwardKinematicsCOM()
+{
+    ForwardKinematicsCOM(_joint_pos);
+}
 // ==================== 5) Jacobians (tool frame) ====================
 
 // ==================== Spatial Jacobian – Option 1 (Tool_1) ====================
@@ -850,32 +869,42 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
     }
 
     // Preconditions:
-    //  1) initializeRelativeTfs() has been called    -> _Bi
-    //  2) initializeLocalScrewCoordVectors() called -> _iXi[0.._dof]
+    //  1) initializeRelativeTfs() has been called     -> _Bi
+    //  2) initializeLocalScrewCoordVectors() called   -> _iXi[0.._dof-1]
     //  3) ForwardKinematicsTCP(q) called for current q
     //     -> _g[0.._dof] are up to date (joint frames + TCP)
+    //
+    // Implements the 1st "=" of Eq. 4.16:
+    //   J^b_{k,i} = Ad_{ g_k^{-1} g_i } * iXi[i]
+    //
+    // Serial-chain sparsity:
+    //   - real body frames k = 0.._dof-1 only depend on upstream joints i <= k
+    //   - TCP frame k = _dof depends on all joints i = 0.._dof-1
 
     _debug_verbosity = false;
 
-    // For each reference frame k (0.._dof, including TCP at k = _dof)
     for (int k = 0; k <= _dof; ++k) {
 
         const Eigen::Isometry3f& g_k = _g[k];
 
-        // Build J^b_(k) column by column
         for (int i = 0; i < _dof; ++i) {
 
-            const Eigen::Isometry3f& g_i = _g[i];
+            const bool allowed = ((k < _dof) && (i <= k)) || (k == _dof);
 
-            // Ad_{ g_k^{-1} g_i }
-            ad(_ad, g_k.inverse() * g_i);
+            Eigen::Matrix<float, 6, 1> col = Eigen::Matrix<float, 6, 1>::Zero();
 
-            // J^b_(k),i = Ad_{ g_k^{-1} g_i } * iXi[i]
-            Eigen::Matrix<float, 6, 1> col = _ad * _iXi[i];
+            if (allowed) {
+                const Eigen::Isometry3f& g_i = _g[i];
+
+                // Ad_{ g_k^{-1} g_i }
+                ad(_ad, g_k.inverse() * g_i);
+
+                // J^b_(k),i = Ad_{ g_k^{-1} g_i } * iXi[i]
+                col = _ad * _iXi[i];
+            }
 
             _BodyJacobiansFrames[k][i] = col;
 
-            // Keep the pointer table in sync (if you want to access via pointers)
             if (_ptr2BodyJacobiansFrames[k][i]) {
                 *(_ptr2BodyJacobiansFrames[k][i]) = col;
             }
@@ -918,6 +947,10 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames2()
     // with
     //   C_{k,j} = g_k^{-1} g_j
     //   A_j     = _g0[j]
+    //
+    // Serial-chain sparsity:
+    //   - real body frames k = 0.._dof-1 only depend on upstream joints j <= k
+    //   - TCP frame k = _dof depends on all joints j = 0.._dof-1
 
     _debug_verbosity = false;
 
@@ -927,14 +960,19 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames2()
 
         for (int j = 0; j < _dof; ++j) {
 
-            const Eigen::Isometry3f& g_j  = _g[j];
-            const Eigen::Isometry3f& A_j  = _g0[j];
-            const Eigen::Matrix<float, 6, 1>& Y_j = _Yi[j];
+            const bool allowed = ((k < _dof) && (j <= k)) || (k == _dof);
 
-            // Ad_{ C_{k,j} A_j^{-1} } = Ad_{ g_k^{-1} g_j A_j^{-1} }
-            ad(_ad, g_k.inverse() * g_j * A_j.inverse());
+            Eigen::Matrix<float, 6, 1> col = Eigen::Matrix<float, 6, 1>::Zero();
 
-            Eigen::Matrix<float, 6, 1> col = _ad * Y_j;
+            if (allowed) {
+                const Eigen::Isometry3f& g_j = _g[j];
+                const Eigen::Isometry3f& A_j = _g0[j];
+                const Eigen::Matrix<float, 6, 1>& Y_j = _Yi[j];
+
+                // Ad_{ C_{k,j} A_j^{-1} } = Ad_{ g_k^{-1} g_j A_j^{-1} }
+                ad(_ad, g_k.inverse() * g_j * A_j.inverse());
+                col = _ad * Y_j;
+            }
 
             _BodyJacobiansFrames[k][j] = col;
 
@@ -972,6 +1010,82 @@ ScrewsKinematicsNdof::getBodyJacobianFrame(int frameIndex, int jointIndex) const
     }
 
     return _BodyJacobiansFrames[frameIndex][jointIndex];
+}
+
+void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
+{
+    if (_dof <= 0) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames] DOF <= 0\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    // Preconditions:
+    //  1) initializeHomeAnatomyCOMTfs() has been called
+    //     -> _gl0[0.._dof-1]
+    //  2) initializeSpatialJointScrewCoordVectors() called
+    //     -> _Yi[0.._dof-1]
+    //  3) ForwardKinematicsCOM(q) has been called for current q
+    //     -> _gl[0.._dof-1] are up to date (link COM frames)
+    //
+    // Implements the 2nd "=" of Eq. 4.16 for LINK COM frames:
+    //   J^{b,com}_{k,j} = Ad_{ C^{com}_{k,j} A_j^{-1} } Y_j
+    // with
+    //   C^{com}_{k,j} = g_{l,k}^{-1} g_j
+    //   A_j           = _gl0[j]
+    //
+    // Here:
+    //   - k = 0.._dof-1 indexes the link COM frames
+    //   - j = 0.._dof-1 indexes the actuated joints
+    //
+    // Serial-chain sparsity:
+    //   - COM frame k only depends on upstream joints j <= k
+
+    _debug_verbosity = false;
+
+    for (int k = 0; k < _dof; ++k) {
+
+        const Eigen::Isometry3f& g_k = _gl[k];
+
+        for (int j = 0; j < _dof; ++j) {
+
+            const bool allowed = (j <= k);
+
+            Eigen::Matrix<float, 6, 1> col = Eigen::Matrix<float, 6, 1>::Zero();
+
+            if (allowed) {
+                const Eigen::Isometry3f& g_j = _gl[j];
+                const Eigen::Isometry3f& A_j = _gl0[j];
+                const Eigen::Matrix<float, 6, 1>& Y_j = _Yi[j];
+
+                // Ad_{ C^{com}_{k,j} A_j^{-1} } = Ad_{ g_{l,k}^{-1} g_j A_j^{-1} }
+                ad(_ad, g_k.inverse() * g_j * A_j.inverse());
+                col = _ad * Y_j;
+            }
+
+            _BodyCOMJacobiansFrames[k][j] = col;
+
+            if (_ptr2BodyCOMJacobiansFrames[k][j]) {
+                *(_ptr2BodyCOMJacobiansFrames[k][j]) = col;
+            }
+        }
+
+        if (_debug_verbosity) {
+            std::cout << "[ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames] "
+                         "J^{b,com} for COM frame k=" << k << ":\n";
+            for (int r = 0; r < 6; ++r) {
+                for (int c = 0; c < _dof; ++c) {
+                    std::cout << _BodyCOMJacobiansFrames[k][c](r) << "\t";
+                }
+                std::cout << "\n";
+            }
+        }
+    }
 }
 
 void ScrewsKinematicsNdof::computeHybridJacobianTCP()

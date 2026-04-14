@@ -144,6 +144,22 @@ A glimpse of the core API is provided below!
 - `getDtHybridJacobianTCP()` — Return time derivative of hybrid Jacobian  
 - `getOperationalJacobianTCP()` — Return operational-space TCP Jacobian  
 - `hasOperationalJacobianTCP()` — Check whether operational Jacobian is valid  
+- `computeBodyCOMJacobiansFrames()` — Compute body Jacobians of the link COM frames 
+- `ForwardKinematicsCOM()` — Compute forward kinematics of all real-link COM frames using the internally stored joint state  
+
+### ScrewsDynamicsNdof
+
+`ScrewsDynamicsNdof` is the main N-DOF dynamics solver for serial metamorphic manipulators.
+
+- `ScrewsDynamicsNdof()` — Construct N-DOF dynamics solver   
+- `MassMatrix()` — Canonical mass-matrix API with representation selection (`SPATIAL` or `BODY`) and body-frame selection (`JOINT` or `COM`)  
+- `MassMatrix_b()` — Compute body-coordinate mass matrix using either joint-frame or COM-frame body Jacobians and matching body inertias  
+- `computeBodyInertiaFromSpatial()` — Transform stored spatial link inertias to selected body-fixed frames (`JOINT` or `COM`) using the inverse of Müller Eq. (35)  
+- `initializeLinkMassMatrices()` — Initialize per-link spatial/body inertia storage  
+- `updateCOMTfs()` — Update internal link COM transforms used by dynamics  
+- `computeAlphaMatrixAnat()` — Compute anatomy/current Alpha matrix used in screw-theoretic dynamics  
+- `computeParDerMassElement()` — Compute partial derivative of one mass-matrix element with respect to one joint variable  
+- `computeLinkGeometricJacobians()` — Compute geometric Jacobians of real links for gravity and auxiliary dynamics calculations  
 
 ### RobotAbstractBaseNdof
 

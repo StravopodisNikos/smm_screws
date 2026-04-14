@@ -30,6 +30,7 @@ bool RobotContextNdof::initializeSharedLib()
     kin_.initializeLocalScrewCoordVectors();
     kin_.initializeSpatialJointScrewCoordVectors();
     kin_.initializeHomeAnatomyActiveTfs();
+    kin_.initializeHomeAnatomyCOMTfs();
 
     return true;
 }

@@ -125,11 +125,12 @@ public:
     void initializeReferenceAnatomyActiveTwists();
     void initializeReferenceAnatomyActiveTfs();
     void initializeHomeAnatomyActiveTfs();
+    void initializeHomeAnatomyCOMTfs();
 
     const Eigen::Matrix<float, 6, 1>& getSpatialJointScrewCoordVector(int i) const;
 
     // ============================================================
-    // 4) Forward Kinematics (templated; float/double → float)
+    // 4a) Forward Kinematics (templated; float/double → float)
     // ============================================================
 
     // Generic FK for {T} frame (TCP) given q[0..dof-1] (float or double)
@@ -178,6 +179,54 @@ public:
 
     // FK using internally stored _joint_pos
     void ForwardKinematicsTCP();
+
+    // ============================================================
+    // 4b) Forward Kinematics for link COM frames
+    // ============================================================
+
+    // Generic FK for link COM frames given q[0..dof-1] (float or double)
+    template<typename df_number>
+    void ForwardKinematicsCOM(const df_number* q)
+    {
+        static_assert(std::is_floating_point<df_number>::value,
+                    "ForwardKinematicsCOM requires floating-point df_number");
+
+        if (!q) {
+            std::cerr << "[ScrewsKinematicsNdof::ForwardKinematicsCOM(q)] WARNING: q is null\n";
+            return;
+        }
+
+        if (!_ptr2abstract_ndof) {
+            std::cerr << "[ScrewsKinematicsNdof::ForwardKinematicsCOM(q)] "
+                        "RobotAbstractBaseNdof pointer is null\n";
+            return;
+        }
+
+        _debug_verbosity = false;
+
+        // IMPORTANT:
+        // Use CURRENT / ANATOMY twists (active_twists_anat),
+        // not reference twists. This already includes the effect of pseudos.
+        setExponentialsAnat(q);
+
+        Eigen::Isometry3f prefix = Eigen::Isometry3f::Identity();
+
+        // Link COM frames (current anatomy)
+        // One COM frame per real link, so only 0.._dof-1
+        for (int i = 0; i < _dof; ++i) {
+            prefix = prefix * _active_expos_anat[i];
+            _gl[i] = prefix * *(_ptr2abstract_ndof->gsli_test_ptr[i]);
+        }
+
+        if (_debug_verbosity) {
+            for (int i = 0; i < _dof; ++i) {
+                std::cout << "[ForwardKinematicsCOMNdof] gl[" << i << "] =\n"
+                        << _gl[i].matrix() << '\n';
+            }
+        }
+    }
+
+    void ForwardKinematicsCOM();
 
     // ============================================================
     // 5) Position-only utility (templated)
@@ -750,6 +799,15 @@ public:
     // Convenience getter for a single column J^b_(frame_index, joint_index)
     const Eigen::Matrix<float, 6, 1>& getBodyJacobianFrame(int frameIndex, int jointIndex) const;
 
+
+    // Assumes:
+    // - initializeLocalScrewCoordVectors()         was called to generate iXi used in eq.4.16/Mueller paper, 1st ""=""
+    // - initializeSpatialJointScrewCoordVectors(); was called to generate Yi used in eq.4.16/Mueller paper, 2nd ""=""
+    // - initializeHomeAnatomyCOMTfs();          was called to generate Ai for COM frames
+    void computeBodyCOMJacobiansFrames();
+    // Convenience getter for a single column J^b_(frame_index, joint_index)
+    const Eigen::Matrix<float, 6, 1>& getBodyCOMJacobianFrame(int frameIndex, int jointIndex) const;
+
     // ============================================================
     // 6.3) TCP Jacobian (Operational Space jacobian) 
     //      - this is hybrid expression. 
@@ -842,6 +900,9 @@ protected:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
 
+    // Auxiliary arrays
+    Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
+
     // --- Ndof metamorphic link data ---
     int _total_pseudojoints {0};
     int _meta_pseudojoints[MAX_METALINKS] {0, 0, 0}; // per meta-link
@@ -859,19 +920,29 @@ protected:
     // Transformations
     Eigen::Isometry3f _gst;                         // TCP pose
     Eigen::Isometry3f _g[MAX_DOF + 1];              // joint frames + TCP
+    Eigen::Isometry3f _gl[MAX_DOF];                 // link COM frames  
+
+    // Body Jacobians w.r.t. each joint frame:
+    // index k = 0.._dof  → frame {k} (joint 0.._dof-1, TCP at index _dof)
+    // index i = 0.._dof-1 → column for joint i
+    Eigen::Matrix<float, 6, 1> _BodyJacobiansFrames[MAX_DOF+1][MAX_DOF];
+    Eigen::Matrix<float, 6, 1>* _ptr2BodyJacobiansFrames[MAX_DOF+1][MAX_DOF];
+    
+    // Body Jacobians w.r.t. each link COM frame:
+    Eigen::Matrix<float, 6, 1> _BodyCOMJacobiansFrames[MAX_DOF][MAX_DOF];
+    Eigen::Matrix<float, 6, 1>* _ptr2BodyCOMJacobiansFrames[MAX_DOF][MAX_DOF]; 
 
 private:
     // Auxiliary arrays
-    Eigen::Matrix<float, 6, 6> _ad;  // adjoint(screw product) result
     Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result
 
     Eigen::Isometry3f _last_expo;          // running product within meta-link
     int _last_twist_cnt {0};               // global index into passive twists
 
-
     Eigen::Isometry3f _g0[MAX_DOF + 1];             // joint frames + TCP @ zero configuration, Ai tfs of Mueller
     Eigen::Isometry3f _Bi[MAX_DOF + 1];             // relative frames C_i,i-1(0)
-    
+    Eigen::Isometry3f _gl0[MAX_DOF];                // link COM frames @ zero configuration
+
     // R6 twists
     Eigen::Matrix<float, 6, 1> _iXi[MAX_DOF + 1];   // local screw coords
     Eigen::Matrix<float, 6, 1> _Yi[MAX_DOF];        // spatial joint screw coords
@@ -882,12 +953,7 @@ private:
     // Jacobians (tool)
     Eigen::Matrix<float, 6, MAX_DOF> _Jsp_tool;     // spatial TCP Jacobian (cols 0.._dof-1)
     Eigen::Matrix<float, 6, MAX_DOF> _Jbd_tool;     // body TCP Jacobian    (cols 0.._dof-1)
-    // Body Jacobians w.r.t. each joint frame:
-    // index k = 0.._dof  → frame {k} (joint 0.._dof-1, TCP at index _dof)
-    // index i = 0.._dof-1 → column for joint i
-    Eigen::Matrix<float, 6, 1> _BodyJacobiansFrames[MAX_DOF+1][MAX_DOF];
-    Eigen::Matrix<float, 6, 1>* _ptr2BodyJacobiansFrames[MAX_DOF+1][MAX_DOF];
-    
+
     // Time Derivatives of Jacobians (tool)
     Eigen::Matrix<float, 6, MAX_DOF> _dJsp_tool;     
     Eigen::Matrix<float, 6, MAX_DOF> _dJbd_tool;

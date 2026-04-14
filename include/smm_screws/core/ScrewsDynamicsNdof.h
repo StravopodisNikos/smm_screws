@@ -165,7 +165,47 @@ public:
     // ----------------------------------------------------------------
     // 5. Dynamic matrix API. These are main fns for dynamic modeling - Not ready yet!
     // ----------------------------------------------------------------
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> MassMatrix();
+    // ============================================================
+    // 5.1) Mass matrix computation modes
+    // ============================================================
+    // Canonical API:
+    //   MassMatrix(...)
+    //
+    // The user selects:
+    //   1) representation:
+    //        - spatial
+    //        - body
+    //
+    //   2) if body representation is selected, the body-frame choice:
+    //        - active joint frame
+    //        - local CoM frame
+    //
+    // Default behavior:
+    //   - spatial formulation
+    //   - joint-frame flag is ignored in spatial mode
+    //
+    // This keeps one clean user-facing API while still allowing multiple
+    // mathematically distinct internal implementations.
+    enum class MassMatrixRepresentation
+    {
+        SPATIAL,
+        BODY
+    };
+
+    enum class BodyFrameSelection
+    {
+        JOINT,
+        COM
+    };
+
+    // ----------------------------------------------------------------
+    // Canonical API for mass matrix
+    // ----------------------------------------------------------------
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+    MassMatrix(
+        MassMatrixRepresentation representation = MassMatrixRepresentation::SPATIAL,
+        BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+    );
     //Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix();
     //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVector();
     //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVectorAnalytical();
@@ -202,6 +242,16 @@ protected:
     Eigen::Isometry3f _last_expo;
     int _last_twist_cnt {0};
 
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+    MassMatrix_s(
+        BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+    );
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+    MassMatrix_b(
+        BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+    );
+
     // ----------------------------------------------------------------
     // 2.2 Link Geometric Jacobians
     void computeLinkGeometricJacobians();
@@ -226,6 +276,12 @@ private:
     Eigen::Matrix<float, 6, 1>* ptr2Jgl[MAX_DOF][MAX_DOF];
     Eigen::Matrix<float, 6, 1>  _Jgl[MAX_DOF][MAX_DOF];
 
+    // Body-frame inertias of real links, expressed either in selected
+    // joint/body frames or COM frames depending on the latest call to
+    // computeBodyInertiaFromSpatial(...)
+    Eigen::Matrix<float, 6, 6> _BodyInertiaFrames[MAX_DOF];
+    Eigen::Matrix<float, 6, 6>* _ptr2BodyInertiaFrames[MAX_DOF];
+
     // ----------------------------------------------------------------
     // 1. Initialization functions
     // ----------------------------------------------------------------
@@ -248,9 +304,11 @@ private:
 
     Eigen::Matrix<float, 1, 1> computeParDerMassElement(size_t i, size_t j, size_t k);
     
+    // 3.2 Tfs Spatial to selected body inertia
+    void computeBodyInertiaFromSpatial(BodyFrameSelection body_frame = BodyFrameSelection::JOINT);
 
     // ----------------------------------------------------------------
-    // 1. Simple auxiliary functions (for debugging)
+    // >> Simple auxiliary functions (for debugging)
     // ----------------------------------------------------------------
     void print66Matrix(Eigen::Matrix<float, 6, 6> matrix);
     void print61Matrix(Eigen::Matrix<float, 6, 1> matrix);

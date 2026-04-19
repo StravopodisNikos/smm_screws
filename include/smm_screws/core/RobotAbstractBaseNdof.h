@@ -35,7 +35,6 @@ public:
     // Joint frames and TCP
     Eigen::Isometry3f g_ref_0[robot_params::MAX_DOF + 1];   // reference anatomy (currently identity)
     Eigen::Isometry3f g_test_0[robot_params::MAX_DOF + 1];  // world -> joint_i, world -> tcp
-
     Eigen::Isometry3f gl_test_0[robot_params::MAX_DOF];     // link COM frames (test anatomy)
 
     Eigen::Isometry3f* gsai_ptr[robot_params::MAX_DOF + 1];       // reference anatomy ptrs

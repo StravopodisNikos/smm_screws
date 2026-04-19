@@ -63,10 +63,19 @@ ScrewsKinematicsNdof::ScrewsKinematicsNdof(RobotAbstractBaseNdof* ptr2abstract_n
         }
     }
 
+    for (int k = 0; k < MAX_DOF; ++k) {
+        for (int j = 0; j < MAX_DOF; ++j) {
+            _BodyCOMJacobiansFrames[k][j].setZero();
+            _ptr2BodyCOMJacobiansFrames[k][j] = &_BodyCOMJacobiansFrames[k][j];
+    }
+}
+
 }
 
 void ScrewsKinematicsNdof::initializePseudoTfs()
 {
+    _debug_verbosity = true;
+
     std::cerr
         << "[ScrewsKinematicsNdof::initializePseudoTfs] "
         << "DEPRECATED ANATOMY TFS API - FOR BACKWARD COMPATIBILITY.\n";
@@ -156,7 +165,7 @@ void ScrewsKinematicsNdof::initializePseudoTfs()
 
 void ScrewsKinematicsNdof::initializeRelativeTfs()
 {
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[ScrewsKinematicsNdof::initializeRelativeTfs] "
@@ -165,7 +174,7 @@ void ScrewsKinematicsNdof::initializeRelativeTfs()
     }
 
     // Bi[0] = g_sa1(0)
-    _Bi[0] = *(_ptr2abstract_ndof->gsai_ptr[0]);
+    _Bi[0] = *(_ptr2abstract_ndof->gsai_test_ptr[0]);
     if (_debug_verbosity) {
         std::cout << "[initializeRelativeTfs] B0 =\n" << _Bi[0].matrix() << '\n';
     }
@@ -173,8 +182,8 @@ void ScrewsKinematicsNdof::initializeRelativeTfs()
     // Bi[i] = g_sai(i) * g_sai(i-1)^{-1}
     for (int i = 1; i < _dof + 1; ++i) {
         _Bi[i] = extractRelativeTf(
-            *(_ptr2abstract_ndof->gsai_ptr[i]),
-            *(_ptr2abstract_ndof->gsai_ptr[i - 1]));
+            *(_ptr2abstract_ndof->gsai_test_ptr[i]),
+            *(_ptr2abstract_ndof->gsai_test_ptr[i - 1]));
 
         if (_debug_verbosity) {
             std::cout << "[initializeRelativeTfs] B" << i << " =\n"
@@ -183,9 +192,10 @@ void ScrewsKinematicsNdof::initializeRelativeTfs()
     }
 }
 
+/*
 void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
 {
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] "
@@ -196,14 +206,14 @@ void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
     // Joint frames
     for (int i = 0; i < _dof; ++i) {
         _iXi[i] = extractLocalScrewCoordVector(
-            *(_ptr2abstract_ndof->gsai_ptr[i]),
-            _ptr2abstract_ndof->active_twists[i]);
+        *(_ptr2abstract_ndof->gsai_test_ptr[i]),
+        _ptr2abstract_ndof->active_twists_anat[i]);
     }
 
     // Tool frame: local screw coords from relative tool->last-joint TF
     Eigen::Isometry3f Bi_tool = extractRelativeTf(
-        *(_ptr2abstract_ndof->gsai_ptr[_dof]),
-        *(_ptr2abstract_ndof->gsai_ptr[_dof - 1]));
+    *(_ptr2abstract_ndof->gsai_test_ptr[_dof]),
+    *(_ptr2abstract_ndof->gsai_test_ptr[_dof - 1]));
 
     vee(_iXi[_dof], Bi_tool.matrix());
 
@@ -211,6 +221,90 @@ void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
         std::cout << "[initializeLocalScrewCoordVectors] iXi (0.."
                   << _dof << ") initialized\n";
     }
+}
+*/
+void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
+{
+    _debug_verbosity = true;
+
+    if (!_ptr2abstract_ndof) {
+        std::cerr << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] "
+                     "RobotAbstractBaseNdof pointer is null\n";
+        return;
+    }
+
+    std::cout << "\n============================================================\n";
+    std::cout << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] START\n";
+    std::cout << "============================================================\n";
+
+    // Joint frames
+    for (int i = 0; i < _dof; ++i) {
+
+        if (!_ptr2abstract_ndof->gsai_test_ptr[i]) {
+            std::cerr << "[initializeLocalScrewCoordVectors] gsai_test_ptr[" << i
+                      << "] is null\n";
+            continue;
+        }
+
+        const Eigen::Isometry3f& g_i = *(_ptr2abstract_ndof->gsai_test_ptr[i]);
+        const Eigen::Matrix<float, 6, 1>& xi_s_i =
+            _ptr2abstract_ndof->active_twists_anat[i];
+
+        Eigen::Matrix<float, 6, 1> xi_local =
+            extractLocalScrewCoordVector(g_i, xi_s_i);
+
+        _iXi[i] = xi_local;
+
+        std::cout << "\n[initializeLocalScrewCoordVectors] joint i = " << i << "\n";
+        std::cout << "gsai_test_ptr[" << i << "] =\n" << g_i.matrix() << "\n";
+        std::cout << "active_twists_anat[" << i << "] = "
+                  << xi_s_i.transpose() << "\n";
+        std::cout << "extracted _iXi[" << i << "] = "
+                  << _iXi[i].transpose() << "\n";
+
+        if (!_iXi[i].allFinite()) {
+            std::cerr << "[initializeLocalScrewCoordVectors] WARNING: _iXi[" << i
+                      << "] contains non-finite values\n";
+        }
+
+        if (_iXi[i].cwiseAbs().maxCoeff() < 1e-12f) {
+            std::cerr << "[initializeLocalScrewCoordVectors] WARNING: _iXi[" << i
+                      << "] is suspiciously close to zero\n";
+        }
+    }
+
+    // Tool frame: local screw coords from relative tool->last-joint TF
+    if (!_ptr2abstract_ndof->gsai_test_ptr[_dof]) {
+        std::cerr << "[initializeLocalScrewCoordVectors] gsai_test_ptr[" << _dof
+                  << "] (tool) is null\n";
+        return;
+    }
+
+    if (!_ptr2abstract_ndof->gsai_test_ptr[_dof - 1]) {
+        std::cerr << "[initializeLocalScrewCoordVectors] gsai_test_ptr[" << (_dof - 1)
+                  << "] (last joint) is null\n";
+        return;
+    }
+
+    Eigen::Isometry3f Bi_tool = extractRelativeTf(
+        *(_ptr2abstract_ndof->gsai_test_ptr[_dof]),
+        *(_ptr2abstract_ndof->gsai_test_ptr[_dof - 1]));
+
+    vee(_iXi[_dof], Bi_tool.matrix());
+
+    std::cout << "\n[initializeLocalScrewCoordVectors] tool relative TF Bi_tool =\n"
+              << Bi_tool.matrix() << "\n";
+    std::cout << "[initializeLocalScrewCoordVectors] _iXi[" << _dof << "] (tool) = "
+              << _iXi[_dof].transpose() << "\n";
+
+    std::cout << "\n[initializeLocalScrewCoordVectors] FINAL iXi values:\n";
+    for (int i = 0; i <= _dof; ++i) {
+        std::cout << "_iXi[" << i << "] = " << _iXi[i].transpose() << "\n";
+    }
+
+    std::cout << "============================================================\n";
+    std::cout << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] END\n";
+    std::cout << "============================================================\n" << std::flush;
 }
 
 void ScrewsKinematicsNdof::initializeSpatialJointScrewCoordVectors()
@@ -353,6 +447,8 @@ void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTwists()
 
 void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTfs()
 {
+    _debug_verbosity = true;
+
     if (!_ptr2abstract_ndof) {
         std::cerr << "[initializeReferenceAnatomyActiveTfsNdof] "
                   << "RobotAbstractBaseNdof pointer is null.\n";
@@ -453,14 +549,14 @@ void ScrewsKinematicsNdof::initializeHomeAnatomyActiveTfs()
 
 void ScrewsKinematicsNdof::initializeHomeAnatomyCOMTfs()
 {
-    for (int i = 0; i <= _dof; ++i) {
+    for (int i = 0; i < _dof; ++i) {
         _gl0[i] = _ptr2abstract_ndof->gl_test_0[i];
 
         std::cout << "[ScrewsKinematicsNdof::initializeHomeAnatomyCOMTfs] _gl0[" << i << "] =\n"
                   << _gl0[i].matrix() << std::endl;
     }
 
-    for (int i = _dof + 1; i < robot_params::MAX_DOF + 1; ++i) {
+    for (int i = _dof + 1; i < robot_params::MAX_DOF; ++i) {
         _gl0[i] = Eigen::Isometry3f::Identity();
     }
 }
@@ -881,7 +977,13 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
     //   - real body frames k = 0.._dof-1 only depend on upstream joints i <= k
     //   - TCP frame k = _dof depends on all joints i = 0.._dof-1
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
+
+    std::cout << "\n[computeBodyJacobiansFrames1] local screw vectors _iXi:\n";
+    for (int i = 0; i < _dof; ++i) {
+        std::cout << "_iXi[" << i << "] = " << _iXi[i].transpose() << "\n";
+    }
+    std::cout << std::flush;
 
     for (int k = 0; k <= _dof; ++k) {
 
@@ -925,6 +1027,8 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
 
 void ScrewsKinematicsNdof::computeBodyJacobiansFrames2()
 {
+    _debug_verbosity = true;
+
     if (_dof <= 0) {
         std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames2] DOF <= 0\n";
         return;
@@ -1046,7 +1150,7 @@ void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
     // Serial-chain sparsity:
     //   - COM frame k only depends on upstream joints j <= k
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     for (int k = 0; k < _dof; ++k) {
 
@@ -1054,6 +1158,8 @@ void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
 
         for (int j = 0; j < _dof; ++j) {
 
+            std::cout << "[DEBUG] COM k=" << k << ", j=" << j << std::endl;
+            
             const bool allowed = (j <= k);
 
             Eigen::Matrix<float, 6, 1> col = Eigen::Matrix<float, 6, 1>::Zero();
@@ -1128,6 +1234,7 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
     //   the MATLAB workflow where Jb_last is given as input.
     // =========================================================================
 
+    _debug_verbosity = true;
     _is_operational_jacobian_valid = false;
 
     if (_dof <= 0) {
@@ -1141,7 +1248,7 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
         return;
     }
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     const int last_frame_index = _dof - 1;
     const int tcp_frame_index  = _dof;
@@ -1643,7 +1750,7 @@ void ScrewsKinematicsNdof::computeHybridVelocityTwistTCP()
     //
     // =========================================================================
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     if (_dof <= 0) {
         std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
@@ -1785,7 +1892,7 @@ void ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP()
         return;
     }
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
     _dVh_twist_tcp.setZero();
 
     // -------------------------------------------------------------------------

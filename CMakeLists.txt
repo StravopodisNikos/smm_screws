@@ -202,7 +202,7 @@ target_include_directories(RobotContextLibNdof PUBLIC
 
 target_link_libraries(RobotContextLibNdof PUBLIC
   ScrewsKinematicsNdof
-  #ScrewsDynamics
+  ScrewsDynamicsNdof
   robot_yaml_loader_ndof
   yaml-cpp
   Eigen3::Eigen

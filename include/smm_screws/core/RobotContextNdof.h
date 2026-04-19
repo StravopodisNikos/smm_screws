@@ -6,11 +6,12 @@
 
 #include "smm_screws/core/RobotAbstractBaseNdof.h"
 #include "smm_screws/core/ScrewsKinematicsNdof.h"
+#include "smm_screws/core/ScrewsDynamicsNdof.h"
 
 class RobotContextNdof
 {
 public:
-    // RobotContextNdof owns the Ndof robot model and wires it into ScrewsKinematicsNdof
+    // RobotContextNdof owns the Ndof robot model and wires it into ScrewsKinematicsNdof/ScrewsDynamicsNdof
     explicit RobotContextNdof(std::unique_ptr<RobotAbstractBaseNdof> robot);
 
     ~RobotContextNdof() = default;
@@ -20,14 +21,18 @@ public:
     bool initializeSharedLib();
 
     ScrewsKinematicsNdof & get_kinematics();
+    ScrewsDynamicsNdof & get_dynamics();
     RobotAbstractBaseNdof * get_robot();
 
 private:
     // Owns the Ndof robot model
     std::unique_ptr<RobotAbstractBaseNdof> robot_;
 
-    // Ndof kinematics (no dynamics yet)
+    void _initializeKinematicState(ScrewsKinematicsNdof & obj);
+
+    // Ndof kinematics & dynamics
     ScrewsKinematicsNdof kin_;
+    ScrewsDynamicsNdof dyn_;
 };
 
 #endif // ROBOT_CONTEXT_NDOF_H

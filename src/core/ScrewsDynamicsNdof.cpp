@@ -1,65 +1,5 @@
 #include "smm_screws/core/ScrewsDynamicsNdof.h"
 
-ScrewsDynamicsNdof::ScrewsDynamicsNdof()
-: ScrewsKinematicsNdof(nullptr)
-{
-    _debug_verbosity = true;
-
-    MM.setZero();
-    CM.setZero();
-    GV.setZero();
-    FV.setZero();
-
-    _alpha_temp.setZero();
-    _Ml_temp.setZero();
-    _alpha_transpose.setZero();
-    _parDer_MassIJ_ThetaK.setZero();
-    _xi_traspose.setZero();
-
-    _PotEnergy_prev = 0.0f;
-    _PotEnergy      = 0.0f;
-
-    _last_expo = Eigen::Isometry3f::Identity();
-    _last_twist_cnt = 0;
-
-    for (int i = 0; i < MAX_DOF; ++i) {
-        _joint_pos[i]       = 0.0f;
-        _joint_vel[i]       = 0.0f;
-        _joint_accel[i]     = 0.0f;
-        _joint_pos_prev[i]  = 0.0f;
-        _delta_joint_pos[i] = 0.0f;
-
-        _gsli[i] = Eigen::Isometry3f::Identity();
-        ptr2links_com_tfs[i] = &_gsli[i];
-
-        _Mib[i].setIdentity();
-        _Mis[i].setIdentity();
-
-        parDerMass.row(i).setZero();
-        ChristoffelSymbols[i].setZero();
-
-        for (int j = 0; j < MAX_DOF; ++j) {
-            _Jgl[i][j].setZero();
-            ptr2Jgl[i][j] = &_Jgl[i][j];
-        }
-    }
-
-    // need to be expanded for N dof case! must check theory!
-    for (int i = 0; i < 2; ++i) {
-        _alpha[i].setZero();
-    }
-
-    for (int i = 0; i < 5; ++i) {
-        _alphaParDer[i].setZero();
-    }
-
-    for (int i = 0; i < 2; ++i) {
-        _LieBracketParDer[i].setZero();
-    }
-
-    ptr2MM = nullptr;
-}
-
 ScrewsDynamicsNdof::ScrewsDynamicsNdof(RobotAbstractBaseNdof* ptr2abstract_ndof)
 : ScrewsKinematicsNdof(ptr2abstract_ndof)
 {
@@ -112,6 +52,9 @@ ScrewsDynamicsNdof::ScrewsDynamicsNdof(RobotAbstractBaseNdof* ptr2abstract_ndof)
             _Jgl[i][j].setZero();
             ptr2Jgl[i][j] = &_Jgl[i][j];
         }
+
+        _BodyInertiaFrames[i].setZero();
+        _ptr2BodyInertiaFrames[i] = &_BodyInertiaFrames[i];
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -552,6 +495,11 @@ void ScrewsDynamicsNdof::computeBodyInertiaFromSpatial(BodyFrameSelection body_f
     //
     // Spatial link inertias are assumed stored in _Mis[i].
     // ============================================================
+    
+    for (int i = 0; i < _dof; ++i) {
+        std::cout << "[DEBUG] _ptr2BodyInertiaFrames[" << i << "] = "
+                << _ptr2BodyInertiaFrames[i] << "\n";
+    }
 
     for (int i = 0; i < _dof; ++i) {
 
@@ -861,7 +809,7 @@ ScrewsDynamicsNdof::MassMatrix_s(BodyFrameSelection /*body_frame*/)
             "[ScrewsDynamicsNdof::MassMatrix_s] Invalid DOF.");
     }
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     MM.setZero();
 
@@ -928,7 +876,7 @@ ScrewsDynamicsNdof::MassMatrix_b(BodyFrameSelection body_frame)
         return Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>();
     }
 
-    _debug_verbosity = false;
+    _debug_verbosity = true;
 
     // ============================================================
     // Preconditions

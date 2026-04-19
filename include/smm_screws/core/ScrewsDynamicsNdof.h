@@ -38,7 +38,7 @@ public:
     static constexpr int MAX_DOF       = robot_params::MAX_DOF;
     static constexpr int MAX_METALINKS = robot_params::MAX_METALINKS;
 
-    ScrewsDynamicsNdof();
+    ScrewsDynamicsNdof() = delete;
     explicit ScrewsDynamicsNdof(RobotAbstractBaseNdof* ptr2abstract_ndof);
 
     int dof() const noexcept { return _dof; }
@@ -215,6 +215,11 @@ public:
     // Fn that returns total potential energy - removed for now
     // float computePotentialEnergy();
 
+    // ----------------------------------------------------------------
+    // 1. Initialization functions
+    // ----------------------------------------------------------------
+    void initializeLinkMassMatrices();
+    
 protected:
     static constexpr float _g_z = -9.80665f;
 
@@ -281,11 +286,6 @@ private:
     // computeBodyInertiaFromSpatial(...)
     Eigen::Matrix<float, 6, 6> _BodyInertiaFrames[MAX_DOF];
     Eigen::Matrix<float, 6, 6>* _ptr2BodyInertiaFrames[MAX_DOF];
-
-    // ----------------------------------------------------------------
-    // 1. Initialization functions
-    // ----------------------------------------------------------------
-    void initializeLinkMassMatrices();
 
     // ----------------------------------------------------------------
     // 2. Update fns that extract data from kinematics

@@ -3,7 +3,8 @@
 
 RobotContextNdof::RobotContextNdof(std::unique_ptr<RobotAbstractBaseNdof> robot)
 : robot_(std::move(robot))
-, kin_(robot_.get())                // pass raw ptr into ScrewsKinematicsNdof
+, kin_(robot_.get())
+, dyn_(robot_.get())
 {
     if (!robot_) {
         throw std::invalid_argument("[RobotContextNdof] robot is null");
@@ -15,22 +16,41 @@ ScrewsKinematicsNdof & RobotContextNdof::get_kinematics()
     return kin_;
 }
 
+ScrewsDynamicsNdof & RobotContextNdof::get_dynamics()
+{
+    return dyn_;
+}
+
 RobotAbstractBaseNdof * RobotContextNdof::get_robot()
 {
     return robot_.get();
 }
 
-// For now you can just return true or mirror whatever your 3-DOF version does.
+void RobotContextNdof::_initializeKinematicState(ScrewsKinematicsNdof & obj)
+{
+    obj.initializePseudoTfs();
+    obj.initializeReferenceAnatomyActiveTwists();
+    obj.initializeReferenceAnatomyActiveTfs();
+    obj.initializeRelativeTfs();
+    obj.initializeLocalScrewCoordVectors();
+    obj.initializeSpatialJointScrewCoordVectors();
+    obj.initializeHomeAnatomyActiveTfs();
+    obj.initializeHomeAnatomyCOMTfs();
+}
+
 bool RobotContextNdof::initializeSharedLib()
 {
-    kin_.initializePseudoTfs();
-    kin_.initializeReferenceAnatomyActiveTwists();
-    kin_.initializeReferenceAnatomyActiveTfs();
-    kin_.initializeRelativeTfs();
-    kin_.initializeLocalScrewCoordVectors();
-    kin_.initializeSpatialJointScrewCoordVectors();
-    kin_.initializeHomeAnatomyActiveTfs();
-    kin_.initializeHomeAnatomyCOMTfs();
+    // -----------------------------
+    // KINEMATICS OBJECT
+    // -----------------------------    
+    _initializeKinematicState(kin_);
+    // -----------------------------
+    // DYNAMICS OBJECT
+    // -----------------------------    
+    _initializeKinematicState(dyn_);
+
+    // Dynamics-specific initialization
+    dyn_.initializeLinkMassMatrices();
 
     return true;
 }

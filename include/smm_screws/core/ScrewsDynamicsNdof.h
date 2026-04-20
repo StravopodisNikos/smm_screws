@@ -206,11 +206,18 @@ public:
         MassMatrixRepresentation representation = MassMatrixRepresentation::SPATIAL,
         BodyFrameSelection body_frame = BodyFrameSelection::JOINT
     );
-    //Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix();
+    
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> 
+    CoriolisMatrix(
+        MassMatrixRepresentation representation = MassMatrixRepresentation::BODY,
+        BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+    );
+
     //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVector();
     //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVectorAnalytical();
     //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVectorAnalyticalBody();
     //Eigen::Matrix<float, Eigen::Dynamic, 1> FrictionVector();
+
 
     // Fn that returns total potential energy - removed for now
     // float computePotentialEnergy();
@@ -255,6 +262,14 @@ protected:
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
     MassMatrix_b(
         BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+    );
+    
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_s(
+        BodyFrameSelection body_frame
+    );
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_b(
+        BodyFrameSelection body_frame
     );
 
     // ----------------------------------------------------------------

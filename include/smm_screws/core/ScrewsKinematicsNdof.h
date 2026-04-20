@@ -932,6 +932,33 @@ protected:
     Eigen::Matrix<float, 6, 1> _BodyCOMJacobiansFrames[MAX_DOF][MAX_DOF];
     Eigen::Matrix<float, 6, 1>* _ptr2BodyCOMJacobiansFrames[MAX_DOF][MAX_DOF]; 
 
+    // ------------------------------------------------------------
+    // Mueller body-form kinematic blocks used by Coriolis matrix
+    // ------------------------------------------------------------
+
+    // Strict lower-triangular block matrix A^b with dimensions (6*dof) x (6*dof)
+    // Block (i,j), 0-based:
+    //   A^b_ij = Ad_{g_i^{-1} g_j}   for j < i
+    //   A^b_ij = 0                   otherwise
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> computeAbMatrix() const;
+
+    // Block diagonal matrix a^b = diag( qdot_i * ad(X_i^b) )
+    // Dimensions: (6*dof) x (6*dof)
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> computeabMatrix() const;
+
+    // Block diagonal matrix b^b = diag( ad(V_i^b) )
+    // Dimensions: (6*dof) x (6*dof)
+    // Uses current body twists of the real joint/body frames.
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> computebbMatrix() const;
+
+    // Convenience: stacked body Jacobian J^b with one 6xdof block per body frame
+    // Dimensions: (6*dof) x dof
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> stackBodyJacobiansFrames() const;
+
+    // Convenience: stacked body twists V^b = J^b * qdot
+    // Dimensions: (6*dof) x 1
+    Eigen::Matrix<float, Eigen::Dynamic, 1> stackBodyTwistsFrames() const;
+
 private:
     // Auxiliary arrays
     Eigen::Matrix<float, 6, 6> _scp; // spatial cross profuct result

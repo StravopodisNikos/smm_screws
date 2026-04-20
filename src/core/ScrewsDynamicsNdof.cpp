@@ -963,6 +963,87 @@ ScrewsDynamicsNdof::MassMatrix_b(BodyFrameSelection body_frame)
     return M;
 }
 
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::CoriolisMatrix(
+    MassMatrixRepresentation representation,
+    BodyFrameSelection body_frame)
+{
+    switch (representation)
+    {
+        case MassMatrixRepresentation::SPATIAL:
+            return CoriolisMatrix_s(body_frame);
+
+        case MassMatrixRepresentation::BODY:
+            return CoriolisMatrix_b(body_frame);
+
+        default:
+            throw std::runtime_error(
+                "[ScrewsDynamicsNdof::CoriolisMatrix] Invalid representation type.");
+    }
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
+{
+    if (_dof <= 0) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] DOF <= 0.");
+    }
+
+    if (!_ptr2abstract_ndof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] RobotAbstractBaseNdof pointer is null.");
+    }
+
+    if (body_frame != BodyFrameSelection::JOINT) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Only JOINT body frame is currently supported.");
+    }
+
+    // Preconditions:
+    // 1) joint state updated
+    // 2) ForwardKinematicsTCP(q) already called
+    // 3) computeBodyJacobiansFrames1() already called
+    // 4) initializeLinkMassMatrices() already done
+    // 5) computeBodyInertiaFromSpatial(JOINT) done here
+
+    computeBodyInertiaFromSpatial(BodyFrameSelection::JOINT);
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Jb = stackBodyJacobiansFrames();
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Ab = computeAbMatrix();
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> ab = computeabMatrix();
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> bb = computebbMatrix();
+
+    // Build block-diagonal Mb
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Mb(6 * _dof, 6 * _dof);
+    Mb.setZero();
+
+    for (int i = 0; i < _dof; ++i) {
+        Mb.block<6,6>(6 * i, 6 * i) = _BodyInertiaFrames[i];
+    }
+
+    // Eq. (85): C = - Jb^T ( Mb Ab ab + bb^T Mb ) Jb
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> C =
+        -Jb.transpose() * (Mb * Ab * ab + bb.transpose() * Mb) * Jb;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] Jb =\n" << Jb << "\n";
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] Ab =\n" << Ab << "\n";
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] ab =\n" << ab << "\n";
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] bb =\n" << bb << "\n";
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] C =\n" << C << "\n";
+    }
+
+    return C;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::CoriolisMatrix_s(BodyFrameSelection body_frame)
+{
+    throw std::runtime_error(
+        "[ScrewsDynamicsNdof::CoriolisMatrix_s] Not implemented yet!!!");
+}
+
 /*
  *  PRINTING FUNCTIONS-USED FOR DEBUGGING
  */

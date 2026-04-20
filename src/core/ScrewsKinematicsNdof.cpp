@@ -2550,6 +2550,92 @@ Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getOperationalJaco
 }
 
 // ============================================================
+// Protected members
+// ============================================================
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsKinematicsNdof::stackBodyJacobiansFrames() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Jb(6 * _dof, _dof);
+    Jb.setZero();
+
+    for (int i = 0; i < _dof; ++i) {
+        for (int j = 0; j < _dof; ++j) {
+            Jb.block<6,1>(6 * i, j) = _BodyJacobiansFrames[i][j];
+        }
+    }
+
+    return Jb;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsKinematicsNdof::stackBodyTwistsFrames() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Jb = stackBodyJacobiansFrames();
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i) = _joint_vel[i];
+    }
+
+    return Jb * qdot;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsKinematicsNdof::computeAbMatrix() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Ab(6 * _dof, 6 * _dof);
+    Ab.setZero();
+
+    Eigen::Matrix<float, 6, 6> Ad_block;
+
+    for (int i = 0; i < _dof; ++i) {
+        for (int j = 0; j < i; ++j) {
+            // A^b_ij = Ad_{ g_i^{-1} g_j }
+            const Eigen::Isometry3f gij = _g[i].inverse() * _g[j];
+            const_cast<ScrewsKinematicsNdof*>(this)->ad(Ad_block, gij);
+            Ab.block<6,6>(6 * i, 6 * j) = Ad_block;
+        }
+    }
+
+    return Ab;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsKinematicsNdof::computeabMatrix() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> ab(6 * _dof, 6 * _dof);
+    ab.setZero();
+
+    Eigen::Matrix<float, 6, 6> adXi;
+
+    for (int i = 0; i < _dof; ++i) {
+        const_cast<ScrewsKinematicsNdof*>(this)->spatialCrossProduct(adXi, _iXi[i]);
+        ab.block<6,6>(6 * i, 6 * i) = _joint_vel[i] * adXi;
+    }
+
+    return ab;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsKinematicsNdof::computebbMatrix() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> bb(6 * _dof, 6 * _dof);
+    bb.setZero();
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> Vb = stackBodyTwistsFrames();
+    Eigen::Matrix<float, 6, 6> adV;
+
+    for (int i = 0; i < _dof; ++i) {
+        Eigen::Matrix<float, 6, 1> Vi = Vb.block<6,1>(6 * i, 0);
+        const_cast<ScrewsKinematicsNdof*>(this)->spatialCrossProduct(adV, Vi);
+        bb.block<6,6>(6 * i, 6 * i) = adV;
+    }
+
+    return bb;
+}
+
+// ============================================================
 // Private members
 // ============================================================
 

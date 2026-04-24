@@ -186,7 +186,7 @@ public:
     //
     // This keeps one clean user-facing API while still allowing multiple
     // mathematically distinct internal implementations.
-    enum class MassMatrixRepresentation
+    enum class DynamicsRepresentation
     {
         SPATIAL,
         BODY
@@ -203,19 +203,21 @@ public:
     // ----------------------------------------------------------------
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
     MassMatrix(
-        MassMatrixRepresentation representation = MassMatrixRepresentation::SPATIAL,
+        DynamicsRepresentation representation = DynamicsRepresentation::SPATIAL,
         BodyFrameSelection body_frame = BodyFrameSelection::JOINT
     );
     
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> 
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
     CoriolisMatrix(
-        MassMatrixRepresentation representation = MassMatrixRepresentation::BODY,
-        BodyFrameSelection body_frame = BodyFrameSelection::JOINT
+        DynamicsRepresentation representation = DynamicsRepresentation::BODY
     );
 
-    //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVector();
-    //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVectorAnalytical();
-    //Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVectorAnalyticalBody();
+    // -----------------------------------------------------------------------------
+    // Gravity vector API
+    // -----------------------------------------------------------------------------
+    Eigen::Matrix<float, Eigen::Dynamic, 1>
+    GravityVector(DynamicsRepresentation representation);
+
     //Eigen::Matrix<float, Eigen::Dynamic, 1> FrictionVector();
 
 
@@ -263,14 +265,15 @@ protected:
     MassMatrix_b(
         BodyFrameSelection body_frame = BodyFrameSelection::JOINT
     );
-    
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_s(
-        BodyFrameSelection body_frame
-    );
 
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_b(
-        BodyFrameSelection body_frame
-    );
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_s();
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> CoriolisMatrix_b();
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVector_s();
+    Eigen::Matrix<float, Eigen::Dynamic, 1> GravityVector_b();
+
+    // Helper: extract scalar mass from already-loaded spatial inertia matrix
+    float extractLinkMassFromSpatialInertia(size_t link_index) const;
 
     // ----------------------------------------------------------------
     // 2.2 Link Geometric Jacobians

@@ -2402,6 +2402,8 @@ void ScrewsKinematicsNdof::computeDtHybridJacobianTCP()
 
     _debug_verbosity = false;
     _dJh_tcp.setZero();
+    dJop.setZero();
+    _is_dt_operational_jacobian_valid = false;
 
     // -------------------------------------------------------------------------
     // Build qdot vector from stored joint velocities
@@ -2486,8 +2488,15 @@ void ScrewsKinematicsNdof::computeDtHybridJacobianTCP()
         adTwistVW(adJh, _Jh_tcp.col(j));
 
         _dJh_tcp.col(j) = adJh * Vtilde_v;
+        dJop.col(j) = _dJh_tcp.col(j);
     }
 
+    for (int j = _dof; j < MAX_DOF; ++j) {
+        dJop.col(j).setZero();
+    }
+
+    _is_dt_operational_jacobian_valid = true;
+    
     if (_debug_verbosity) {
         std::cout << "[ScrewsKinematicsNdof::computeDtHybridJacobianTCP] "
                   << "dJh_tcp =\n";
@@ -2544,6 +2553,18 @@ Eigen::Matrix<float, 6, Eigen::Dynamic> ScrewsKinematicsNdof::getOperationalJaco
     Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
     for (int j = 0; j < _dof; ++j) {
         out.col(j) = Jop.col(j);
+    }
+
+    return out;
+}
+
+Eigen::Matrix<float, 6, Eigen::Dynamic>
+ScrewsKinematicsNdof::getDtOperationalJacobianTCP() const
+{
+    Eigen::Matrix<float, 6, Eigen::Dynamic> out(6, _dof);
+
+    for (int j = 0; j < _dof; ++j) {
+        out.col(j) = dJop.col(j);
     }
 
     return out;

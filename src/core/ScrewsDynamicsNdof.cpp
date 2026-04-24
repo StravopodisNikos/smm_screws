@@ -713,7 +713,7 @@ void ScrewsDynamicsNdof::computeLinkGeometricJacobians()
 
 Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
 ScrewsDynamicsNdof::MassMatrix(
-    MassMatrixRepresentation representation,
+    DynamicsRepresentation representation,
     BodyFrameSelection body_frame)
 {
     // =====================================================================
@@ -728,13 +728,13 @@ ScrewsDynamicsNdof::MassMatrix(
 
     switch (representation)
     {
-        case MassMatrixRepresentation::SPATIAL:
+        case DynamicsRepresentation::SPATIAL:
         {
             // Body frame selection is irrelevant here
             return MassMatrix_s(body_frame);
         }
 
-        case MassMatrixRepresentation::BODY:
+        case DynamicsRepresentation::BODY:
         {
             return MassMatrix_b(body_frame);
         }
@@ -965,25 +965,34 @@ ScrewsDynamicsNdof::MassMatrix_b(BodyFrameSelection body_frame)
 
 Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
 ScrewsDynamicsNdof::CoriolisMatrix(
-    MassMatrixRepresentation representation,
-    BodyFrameSelection body_frame)
+    DynamicsRepresentation representation)
 {
     switch (representation)
     {
-        case MassMatrixRepresentation::SPATIAL:
-            return CoriolisMatrix_s(body_frame);
+        case DynamicsRepresentation::SPATIAL:
+        {
+            // Fixed internal choice:
+            //   SPATIAL Coriolis -> JOINT-frame formulation
+            return CoriolisMatrix_s();
+        }
 
-        case MassMatrixRepresentation::BODY:
-            return CoriolisMatrix_b(body_frame);
+        case DynamicsRepresentation::BODY:
+        {
+            // Fixed internal choice:
+            //   BODY Coriolis -> JOINT-frame formulation
+            return CoriolisMatrix_b();
+        }
 
         default:
+        {
             throw std::runtime_error(
-                "[ScrewsDynamicsNdof::CoriolisMatrix] Invalid representation type.");
+                "[ScrewsDynamicsNdof::CoriolisMatrix] Invalid representation.");
+        }
     }
 }
 
 Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
-ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
+ScrewsDynamicsNdof::CoriolisMatrix_b()
 {
     if (_dof <= 0) {
         throw std::runtime_error(
@@ -995,15 +1004,13 @@ ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
             "[ScrewsDynamicsNdof::CoriolisMatrix_b] RobotAbstractBaseNdof pointer is null.");
     }
 
-    if (body_frame != BodyFrameSelection::JOINT) {
-        throw std::runtime_error(
-            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Only JOINT body frame is currently supported.");
-    }
-
+    // Fixed formulation choice:
+    //   BODY Coriolis is implemented only in JOINT body frames.
+    //
     // Preconditions:
     // 1) joint state updated
     // 2) ForwardKinematicsTCP(q) already called
-    // 3) computeBodyJacobiansFrames1() already called
+    // 3) computeBodyJacobiansFrames2() already called
     // 4) initializeLinkMassMatrices() already done
     // 5) computeBodyInertiaFromSpatial(JOINT) done here
 
@@ -1014,7 +1021,23 @@ ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
     const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> ab = computeabMatrix();
     const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> bb = computebbMatrix();
 
-    // Build block-diagonal Mb
+    if (Jb.rows() != 6 * _dof || Jb.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Invalid Jb dimensions.");
+    }
+    if (Ab.rows() != 6 * _dof || Ab.cols() != 6 * _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Invalid Ab dimensions.");
+    }
+    if (ab.rows() != 6 * _dof || ab.cols() != 6 * _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Invalid ab dimensions.");
+    }
+    if (bb.rows() != 6 * _dof || bb.cols() != 6 * _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Invalid bb dimensions.");
+    }
+
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Mb(6 * _dof, 6 * _dof);
     Mb.setZero();
 
@@ -1022,15 +1045,22 @@ ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
         Mb.block<6,6>(6 * i, 6 * i) = _BodyInertiaFrames[i];
     }
 
-    // Eq. (85): C = - Jb^T ( Mb Ab ab + bb^T Mb ) Jb
+    // Müller Eq. (85):
+    //   C(q,qdot) = - Jb^T * ( Mb*Ab*ab + bb^T*Mb ) * Jb
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> C =
         -Jb.transpose() * (Mb * Ab * ab + bb.transpose() * Mb) * Jb;
+
+    if (C.rows() != _dof || C.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_b] Output C has invalid dimensions.");
+    }
 
     if (_debug_verbosity) {
         std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] Jb =\n" << Jb << "\n";
         std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] Ab =\n" << Ab << "\n";
         std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] ab =\n" << ab << "\n";
         std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] bb =\n" << bb << "\n";
+        std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] Mb =\n" << Mb << "\n";
         std::cout << "[ScrewsDynamicsNdof::CoriolisMatrix_b] C =\n" << C << "\n";
     }
 
@@ -1038,10 +1068,335 @@ ScrewsDynamicsNdof::CoriolisMatrix_b(BodyFrameSelection body_frame)
 }
 
 Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
-ScrewsDynamicsNdof::CoriolisMatrix_s(BodyFrameSelection body_frame)
+ScrewsDynamicsNdof::CoriolisMatrix_s()
 {
-    throw std::runtime_error(
-        "[ScrewsDynamicsNdof::CoriolisMatrix_s] Not implemented yet!!!");
+    // =========================================================================
+    // N-DOF spatial Coriolis matrix C(q, qdot)
+    //
+    // Purpose
+    // -------
+    // Computes the Coriolis / centrifugal matrix using the Christoffel-symbol
+    // construction based on partial derivatives of the SPATIAL mass matrix.
+    //
+    // This is the direct N-DOF generalization of the old 3-DOF function:
+    //
+    //   ScrewsDynamics::CoriolisMatrix_loc()
+    //
+    // Theory
+    // ------
+    // Christoffel symbols of the first kind:
+    //
+    //   c_ijk = 0.5 * ( dM_ij/dq_k + dM_ik/dq_j - dM_kj/dq_i )
+    //
+    // and the Coriolis matrix entries are:
+    //
+    //   C_ij = sum_k c_ijk * qdot_k
+    //
+    // Here:
+    //   - M(q) is the SPATIAL joint-space mass matrix
+    //   - dM_ab/dq_c is computed through computeParDerMassElement(a,b,c)
+    //
+    // Fixed formulation scope
+    // -----------------------
+    // This implementation is always the SPATIAL / JOINT formulation.
+    // There is no runtime body-frame selection.
+    //
+    // Compatibility
+    // -------------
+    // This function relies on:
+    //   - initializeLinkMassMatrices() already executed
+    //   - updateJointState(...) already executed
+    //   - updateActiveExpos() already consistent with current state
+    //   - computeParDerMassElement(...) already upgraded to N-DOF
+    //
+    // Output
+    // ------
+    // Returns an (_dof x _dof) dynamic-sized Coriolis matrix.
+    // =========================================================================
+
+    if (!_ptr2abstract_ndof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_s] "
+            "RobotAbstractBaseNdof pointer is null.");
+    }
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::CoriolisMatrix_s] Invalid DOF.");
+    }
+
+    CM.setZero();
+
+    const bool debug_print = _debug_verbosity;
+
+    for (size_t i = 0; i < static_cast<size_t>(_dof); ++i)
+    {
+        for (size_t j = 0; j < static_cast<size_t>(_dof); ++j)
+        {
+            float cij_sum = 0.0f;
+
+            for (size_t k = 0; k < static_cast<size_t>(_dof); ++k)
+            {
+                const float dM_ij_dq_k =
+                    computeParDerMassElement(i, j, k)(0, 0);
+
+                const float dM_ik_dq_j =
+                    computeParDerMassElement(i, k, j)(0, 0);
+
+                const float dM_kj_dq_i =
+                    computeParDerMassElement(k, j, i)(0, 0);
+
+                const float christoffel =
+                    0.5f * (dM_ij_dq_k + dM_ik_dq_j - dM_kj_dq_i);
+
+                ChristoffelSymbols[k](i, j) = christoffel;
+                cij_sum += christoffel * _joint_vel[k];
+            }
+
+            CM(i, j) = cij_sum;
+
+            if (debug_print) {
+                std::cout << CM(i, j) << "\t";
+            }
+        }
+
+        if (debug_print) {
+            std::cout << "\n";
+        }
+    }
+
+    return CM.topLeftCorner(_dof, _dof);
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::GravityVector(
+    DynamicsRepresentation representation)
+{
+    switch (representation)
+    {
+        case DynamicsRepresentation::SPATIAL:
+        {
+            // Fixed formulation:
+            // spatial gravity is computed through CoM geometric Jacobians.
+            return GravityVector_s();
+        }
+
+        case DynamicsRepresentation::BODY:
+        {
+            // Fixed formulation:
+            // body gravity is computed through body CoM Jacobians.
+            return GravityVector_b();
+        }
+
+        default:
+        {
+            throw std::runtime_error(
+                "[ScrewsDynamicsNdof::GravityVector] Invalid representation.");
+        }
+    }
+}
+
+float ScrewsDynamicsNdof::extractLinkMassFromSpatialInertia(size_t link_index) const
+{
+    if (link_index >= static_cast<size_t>(_dof)) {
+        throw std::out_of_range(
+            "[ScrewsDynamicsNdof::extractLinkMassFromSpatialInertia] Index out of range.");
+    }
+
+    const Eigen::Matrix<float, 6, 6>& M_s_i = _Mis[link_index];
+
+    // Standard spatial inertia structure in [v; w] convention:
+    // top-left block = m * I_3
+    const float m00 = M_s_i(0,0);
+    const float m11 = M_s_i(1,1);
+    const float m22 = M_s_i(2,2);
+
+    const float mass = (m00 + m11 + m22) / 3.0f;
+
+    if (mass <= 0.0f) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractLinkMassFromSpatialInertia] Non-positive extracted mass.");
+    }
+
+    return mass;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::GravityVector_s()
+{
+    // =========================================================================
+    // N-DOF spatial gravity vector g(q)
+    //
+    // Implements:
+    //   g(q) = - sum_i Jv_i(q)^T * (m_i * g0)
+    //
+    // where:
+    //   - Jv_i is the top 3 rows of the full geometric Jacobian of CoM i
+    //   - g0 is gravity expressed in the base/spatial frame
+    //
+    // This matches the MATLAB functions:
+    //   calculateGravityVectorAnalytical(...)
+    //   calculateGravityVectorAnalyticalSpatialCOM(...)
+    //
+    // Fixed formulation scope
+    // -----------------------
+    // This is always the SPATIAL gravity formulation, evaluated through
+    // CoM-based geometric Jacobians. There is no runtime body-frame selection.
+    //
+    // Preconditions:
+    //   1) joint state already updated
+    //   2) initializeLinkMassMatrices() already called
+    //   3) current active transforms / exponentials already available
+    //
+    // Notes:
+    //   - This function internally refreshes the CoM geometric Jacobians.
+    //   - Gravity is expressed in the base/spatial frame.
+    // =========================================================================
+
+    if (!_ptr2abstract_ndof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::GravityVector_s] "
+            "RobotAbstractBaseNdof pointer is null.");
+    }
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::GravityVector_s] Invalid DOF.");
+    }
+
+    GV.setZero();
+
+    const bool debug_print = _debug_verbosity;
+
+    // -------------------------------------------------------------------------
+    // Base-frame gravity vector
+    // -------------------------------------------------------------------------
+    Eigen::Matrix<float, 3, 1> g0;
+    g0 << 0.0f, 0.0f, -9.80665f;
+
+    // -------------------------------------------------------------------------
+    // Ensure CoM geometric Jacobians are current
+    // -------------------------------------------------------------------------
+    computeLinkGeometricJacobians();
+
+    for (int i = 0; i < _dof; ++i)
+    {
+        const float mi = extractLinkMassFromSpatialInertia(static_cast<size_t>(i));
+
+        Eigen::Matrix<float, 3, Eigen::Dynamic> Jv_i(3, _dof);
+        Jv_i.setZero();
+
+        for (int j = 0; j < _dof; ++j) {
+            Jv_i.col(j) = _Jgl[i][j].template block<3,1>(0,0);
+        }
+
+        GV.topRows(_dof).noalias() -= Jv_i.transpose() * (mi * g0);
+
+        if (debug_print) {
+            std::cout << "[ScrewsDynamicsNdof::GravityVector_s] link " << i
+                      << ", mass = " << mi << "\n";
+            std::cout << "Jv_i =\n" << Jv_i << "\n";
+            std::cout << "partial GV =\n" << GV.topRows(_dof) << "\n";
+        }
+    }
+
+    return GV.topRows(_dof);
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::GravityVector_b()
+{
+    // =========================================================================
+    // N-DOF body gravity vector g(q)
+    //
+    // Implements:
+    //   g(q) = - sum_i Jb_com_i(q)^T * Wg_i^b
+    //
+    // where:
+    //   Wg_i^b = [ R_i^T * (m_i * g0) ;
+    //              0 ]
+    //
+    // with:
+    //   - Jb_com_i : 6xn body Jacobian of CoM frame i
+    //   - R_i      : current CoM frame orientation wrt base
+    //   - g0       : gravity in base frame
+    //
+    // This matches the MATLAB function:
+    //   calculateGravityVectorAnalyticalBodyCOM(...)
+    //
+    // Fixed formulation scope
+    // -----------------------
+    // This is always the BODY gravity formulation, evaluated in CoM body
+    // frames. There is no runtime body-frame selection.
+    //
+    // Preconditions:
+    //   1) joint state already updated
+    //   2) initializeLinkMassMatrices() already called
+    //
+    // Notes:
+    //   - This function internally refreshes the CoM forward kinematics.
+    //   - It also refreshes the body CoM Jacobians before assembling g(q).
+    // =========================================================================
+
+    if (!_ptr2abstract_ndof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::GravityVector_b] "
+            "RobotAbstractBaseNdof pointer is null.");
+    }
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::GravityVector_b] Invalid DOF.");
+    }
+
+    GV.setZero();
+
+    const bool debug_print = _debug_verbosity;
+
+    Eigen::Matrix<float, 3, 1> g0;
+    g0 << 0.0f, 0.0f, -9.80665f;
+
+    // -------------------------------------------------------------------------
+    // Ensure current CoM frames and body CoM Jacobians are valid
+    // -------------------------------------------------------------------------
+    ForwardKinematicsCOM(_joint_pos);
+    computeBodyCOMJacobiansFrames();
+
+    for (int i = 0; i < _dof; ++i)
+    {
+        const float mi = extractLinkMassFromSpatialInertia(static_cast<size_t>(i));
+
+        // Current CoM frame orientation wrt base
+        const Eigen::Matrix3f R_i = _gl[i].rotation();
+
+        // Gravity force expressed in CoM body frame
+        const Eigen::Matrix<float, 3, 1> f_g_b = R_i.transpose() * (mi * g0);
+
+        // 6D wrench in [force; moment] order
+        Eigen::Matrix<float, 6, 1> W_g_b;
+        W_g_b.setZero();
+        W_g_b.template block<3,1>(0,0) = f_g_b;
+
+        Eigen::Matrix<float, 6, Eigen::Dynamic> Jb_com_i(6, _dof);
+        Jb_com_i.setZero();
+
+        for (int j = 0; j < _dof; ++j) {
+            Jb_com_i.col(j) = _BodyCOMJacobiansFrames[i][j];
+        }
+
+        GV.topRows(_dof).noalias() -= Jb_com_i.transpose() * W_g_b;
+
+        if (debug_print) {
+            std::cout << "[ScrewsDynamicsNdof::GravityVector_b] link " << i
+                      << ", mass = " << mi << "\n";
+            std::cout << "R_i =\n" << R_i << "\n";
+            std::cout << "f_g_b =\n" << f_g_b << "\n";
+            std::cout << "Jb_com_i =\n" << Jb_com_i << "\n";
+            std::cout << "partial GV =\n" << GV.topRows(_dof) << "\n";
+        }
+    }
+
+    return GV.topRows(_dof);
 }
 
 /*

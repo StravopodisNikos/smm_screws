@@ -896,6 +896,12 @@ public:
 
     bool hasOperationalJacobianTCP() const noexcept { return _is_operational_jacobian_valid; }
 
+    Eigen::Matrix<float, 6, MAX_DOF> dJop;
+
+    Eigen::Matrix<float, 6, Eigen::Dynamic> getDtOperationalJacobianTCP() const;
+
+    bool hasDtOperationalJacobianTCP() const noexcept { return _is_dt_operational_jacobian_valid; }  
+
 protected:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
@@ -991,7 +997,8 @@ private:
 
     // Operational Jacobian boolean for checking expose of private member
     bool _is_operational_jacobian_valid {false};
-
+    bool _is_dt_operational_jacobian_valid{false};
+    
     // Transform from last actual joint frame to tcp frame
     Eigen::Isometry3f _g_last_tcp;
 

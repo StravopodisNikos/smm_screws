@@ -218,11 +218,20 @@ public:
     Eigen::Matrix<float, Eigen::Dynamic, 1>
     GravityVector(DynamicsRepresentation representation);
 
-    //Eigen::Matrix<float, Eigen::Dynamic, 1> FrictionVector();
+    // -----------------------------------------------------------------------------
+    // Operational Space Dynamics API
+    // -----------------------------------------------------------------------------    
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+    OperationalMassMatrix(
+        DynamicsRepresentation representation = DynamicsRepresentation::BODY);
 
+    Eigen::Matrix<float, Eigen::Dynamic, 1>
+    OperationalGravityVector(
+        DynamicsRepresentation representation = DynamicsRepresentation::BODY);
 
-    // Fn that returns total potential energy - removed for now
-    // float computePotentialEnergy();
+    Eigen::Matrix<float, Eigen::Dynamic, 1>
+    OperationalCoriolisVector(
+        DynamicsRepresentation representation = DynamicsRepresentation::BODY);
 
     // ----------------------------------------------------------------
     // 1. Initialization functions
@@ -276,9 +285,9 @@ protected:
     float extractLinkMassFromSpatialInertia(size_t link_index) const;
 
     // ----------------------------------------------------------------
-    // 2.2 Link Geometric Jacobians
-    void computeLinkGeometricJacobians();
+    //Link Geometric Jacobians
     // ----------------------------------------------------------------
+    void computeLinkGeometricJacobians();
 
 private:
     bool _debug_verbosity {true};
@@ -324,6 +333,15 @@ private:
     
     // 3.2 Tfs Spatial to selected body inertia
     void computeBodyInertiaFromSpatial(BodyFrameSelection body_frame = BodyFrameSelection::JOINT);
+
+    // ----------------------------------------------------------------
+    // Operational Dynamics helpers
+    // ----------------------------------------------------------------
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+        extractSquareOperationalJacobian() const;
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1>
+        computeOperationalJacobianDerivativeTimesVelocity() const;
 
     // ----------------------------------------------------------------
     // >> Simple auxiliary functions (for debugging)

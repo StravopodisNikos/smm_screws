@@ -1196,6 +1196,207 @@ ScrewsDynamicsNdof::GravityVector(
     }
 }
 
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::OperationalMassMatrix(DynamicsRepresentation representation)
+{
+    // =========================================================================
+    // Nonredundant operational-space inertia matrix:
+    //
+    //   Mx(q) = J(q)^{-T} * M(q) * J(q)^{-1}
+    //
+    // where:
+    //   - J is the square operational Jacobian (n x n)
+    //   - M is the joint-space mass matrix
+    //
+    // Preconditions:
+    //   1) operational Jacobian Jop has already been computed and is valid
+    //   2) the robot is nonredundant so the extracted operational Jacobian is
+    //      square and invertible
+    //   3) joint-space mass matrix can be computed for the requested
+    //      representation
+    // =========================================================================
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalMassMatrix] Invalid DOF.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J =
+        extractSquareOperationalJacobian();
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Mq =
+        MassMatrix(representation);
+
+    if (Mq.rows() != _dof || Mq.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalMassMatrix] "
+            "Joint-space mass matrix has invalid dimensions.");
+    }
+
+    Eigen::FullPivLU<Eigen::MatrixXf> lu_J(J);
+    if (!lu_J.isInvertible()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalMassMatrix] "
+            "Operational Jacobian is singular.");
+    }
+
+    Eigen::FullPivLU<Eigen::MatrixXf> lu_JT(J.transpose());
+    if (!lu_JT.isInvertible()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalMassMatrix] "
+            "Transpose of operational Jacobian is singular.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J_inv =
+        J.inverse();
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J_inv_T =
+        J.transpose().inverse();
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Mx(_dof, _dof);
+    Mx.noalias() = J_inv_T * Mq * J_inv;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsDynamicsNdof::OperationalMassMatrix] J =\n" << J << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalMassMatrix] Mq =\n" << Mq << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalMassMatrix] Mx =\n" << Mx << "\n";
+    }
+
+    return Mx;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::OperationalGravityVector(DynamicsRepresentation representation)
+{
+    // =========================================================================
+    // Nonredundant operational-space gravity vector:
+    //
+    //   Gx(q) = J(q)^{-T} * G(q)
+    //
+    // where:
+    //   - J is the square operational Jacobian (n x n)
+    //   - G is the joint-space gravity vector
+    //
+    // Preconditions:
+    //   1) operational Jacobian Jop has already been computed and is valid
+    //   2) joint-space gravity vector can be computed for the requested
+    //      representation
+    // =========================================================================
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalGravityVector] Invalid DOF.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J =
+        extractSquareOperationalJacobian();
+
+    const Eigen::Matrix<float, Eigen::Dynamic, 1> Gq =
+        GravityVector(representation);
+
+    if (Gq.rows() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalGravityVector] "
+            "Joint-space gravity vector has invalid dimensions.");
+    }
+
+    Eigen::FullPivLU<Eigen::MatrixXf> lu_JT(J.transpose());
+    if (!lu_JT.isInvertible()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalGravityVector] "
+            "Transpose of operational Jacobian is singular.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J_inv_T =
+        J.transpose().inverse();
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> Gx(_dof);
+    Gx.noalias() = J_inv_T * Gq;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsDynamicsNdof::OperationalGravityVector] J =\n" << J << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalGravityVector] Gq =\n" << Gq << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalGravityVector] Gx =\n" << Gx << "\n";
+    }
+
+    return Gx;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::OperationalCoriolisVector(DynamicsRepresentation representation)
+{
+    // =========================================================================
+    // Nonredundant operational-space Coriolis / centrifugal vector:
+    //
+    //   Cx(q,qdot) = J(q)^{-T} * ( C(q,qdot) * qdot ) - Mx(q) * ( Jdot(q,qdot) * qdot )
+    //
+    // This is the operational-space velocity-dependent bias vector, not a
+    // unique operational-space Coriolis matrix.
+    //
+    // Preconditions:
+    //   1) operational Jacobian Jop has already been computed and is valid
+    //   2) time derivative dJop has already been computed and is valid
+    //   3) joint-space Coriolis matrix can be computed for the requested
+    //      representation
+    // =========================================================================
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalCoriolisVector] Invalid DOF.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J =
+        extractSquareOperationalJacobian();
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Cq =
+        CoriolisMatrix(representation);
+
+    if (Cq.rows() != _dof || Cq.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalCoriolisVector] "
+            "Joint-space Coriolis matrix has invalid dimensions.");
+    }
+
+    Eigen::FullPivLU<Eigen::MatrixXf> lu_JT(J.transpose());
+    if (!lu_JT.isInvertible()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalCoriolisVector] "
+            "Transpose of operational Jacobian is singular.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J_inv_T =
+        J.transpose().inverse();
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i) = _joint_vel[i];
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, 1> dJ_qdot =
+        computeOperationalJacobianDerivativeTimesVelocity();
+
+    if (dJ_qdot.rows() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::OperationalCoriolisVector] "
+            "Jdot*qdot has invalid dimensions.");
+    }
+
+    const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> Mx =
+        OperationalMassMatrix(representation);
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> Cx(_dof);
+    Cx.noalias() = J_inv_T * (Cq * qdot) - Mx * dJ_qdot;
+
+    if (_debug_verbosity) {
+        std::cout << "[ScrewsDynamicsNdof::OperationalCoriolisVector] J =\n" << J << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalCoriolisVector] Cq =\n" << Cq << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalCoriolisVector] qdot =\n" << qdot << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalCoriolisVector] dJ*qdot =\n" << dJ_qdot << "\n";
+        std::cout << "[ScrewsDynamicsNdof::OperationalCoriolisVector] Cx =\n" << Cx << "\n";
+    }
+
+    return Cx;
+}
+
 float ScrewsDynamicsNdof::extractLinkMassFromSpatialInertia(size_t link_index) const
 {
     if (link_index >= static_cast<size_t>(_dof)) {
@@ -1397,6 +1598,113 @@ ScrewsDynamicsNdof::GravityVector_b()
     }
 
     return GV.topRows(_dof);
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::extractSquareOperationalJacobian() const
+{
+    // =========================================================================
+    // Extracts the square nonredundant operational Jacobian used in
+    // operational-space dynamics.
+    //
+    // In this framework:
+    //   - getOperationalJacobianTCP() returns the full stored 6 x n Jacobian
+    //   - for nonredundant operational dynamics we use the first n rows,
+    //     producing an n x n square matrix
+    //
+    // Preconditions:
+    //   1) the operational Jacobian has already been computed and is valid
+    //   2) the robot is nonredundant
+    // =========================================================================
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractSquareOperationalJacobian] Invalid DOF.");
+    }
+
+    if (!hasOperationalJacobianTCP()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractSquareOperationalJacobian] "
+            "Operational Jacobian is not available.");
+    }
+
+    const Eigen::Matrix<float, 6, Eigen::Dynamic> Jop_full =
+        getOperationalJacobianTCP();
+
+    if (Jop_full.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractSquareOperationalJacobian] "
+            "Operational Jacobian has invalid column dimension.");
+    }
+
+    if (_dof > Jop_full.rows()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractSquareOperationalJacobian] "
+            "Cannot extract square operational Jacobian from available rows.");
+    }
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> J(_dof, _dof);
+    J = Jop_full.topRows(_dof);
+
+    Eigen::FullPivLU<Eigen::MatrixXf> lu(J);
+    if (!lu.isInvertible()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::extractSquareOperationalJacobian] "
+            "Operational Jacobian is singular.");
+    }
+
+    return J;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsDynamicsNdof::computeOperationalJacobianDerivativeTimesVelocity() const
+{
+    // =========================================================================
+    // Computes:
+    //
+    //   dJop(q,qdot) * qdot
+    //
+    // for the nonredundant operational Jacobian used in task-space dynamics.
+    //
+    // In this framework:
+    //   - getDtOperationalJacobianTCP() returns the stored full 6 x n matrix
+    //   - for nonredundant operational dynamics we use the first n rows,
+    //     producing an n x n matrix
+    //
+    // Preconditions:
+    //   1) dJop has already been computed and is valid
+    //   2) joint velocities are up to date
+    // =========================================================================
+
+    if (_dof <= 0 || _dof > MAX_DOF) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::computeOperationalJacobianDerivativeTimesVelocity] Invalid DOF.");
+    }
+
+    if (!hasDtOperationalJacobianTCP()) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::computeOperationalJacobianDerivativeTimesVelocity] "
+            "Time derivative of operational Jacobian is not available.");
+    }
+
+    const Eigen::Matrix<float, 6, Eigen::Dynamic> dJop_full =
+        getDtOperationalJacobianTCP();
+
+    if (dJop_full.cols() != _dof) {
+        throw std::runtime_error(
+            "[ScrewsDynamicsNdof::computeOperationalJacobianDerivativeTimesVelocity] "
+            "dJop has invalid column dimension.");
+    }
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> dJ(_dof, _dof);
+    dJ = dJop_full.topRows(_dof);
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i) = _joint_vel[i];
+    }
+
+    return dJ * qdot;
 }
 
 /*

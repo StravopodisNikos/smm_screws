@@ -146,18 +146,47 @@ A glimpse of the core API is provided below!
 - `hasOperationalJacobianTCP()` — Check whether operational Jacobian is valid  
 - `computeBodyCOMJacobiansFrames()` — Compute body Jacobians of the link COM frames 
 - `ForwardKinematicsCOM()` — Compute forward kinematics of all real-link COM frames using the internally stored joint state  
+- `getOperationalJacobianTCP()` — Return operational-space TCP Jacobian  
+- `hasOperationalJacobianTCP()` — Check whether operational Jacobian is valid  
+- `getDtOperationalJacobianTCP()` — Return time derivative of the operational-space TCP Jacobian  
+- `hasDtOperationalJacobianTCP()` — Check whether time-derivative operational Jacobian is valid  
+- `computeAbMatrix()` — Build the strict lower-triangular Mueller body block matrix \(A^b\)  
+- `computeabMatrix()` — Build the block-diagonal Mueller body matrix \(a^b\) from joint velocities and local body screws  
+- `computebbMatrix()` — Build the block-diagonal Mueller body matrix \(b^b\) from stacked body twists  
+- `stackBodyJacobiansFrames()` — Stack all real-frame body Jacobians into a single \((6n \times n)\) matrix  
+- `stackBodyTwistsFrames()` — Stack all real-frame body twists into a single \((6n \times 1)\) vector  
 
 ### ScrewsDynamicsNdof
 
-`ScrewsDynamicsNdof` is the main N-DOF dynamics solver for serial metamorphic manipulators.
+`ScrewsDynamicsNdof` extends `ScrewsKinematicsNdof` with N-DOF rigid-body dynamics.
 
-- `ScrewsDynamicsNdof()` — Construct N-DOF dynamics solver   
-- `MassMatrix()` — Canonical mass-matrix API with representation selection (`SPATIAL` or `BODY`) and body-frame selection (`JOINT` or `COM`)  
-- `MassMatrix_b()` — Compute body-coordinate mass matrix using either joint-frame or COM-frame body Jacobians and matching body inertias  
-- `MassMatrix_s()` — Compute spatial-coordinate mass matrix using spatial twists and matching spatial COM inertias  
-- `computeBodyInertiaFromSpatial()` — Transform stored spatial link inertias to selected body-fixed frames (`JOINT` or `COM`) using the inverse of Müller Eq. (35)  
-- `initializeLinkMassMatrices()` — Initialize per-link spatial/body inertia storage
-- `computeLinkGeometricJacobians()` — Compute geometric Jacobians of real links for gravity and auxiliary dynamics calculations  
+- `ScrewsDynamicsNdof(...)` — Construct N-DOF dynamics solver from robot model  
+- `dof()` — Return active robot degrees of freedom  
+- `updateJointPos(...)` — Update joint positions and store previous position / delta position history  
+- `updateJointVel(...)` — Update joint velocities  
+- `updateJointState(...)` — Update joint positions and velocities  
+- `updateJointState(...)` — Update joint positions, velocities, and accelerations  
+- `MassMatrix(...)` — Compute joint-space mass matrix in spatial or body form  
+- `CoriolisMatrix(...)` — Compute joint-space Coriolis / centrifugal matrix  
+- `GravityVector(...)` — Compute joint-space gravity vector  
+- `OperationalMassMatrix(...)` — Compute nonredundant operational-space inertia matrix  
+- `OperationalGravityVector(...)` — Compute nonredundant operational-space gravity vector  
+- `OperationalCoriolisVector(...)` — Compute nonredundant operational-space Coriolis / bias velocity vector  
+- `initializeLinkMassMatrices()` — Initialize link spatial inertia matrices from the robot model  
+- `MassMatrix_s(...)` — Compute spatial-form joint-space mass matrix  
+- `MassMatrix_b(...)` — Compute body-form joint-space mass matrix  
+- `CoriolisMatrix_s()` — Compute spatial-form joint-space Coriolis matrix  
+- `CoriolisMatrix_b()` — Compute body-form joint-space Coriolis matrix  
+- `GravityVector_s()` — Compute spatial-form joint-space gravity vector  
+- `GravityVector_b()` — Compute body-form joint-space gravity vector  
+- `extractLinkMassFromSpatialInertia(...)` — Extract scalar link mass from the stored spatial inertia matrix  
+- `computeLinkGeometricJacobians()` — Compute full geometric Jacobians of all real-link CoM frames  
+- `updateCOMTfs()` — Update current CoM transforms of all real links  
+- `computeAlphaMatrixAnat(...)` — Compute anatomy-based Alpha adjoint matrix used in dynamic formulations  
+- `computeParDerMassElement(...)` — Compute one partial derivative element of the mass matrix  
+- `computeBodyInertiaFromSpatial(...)` — Transform spatial inertias to selected body-frame inertias  
+- `extractSquareOperationalJacobian()` — Extract the square operational Jacobian used in nonredundant operational-space dynamics  
+- `computeOperationalJacobianDerivativeTimesVelocity()` — Compute \(\dot{J}_{op} \dot{q}\) for operational-space dynamics  
 
 ### RobotAbstractBaseNdof
 

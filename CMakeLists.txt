@@ -243,10 +243,18 @@ install(
     robot_yaml_loader_ndof
     RobotContextLib
     RobotContextLibNdof
-    test_screws_core
+    #test_screws_core -> removed this MUST not go ros2 downstream!
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+# Better is to install the cpp-test executable separately, 
+# so that is available with "$ ros2 run smm_screws test_screws_core"
+# BUT it is not exported as a dependency target!
+install(
+  TARGETS test_screws_core
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

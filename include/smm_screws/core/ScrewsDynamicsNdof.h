@@ -163,7 +163,7 @@ public:
 
 
     // ----------------------------------------------------------------
-    // 5. Dynamic matrix API. These are main fns for dynamic modeling - Not ready yet!
+    // 5. Dynamic matrix API. These are main fns for dynamic modeling
     // ----------------------------------------------------------------
     // ============================================================
     // 5.1) Mass matrix computation modes
@@ -197,6 +197,40 @@ public:
         JOINT,
         COM
     };
+
+    // ----------------------------------------------------------------
+    // Jacobian calculation method for singularity handling
+    // ----------------------------------------------------------------
+    enum class OperationalDynamicsMethod
+    {
+        EXACT,
+        DAMPED,
+        EXACT_WITH_DAMPED_FALLBACK
+    };
+
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+    dampedPseudoInverse(
+        const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & matrix,
+        float damping) const;
+
+    bool computeOperationalSpaceDynamics(
+        DynamicsRepresentation representation,
+        OperationalDynamicsMethod method,
+        float damping,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & operational_mass_matrix,
+        Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_coriolis_vector,
+        Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_gravity_vector,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian_dot);
+
+    bool computeDampedOperationalSpaceDynamics(
+        DynamicsRepresentation representation,
+        float damping,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & operational_mass_matrix,
+        Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_coriolis_vector,
+        Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_gravity_vector,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian,
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian_dot);
 
     // ----------------------------------------------------------------
     // Canonical API for mass matrix
@@ -290,7 +324,7 @@ protected:
     void computeLinkGeometricJacobians();
 
 private:
-    bool _debug_verbosity {true};
+    bool _debug_verbosity {false};
 
     Eigen::Matrix<float, 6, 6> _alpha_temp; // used for adjoint tf for Alpha matrix
 

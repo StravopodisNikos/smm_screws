@@ -902,6 +902,13 @@ public:
 
     bool hasDtOperationalJacobianTCP() const noexcept { return _is_dt_operational_jacobian_valid; }  
 
+    // ============================================================
+    // 10) Public getters to avoid repetitions
+    // ============================================================
+    Eigen::Matrix<float, Eigen::Dynamic, 1> getJointPositionVector() const;
+    Eigen::Matrix<float, Eigen::Dynamic, 1> getJointVelocityVector() const;
+    Eigen::Matrix<float, Eigen::Dynamic, 1> getJointAccelerationVector() const;
+
 protected:
     RobotAbstractBaseNdof* _ptr2abstract_ndof {nullptr};
     int _dof {0};
@@ -1012,7 +1019,7 @@ private:
     Eigen::Matrix<float, 6, 1> _dVbd_twist_tcp;   // body acceleration twist of TCP
     Eigen::Matrix<float, 6, 1> _dVh_twist_tcp;   // hybrid acceleration twist of TCP [a; alpha] 
        
-    bool _debug_verbosity {true};
+    bool _debug_verbosity {false};
 
     void printTwist(Eigen::Matrix<float, 6, 1> twist);
 

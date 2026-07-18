@@ -13,7 +13,7 @@ ScrewsDynamicsNdof::ScrewsDynamicsNdof(RobotAbstractBaseNdof* ptr2abstract_ndof)
             "[ScrewsDynamicsNdof] Invalid DOF loaded from RobotAbstractBaseNdof");
     }
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     MM.setZero();
     CM.setZero();
@@ -495,12 +495,13 @@ void ScrewsDynamicsNdof::computeBodyInertiaFromSpatial(BodyFrameSelection body_f
     //
     // Spatial link inertias are assumed stored in _Mis[i].
     // ============================================================
-    
-    for (int i = 0; i < _dof; ++i) {
-        std::cout << "[DEBUG] _ptr2BodyInertiaFrames[" << i << "] = "
-                << _ptr2BodyInertiaFrames[i] << "\n";
+    if (_debug_verbosity) {
+        for (int i = 0; i < _dof; ++i) {
+            std::cout << "[DEBUG] _ptr2BodyInertiaFrames[" << i << "] = "
+                    << _ptr2BodyInertiaFrames[i] << "\n";
+        }
     }
-
+    
     for (int i = 0; i < _dof; ++i) {
 
         const Eigen::Isometry3f& C_i =
@@ -809,7 +810,7 @@ ScrewsDynamicsNdof::MassMatrix_s(BodyFrameSelection /*body_frame*/)
             "[ScrewsDynamicsNdof::MassMatrix_s] Invalid DOF.");
     }
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     MM.setZero();
 
@@ -876,7 +877,7 @@ ScrewsDynamicsNdof::MassMatrix_b(BodyFrameSelection body_frame)
         return Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>();
     }
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     // ============================================================
     // Preconditions
@@ -1734,4 +1735,318 @@ void ScrewsDynamicsNdof::print16Matrix(Eigen::Matrix<float, 1, 6> matrix) {
     }
     std::cout <<  std::endl;
     return;
+}
+
+Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>
+ScrewsDynamicsNdof::dampedPseudoInverse(
+  const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & matrix,
+  const float damping) const
+{
+  if (matrix.rows() == 0 || matrix.cols() == 0) {
+    return Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>();
+  }
+
+  Eigen::JacobiSVD<Eigen::MatrixXf> svd(
+    matrix,
+    Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+  const Eigen::VectorXf singular_values = svd.singularValues();
+
+  Eigen::MatrixXf singular_values_inv =
+    Eigen::MatrixXf::Zero(matrix.cols(), matrix.rows());
+
+  const float lambda2 = damping * damping;
+
+  for (Eigen::Index i = 0; i < singular_values.size(); ++i) {
+    const float sigma = singular_values(i);
+    singular_values_inv(i, i) = sigma / (sigma * sigma + lambda2);
+  }
+
+  return svd.matrixV() * singular_values_inv * svd.matrixU().transpose();
+}
+
+bool ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics(
+  const DynamicsRepresentation representation,
+  const float damping,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & operational_mass_matrix,
+  Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_coriolis_vector,
+  Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_gravity_vector,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian_dot)
+{
+  if (_dof <= 0) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] Invalid DOF.\n";
+    return false;
+  }
+
+  const float safe_damping = std::max(damping, 1.0e-6f);
+
+  /*
+   * Preconditions:
+   * - updateJointState(...)
+   * - ForwardKinematicsTCP(...)
+   * - computeBodyJacobiansFrames2() or compatible body Jacobian pipeline
+   * - computeHybridJacobianTCP()
+   * - computeHybridVelocityTwistTCP()
+   * - computeDtHybridJacobianTCP()
+   */
+
+  const Eigen::Matrix<float, 6, Eigen::Dynamic> Jop =
+    getOperationalJacobianTCP();
+
+  const Eigen::Matrix<float, 6, Eigen::Dynamic> dJop =
+    getDtOperationalJacobianTCP();
+
+  if (Jop.rows() != 6 || Jop.cols() != _dof) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid Jop size. Expected 6x" << _dof
+              << ", got " << Jop.rows() << "x" << Jop.cols() << ".\n";
+    return false;
+  }
+
+  if (dJop.rows() != 6 || dJop.cols() != _dof) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid dJop size. Expected 6x" << _dof
+              << ", got " << dJop.rows() << "x" << dJop.cols() << ".\n";
+    return false;
+  }
+
+  /*
+   * Nonredundant operational task:
+   *   3 DoF -> first 3 rows: translational task
+   *   6 DoF -> first 6 rows: full pose task
+   */
+  square_operational_jacobian = Jop.topRows(_dof);
+  square_operational_jacobian_dot = dJop.topRows(_dof);
+
+  if (
+    square_operational_jacobian.rows() != _dof ||
+    square_operational_jacobian.cols() != _dof ||
+    square_operational_jacobian_dot.rows() != _dof ||
+    square_operational_jacobian_dot.cols() != _dof)
+  {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid Jx/dJx size.\n";
+    return false;
+  }
+
+  const Eigen::VectorXf qdot = getJointVelocityVector();
+
+  if (qdot.rows() != _dof) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid qdot size. Expected " << _dof
+              << ", got " << qdot.rows() << ".\n";
+    return false;
+  }
+
+  const Eigen::MatrixXf Mq =
+    MassMatrix(
+      representation,
+      ScrewsDynamicsNdof::BodyFrameSelection::JOINT);
+
+  const Eigen::MatrixXf Cq =
+    CoriolisMatrix(representation);
+
+  const Eigen::VectorXf Gq =
+    GravityVector(representation);
+
+  if (
+    Mq.rows() != _dof ||
+    Mq.cols() != _dof ||
+    Cq.rows() != _dof ||
+    Cq.cols() != _dof ||
+    Gq.rows() != _dof)
+  {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid joint dynamics size.\n"
+              << "Mq: " << Mq.rows() << "x" << Mq.cols() << "\n"
+              << "Cq: " << Cq.rows() << "x" << Cq.cols() << "\n"
+              << "Gq: " << Gq.rows() << "\n";
+    return false;
+  }
+
+  Eigen::LDLT<Eigen::MatrixXf> ldlt(Mq);
+
+  if (ldlt.info() != Eigen::Success) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Mq LDLT failed.\n";
+    return false;
+  }
+
+  /*
+   * A = Jx M^-1 Jx^T
+   */
+  const Eigen::MatrixXf Minv_JT =
+    ldlt.solve(square_operational_jacobian.transpose());
+
+  if (ldlt.info() != Eigen::Success) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Solving M^-1 Jx^T failed.\n";
+    return false;
+  }
+
+  const Eigen::MatrixXf A =
+    square_operational_jacobian * Minv_JT;
+
+  /*
+   * Damped operational inertia:
+   *   Mx = pinv_damped(Jx M^-1 Jx^T)
+   */
+  operational_mass_matrix =
+    dampedPseudoInverse(A, safe_damping);
+
+  if (
+    operational_mass_matrix.rows() != _dof ||
+    operational_mass_matrix.cols() != _dof)
+  {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid damped operational mass matrix size.\n";
+    return false;
+  }
+
+  const Eigen::VectorXf Cqdot =
+    Cq * qdot;
+
+  const Eigen::VectorXf Minv_Cqdot =
+    ldlt.solve(Cqdot);
+
+  if (ldlt.info() != Eigen::Success) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Solving M^-1 Cqdot failed.\n";
+    return false;
+  }
+
+  const Eigen::VectorXf Minv_G =
+    ldlt.solve(Gq);
+
+  if (ldlt.info() != Eigen::Success) {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Solving M^-1 G failed.\n";
+    return false;
+  }
+
+  /*
+   * Damped operational-space dynamics:
+   *
+   *   Mx = pinv_damped(Jx M^-1 Jx^T)
+   *   Cx = Mx (Jx M^-1 C(q,qdot)qdot - dJx qdot)
+   *   Gx = Mx Jx M^-1 G(q)
+   */
+  operational_coriolis_vector =
+    operational_mass_matrix *
+    (
+      square_operational_jacobian * Minv_Cqdot -
+      square_operational_jacobian_dot * qdot
+    );
+
+  operational_gravity_vector =
+    operational_mass_matrix *
+    square_operational_jacobian *
+    Minv_G;
+
+  if (
+    operational_coriolis_vector.rows() != _dof ||
+    operational_gravity_vector.rows() != _dof)
+  {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Invalid operational vector size.\n";
+    return false;
+  }
+
+  if (
+    !operational_mass_matrix.allFinite() ||
+    !operational_coriolis_vector.allFinite() ||
+    !operational_gravity_vector.allFinite())
+  {
+    std::cerr << "[ScrewsDynamicsNdof::computeDampedOperationalSpaceDynamics] "
+              << "Non-finite operational dynamics output.\n";
+    return false;
+  }
+
+  return true;
+}
+
+bool ScrewsDynamicsNdof::computeOperationalSpaceDynamics(
+  const DynamicsRepresentation representation,
+  const OperationalDynamicsMethod method,
+  const float damping,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & operational_mass_matrix,
+  Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_coriolis_vector,
+  Eigen::Matrix<float, Eigen::Dynamic, 1> & operational_gravity_vector,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian,
+  Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> & square_operational_jacobian_dot)
+{
+  if (_dof <= 0) {
+    std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Invalid DOF.\n";
+    return false;
+  }
+
+  Eigen::Matrix<float, 6, Eigen::Dynamic> Jop = getOperationalJacobianTCP();
+  Eigen::Matrix<float, 6, Eigen::Dynamic> dJop = getDtOperationalJacobianTCP();
+
+  if (Jop.rows() != 6 || Jop.cols() != _dof) {
+    std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Invalid Jop size.\n";
+    return false;
+  }
+
+  if (dJop.rows() != 6 || dJop.cols() != _dof) {
+    std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Invalid dJop size.\n";
+    return false;
+  }
+
+  square_operational_jacobian = Jop.topRows(_dof);
+  square_operational_jacobian_dot = dJop.topRows(_dof);
+
+  if (method == OperationalDynamicsMethod::DAMPED) {
+    return computeDampedOperationalSpaceDynamics(
+      representation,
+      damping,
+      operational_mass_matrix,
+      operational_coriolis_vector,
+      operational_gravity_vector,
+      square_operational_jacobian,
+      square_operational_jacobian_dot);
+  }
+
+  try {
+    operational_mass_matrix =
+      OperationalMassMatrix(representation);
+
+    operational_coriolis_vector =
+      OperationalCoriolisVector(representation);
+
+    operational_gravity_vector =
+      OperationalGravityVector(representation);
+
+    if (
+      operational_mass_matrix.rows() != _dof ||
+      operational_mass_matrix.cols() != _dof ||
+      operational_coriolis_vector.rows() != _dof ||
+      operational_gravity_vector.rows() != _dof)
+    {
+      std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Invalid exact dynamics size.\n";
+      return false;
+    }
+
+    return true;
+  } catch (const std::exception & e) {
+    if (method != OperationalDynamicsMethod::EXACT_WITH_DAMPED_FALLBACK) {
+      std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Exact method failed: "
+                << e.what() << "\n";
+      return false;
+    }
+
+    std::cerr << "[ScrewsDynamicsNdof::computeOperationalSpaceDynamics] Exact method failed: "
+              << e.what()
+              << ". Using damped fallback.\n";
+
+    return computeDampedOperationalSpaceDynamics(
+      representation,
+      damping,
+      operational_mass_matrix,
+      operational_coriolis_vector,
+      operational_gravity_vector,
+      square_operational_jacobian,
+      square_operational_jacobian_dot);
+  }
 }

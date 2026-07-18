@@ -74,7 +74,7 @@ ScrewsKinematicsNdof::ScrewsKinematicsNdof(RobotAbstractBaseNdof* ptr2abstract_n
 
 void ScrewsKinematicsNdof::initializePseudoTfs()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     std::cerr
         << "[ScrewsKinematicsNdof::initializePseudoTfs] "
@@ -165,7 +165,7 @@ void ScrewsKinematicsNdof::initializePseudoTfs()
 
 void ScrewsKinematicsNdof::initializeRelativeTfs()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[ScrewsKinematicsNdof::initializeRelativeTfs] "
@@ -195,7 +195,7 @@ void ScrewsKinematicsNdof::initializeRelativeTfs()
 /*
 void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] "
@@ -225,7 +225,7 @@ void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
 */
 void ScrewsKinematicsNdof::initializeLocalScrewCoordVectors()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[ScrewsKinematicsNdof::initializeLocalScrewCoordVectors] "
@@ -447,7 +447,7 @@ void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTwists()
 
 void ScrewsKinematicsNdof::initializeReferenceAnatomyActiveTfs()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (!_ptr2abstract_ndof) {
         std::cerr << "[initializeReferenceAnatomyActiveTfsNdof] "
@@ -977,13 +977,15 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
     //   - real body frames k = 0.._dof-1 only depend on upstream joints i <= k
     //   - TCP frame k = _dof depends on all joints i = 0.._dof-1
 
-    _debug_verbosity = true;
-
-    std::cout << "\n[computeBodyJacobiansFrames1] local screw vectors _iXi:\n";
-    for (int i = 0; i < _dof; ++i) {
-        std::cout << "_iXi[" << i << "] = " << _iXi[i].transpose() << "\n";
+    _debug_verbosity = false;
+    
+    if (_debug_verbosity) {
+        std::cout << "\n[computeBodyJacobiansFrames1] local screw vectors _iXi:\n";
+        for (int i = 0; i < _dof; ++i) {
+            std::cout << "_iXi[" << i << "] = " << _iXi[i].transpose() << "\n";
+        }
+        std::cout << std::flush;
     }
-    std::cout << std::flush;
 
     for (int k = 0; k <= _dof; ++k) {
 
@@ -1027,7 +1029,7 @@ void ScrewsKinematicsNdof::computeBodyJacobiansFrames1()
 
 void ScrewsKinematicsNdof::computeBodyJacobiansFrames2()
 {
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (_dof <= 0) {
         std::cerr << "[ScrewsKinematicsNdof::computeBodyJacobiansFrames2] DOF <= 0\n";
@@ -1150,7 +1152,7 @@ void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
     // Serial-chain sparsity:
     //   - COM frame k only depends on upstream joints j <= k
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     for (int k = 0; k < _dof; ++k) {
 
@@ -1158,7 +1160,9 @@ void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
 
         for (int j = 0; j < _dof; ++j) {
 
-            std::cout << "[DEBUG] COM k=" << k << ", j=" << j << std::endl;
+            if (_debug_verbosity) {
+                std::cout << "[DEBUG] COM k=" << k << ", j=" << j << std::endl;
+            }
             
             const bool allowed = (j <= k);
 
@@ -1192,6 +1196,24 @@ void ScrewsKinematicsNdof::computeBodyCOMJacobiansFrames()
             }
         }
     }
+}
+
+const Eigen::Matrix<float, 6, 1>&
+ScrewsKinematicsNdof::getBodyCOMJacobianFrame(int frameIndex, int jointIndex) const
+{
+    static Eigen::Matrix<float, 6, 1> dummy_zero = Eigen::Matrix<float, 6, 1>::Zero();
+
+    if (frameIndex < 0 || frameIndex > _dof ||
+        jointIndex < 0 || jointIndex >= _dof)
+    {
+        std::cerr << "[ScrewsKinematicsNdof::getBodyJacobianFrame] "
+                     "Index out of range: frameIndex=" << frameIndex
+                  << ", jointIndex=" << jointIndex
+                  << ", dof=" << _dof << "\n";
+        return dummy_zero;
+    }
+
+    return _BodyCOMJacobiansFrames[frameIndex][jointIndex];
 }
 
 void ScrewsKinematicsNdof::computeHybridJacobianTCP()
@@ -1234,7 +1256,7 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
     //   the MATLAB workflow where Jb_last is given as input.
     // =========================================================================
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     _is_operational_jacobian_valid = false;
 
     if (_dof <= 0) {
@@ -1248,7 +1270,7 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
         return;
     }
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     const int last_frame_index = _dof - 1;
     const int tcp_frame_index  = _dof;
@@ -1281,7 +1303,7 @@ void ScrewsKinematicsNdof::computeHybridJacobianTCP()
 
     for (int j = 0; j < _dof; ++j) {
         _Jh_tcp.col(j) = ad_g_rot * _Jbd_tool.col(j); // here is where magic happens 
-        Jop.col(j) = _Jh_tcp.col(j);  // populate the public memeber
+        Jop.col(j) = _Jh_tcp.col(j);  // populate the public member
     }
 
     // Zero unused columns of public member for safety
@@ -1750,7 +1772,7 @@ void ScrewsKinematicsNdof::computeHybridVelocityTwistTCP()
     //
     // =========================================================================
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
 
     if (_dof <= 0) {
         std::cerr << "[ScrewsKinematicsNdof::computeHybridVelocityTwistTCP] "
@@ -1892,7 +1914,7 @@ void ScrewsKinematicsNdof::computeDtHybridVelocityTwistTCP()
         return;
     }
 
-    _debug_verbosity = true;
+    _debug_verbosity = false;
     _dVh_twist_tcp.setZero();
 
     // -------------------------------------------------------------------------
@@ -2570,6 +2592,44 @@ ScrewsKinematicsNdof::getDtOperationalJacobianTCP() const
     return out;
 }
 
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsKinematicsNdof::getJointPositionVector() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, 1> q(_dof);
+
+    for (int i = 0; i < _dof; ++i) {
+        q(i) = _joint_pos[i];
+    }
+
+    return q;
+}
+
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsKinematicsNdof::getJointVelocityVector() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qdot(_dof);
+
+    for (int i = 0; i < _dof; ++i) {
+        qdot(i) = _joint_vel[i];
+    }
+
+    return qdot;
+}
+
+
+Eigen::Matrix<float, Eigen::Dynamic, 1>
+ScrewsKinematicsNdof::getJointAccelerationVector() const
+{
+    Eigen::Matrix<float, Eigen::Dynamic, 1> qddot(_dof);
+
+    for (int i = 0; i < _dof; ++i) {
+        qddot(i) = _joint_accel[i];
+    }
+
+    return qddot;
+}
 // ============================================================
 // Protected members
 // ============================================================
